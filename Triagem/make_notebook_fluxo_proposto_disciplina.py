@@ -2377,6 +2377,11 @@ for _, row in refinado_df.iterrows():
         linhas_faixa.append({
             "formula": row["formula"],
             "regime": condicao["regime"],
+            "temperatura_C": float(condicao["temperatura_C"]),
+            "pressao_bar": float(condicao["pressao_bar"]),
+            "razao_nome": condicao["razao_nome"],
+            "razao": float(condicao["razao"]),
+            "ghsv_h-1": float(condicao["ghsv_h-1"]),
             "conversao_media_faixa_pct": float(simulacoes[:, 0].mean()),
             "seletividade_media_faixa_pct": float(simulacoes[:, 1].mean()),
             "rendimento_medio_faixa_pct": float(simulacoes[:, 2].mean()),
