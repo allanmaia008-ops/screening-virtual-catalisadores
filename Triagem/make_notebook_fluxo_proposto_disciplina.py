@@ -36,6 +36,7 @@ nb["cells"] = [
 4. Geracao automatica de candidatos: cria 100 candidatos puros/promovidos de forma controlada, balanceando metais ativos quando houver mais de um metal informado.
 
 5. Busca e atualizacao de propriedades de materiais: consulta a base local multi-fonte; quando um candidato nao existe na base, tenta buscar dados no Materials Project usando a chave configurada no notebook ou em `MP_API_KEY` e tambem tenta consultar o OQMD; anexa os novos registros ao banco local e evita baixar novamente sistemas quimicos ja consultados com sucesso.
+   Quando a execucao ocorre no Streamlit Cloud com token GitHub configurado, o notebook baixa primeiro os CSVs incrementais persistidos no repositorio e envia de volta os novos dados obtidos.
 
 6. Calculo de descritores quimicos especificos da reacao: calcula atividade, seletividade, basicidade, redox, resistencia a coque, proxy DFT e incerteza conforme a reacao escolhida. Para reforma de CH4, adiciona penalidade de tendencia a coque, taxa proxy de desativacao por coque e atividade corrigida por coque.
 
@@ -453,11 +454,126 @@ candidatos_df.head(20)
         """
 ## Etapa 5 - Busca de propriedades de materiais
 
-Esta etapa procura candidatos iguais ou relacionados na base local derivada do notebook base. Quando um candidato não tem correspondência exata, o notebook identifica o sistema químico correspondente e tenta buscar novos dados de estabilidade e propriedades bulk no Materials Project e no OQMD. Os dados obtidos são anexados ao banco local para reutilização em execuções futuras. Se o sistema químico já foi consultado com sucesso antes, o notebook não baixa novamente.
+Esta etapa procura candidatos iguais ou relacionados na base local derivada do notebook base. Quando um candidato não tem correspondência exata, o notebook identifica o sistema químico correspondente e tenta buscar novos dados de estabilidade e propriedades bulk no Materials Project e no OQMD. Os dados obtidos são anexados ao banco local para reutilização em execuções futuras. Em execução online, se houver token do GitHub configurado nos secrets do Streamlit, os arquivos incrementais são baixados antes da triagem e reenviados ao repositório após novas consultas. Se o sistema químico já foi consultado com sucesso antes, o notebook não baixa novamente.
 """
     ),
     code(
         """
+# Define dono do repositório usado como armazenamento incremental persistente.
+GITHUB_INCREMENTAL_OWNER = os.environ.get("TRIAGEM_GITHUB_OWNER", "").strip()
+
+# Define nome do repositório usado como armazenamento incremental persistente.
+GITHUB_INCREMENTAL_REPO = os.environ.get("TRIAGEM_GITHUB_REPO", "").strip()
+
+# Define branch usado para ler e gravar os CSVs incrementais.
+GITHUB_INCREMENTAL_BRANCH = os.environ.get("TRIAGEM_GITHUB_BRANCH", "main").strip() or "main"
+
+# Lê token GitHub dos secrets/ambiente; quando ausente, a sincronização externa é apenas ignorada.
+GITHUB_INCREMENTAL_TOKEN = os.environ.get("TRIAGEM_GITHUB_TOKEN", "").strip()
+
+# Define caminho do banco principal no repositório.
+GITHUB_RANKING_PATH = os.environ.get("TRIAGEM_GITHUB_RANKING_PATH", "outputs/ranking_multicriterio_v2_incerteza_explicabilidade.csv").strip()
+
+# Define caminho do histórico de consultas externas no repositório.
+GITHUB_CONSULTAS_PATH = os.environ.get("TRIAGEM_GITHUB_CONSULTAS_PATH", "outputs/consultas_bases_externas.csv").strip()
+
+# Define caminho do cache Catalysis-Hub no repositório.
+GITHUB_CATHUB_PATH = os.environ.get("TRIAGEM_GITHUB_CATHUB_PATH", "outputs/catalysis_hub_incremental.csv").strip()
+
+# Define caminho do cache GNN local no repositório.
+GITHUB_GNN_PATH = os.environ.get("TRIAGEM_GITHUB_GNN_PATH", "outputs/proxy_gnn_local.csv").strip()
+
+# Define função que informa se a sincronização GitHub está disponível.
+def github_incremental_configurado():
+    # Exige dono, repositório e token para permitir escrita persistente.
+    return bool(GITHUB_INCREMENTAL_OWNER and GITHUB_INCREMENTAL_REPO and GITHUB_INCREMENTAL_TOKEN)
+
+# Define função para montar cabeçalhos autenticados da API GitHub.
+def github_incremental_headers():
+    # Retorna cabeçalhos com token sem expor seu conteúdo no notebook.
+    return {
+        "Authorization": f"Bearer {GITHUB_INCREMENTAL_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+# Define função para obter metadados de um arquivo no GitHub.
+def github_obter_arquivo(caminho_repo):
+    # Retorna vazio quando não há configuração de persistência.
+    if not github_incremental_configurado():
+        return None
+    # Monta endpoint da API Contents do GitHub.
+    url = f"https://api.github.com/repos/{GITHUB_INCREMENTAL_OWNER}/{GITHUB_INCREMENTAL_REPO}/contents/{caminho_repo}"
+    try:
+        # Busca o arquivo no branch configurado.
+        resposta = requests.get(url, headers=github_incremental_headers(), params={"ref": GITHUB_INCREMENTAL_BRANCH}, timeout=20)
+        # Arquivo ausente não é erro; ele será criado no primeiro envio.
+        if resposta.status_code == 404:
+            return None
+        # Interrompe para outros erros HTTP.
+        resposta.raise_for_status()
+        # Retorna metadados do arquivo.
+        return resposta.json()
+    except Exception as erro_github:
+        # Registra o problema sem interromper a triagem.
+        print(f"Sincronizacao GitHub indisponivel para {caminho_repo}: {erro_github}")
+        return None
+
+# Define função para baixar um CSV persistido no GitHub antes da triagem.
+def baixar_csv_incremental_github(caminho_repo, destino_local):
+    # Ignora quando GitHub persistente não foi configurado.
+    if not github_incremental_configurado():
+        return False
+    # Obtém metadados e conteúdo codificado do arquivo.
+    payload = github_obter_arquivo(caminho_repo)
+    # Retorna falso se o arquivo ainda não existe no repositório.
+    if not payload or "content" not in payload:
+        return False
+    try:
+        # Garante que a pasta local existe.
+        destino_local.parent.mkdir(parents=True, exist_ok=True)
+        # Decodifica o conteúdo base64 retornado pela API.
+        conteudo = base64.b64decode(str(payload["content"]).replace(chr(10), ""))
+        # Grava o CSV localmente para o restante do notebook ler normalmente.
+        destino_local.write_bytes(conteudo)
+        # Retorna verdadeiro quando houve sincronização.
+        return True
+    except Exception as erro_github:
+        # Registra falha sem interromper o fluxo.
+        print(f"Nao foi possivel baixar {caminho_repo} do GitHub: {erro_github}")
+        return False
+
+# Define função para enviar CSV incremental atualizado de volta ao GitHub.
+def enviar_csv_incremental_github(caminho_repo, origem_local, mensagem):
+    # Ignora quando GitHub persistente não foi configurado ou arquivo local não existe.
+    if not github_incremental_configurado() or not origem_local.exists():
+        return False
+    # Obtém metadados atuais para recuperar o SHA quando o arquivo já existe.
+    payload_atual = github_obter_arquivo(caminho_repo)
+    # Monta endpoint da API Contents do GitHub.
+    url = f"https://api.github.com/repos/{GITHUB_INCREMENTAL_OWNER}/{GITHUB_INCREMENTAL_REPO}/contents/{caminho_repo}"
+    try:
+        # Codifica o conteúdo local em base64 para envio à API.
+        conteudo_b64 = base64.b64encode(origem_local.read_bytes()).decode("ascii")
+        # Monta corpo da requisição com branch e mensagem de commit.
+        corpo = {"message": mensagem, "content": conteudo_b64, "branch": GITHUB_INCREMENTAL_BRANCH}
+        # Inclui SHA quando o arquivo já existe, evitando criar duplicata.
+        if payload_atual and payload_atual.get("sha"):
+            corpo["sha"] = payload_atual["sha"]
+        # Envia criação ou atualização do arquivo.
+        resposta = requests.put(url, headers=github_incremental_headers(), json=corpo, timeout=30)
+        # Interrompe se o GitHub retornar erro.
+        resposta.raise_for_status()
+        # Retorna verdadeiro quando o commit foi aceito.
+        return True
+    except Exception as erro_github:
+        # Registra falha sem interromper a triagem.
+        print(f"Nao foi possivel enviar {caminho_repo} ao GitHub: {erro_github}")
+        return False
+
+# Baixa a versão mais recente do banco principal antes de carregar os dados.
+baixar_csv_incremental_github(GITHUB_RANKING_PATH, RANKING_FILE)
+
 # Carrega a base local de triagem se ela existir.
 if RANKING_FILE.exists():
     # Lê a tabela com dados de estabilidade, descritores e evidências externas.
@@ -473,6 +589,9 @@ def elementos_formula(formula):
 
 # Define o arquivo que registra sistemas químicos já consultados externamente.
 CONSULTAS_EXTERNAS_FILE = PROJECT_DATA_DIR / "consultas_bases_externas.csv"
+
+# Baixa o histórico persistente de consultas externas antes de decidir o que consultar.
+baixar_csv_incremental_github(GITHUB_CONSULTAS_PATH, CONSULTAS_EXTERNAS_FILE)
 
 # Carrega o histórico de consultas externas para evitar baixar o mesmo sistema novamente.
 consultas_externas_df = pd.read_csv(CONSULTAS_EXTERNAS_FILE) if CONSULTAS_EXTERNAS_FILE.exists() else pd.DataFrame(columns=["fonte", "chemsys", "n_registros", "status", "data_consulta"])
@@ -691,6 +810,8 @@ def anexar_dados_base_local(base, novos):
         base_atualizada = base_atualizada.drop_duplicates(subset=["formula", "origem"], keep="first")
     # Salva a base local atualizada.
     base_atualizada.to_csv(RANKING_FILE, index=False, encoding="utf-8-sig")
+    # Persiste a base principal atualizada no GitHub quando a integração estiver configurada.
+    enviar_csv_incremental_github(GITHUB_RANKING_PATH, RANKING_FILE, "Atualiza banco incremental de triagem")
     # Retorna a base atualizada.
     return base_atualizada.reset_index(drop=True)
 
@@ -719,6 +840,9 @@ for chemsys in chemsys_para_buscar:
 
 # Anexa dados novos à base local e recarrega a base usada na triagem.
 base_local = anexar_dados_base_local(base_local, novos_registros_externos)
+
+# Persiste o histórico de consultas externas para reutilização em execuções futuras.
+enviar_csv_incremental_github(GITHUB_CONSULTAS_PATH, CONSULTAS_EXTERNAS_FILE, "Atualiza historico incremental de consultas externas")
 
 # Mostra resumo da atualização incremental.
 print("Candidatos sem correspondência exata:", len(candidatos_sem_dado_exato))
@@ -1184,6 +1308,9 @@ Esta subetapa avalia a possibilidade de usar modelos GNN pré-treinados como cam
 # Define arquivo de cache para resultados locais de GNN.
 GNN_LOCAL_CACHE_FILE = PROJECT_DATA_DIR / "proxy_gnn_local.csv"
 
+# Baixa o cache GNN persistente do GitHub quando disponível.
+baixar_csv_incremental_github(GITHUB_GNN_PATH, GNN_LOCAL_CACHE_FILE)
+
 # Carrega o cache local de avaliações GNN já realizadas.
 gnn_local_cache_df = pd.read_csv(GNN_LOCAL_CACHE_FILE) if GNN_LOCAL_CACHE_FILE.exists() else pd.DataFrame()
 
@@ -1415,6 +1542,8 @@ if not gnn_resultados_df.empty:
         gnn_local_cache_df = gnn_local_cache_df.drop_duplicates(subset=["formula", "modelo_gnn_local"], keep="last")
     # Salva cache local para reutilização.
     gnn_local_cache_df.to_csv(GNN_LOCAL_CACHE_FILE, index=False, encoding="utf-8-sig")
+    # Envia o cache GNN incremental ao GitHub quando a integração estiver configurada.
+    enviar_csv_incremental_github(GITHUB_GNN_PATH, GNN_LOCAL_CACHE_FILE, "Atualiza cache GNN incremental")
 
 # Junta resultados GNN ao dataframe principal.
 triagem_df = triagem_df.merge(
@@ -1592,6 +1721,9 @@ dft_df = preliminar_df.head(N_CANDIDATOS_REFINADOS_FUNIL).copy()
 
 # Define arquivo local para armazenar dados incrementais do Catalysis-Hub.
 CATHUB_CACHE_FILE = PROJECT_DATA_DIR / "catalysis_hub_incremental.csv"
+
+# Baixa o cache Catalysis-Hub persistente do GitHub quando disponível.
+baixar_csv_incremental_github(GITHUB_CATHUB_PATH, CATHUB_CACHE_FILE)
 
 # Carrega o cache local de dados catalíticos já baixados.
 cathub_cache_df = pd.read_csv(CATHUB_CACHE_FILE) if CATHUB_CACHE_FILE.exists() else pd.DataFrame()
@@ -1782,6 +1914,11 @@ if not novos_cathub_df.empty:
     cathub_cache_df = cathub_cache_df.drop_duplicates(subset=["reacao", "formula", "metal_consultado", "adsorbato", "cathub_id"], keep="first")
     # Salva o cache local atualizado.
     cathub_cache_df.to_csv(CATHUB_CACHE_FILE, index=False, encoding="utf-8-sig")
+    # Envia o cache Catalysis-Hub ao GitHub quando a integração estiver configurada.
+    enviar_csv_incremental_github(GITHUB_CATHUB_PATH, CATHUB_CACHE_FILE, "Atualiza cache Catalysis-Hub incremental")
+
+# Persiste o histórico de consultas, incluindo as chamadas Catalysis-Hub.
+enviar_csv_incremental_github(GITHUB_CONSULTAS_PATH, CONSULTAS_EXTERNAS_FILE, "Atualiza historico incremental Catalysis-Hub")
 
 # Define função para agregar evidências Catalysis-Hub em nível de fórmula.
 def agregar_cathub_formula(formula):

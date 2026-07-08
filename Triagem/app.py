@@ -22,13 +22,34 @@ BRASAO_PATH = APP_DIR / "assets" / "logo_ufrn_header.png"
 PROJECT_LOGO_PATH = APP_DIR / "assets" / "logo_triagem_catalitica.png"
 
 
-def obter_mp_api_key() -> str:
-    """Lê a chave do Materials Project sem gravá-la no código publicado."""
+def obter_secret_streamlit(nome: str) -> str:
+    """Le segredo do Streamlit ou variavel de ambiente sem expor o valor."""
     try:
-        segredo = st.secrets.get("MP_API_KEY", "")
+        segredo = st.secrets.get(nome, "")
     except Exception:
         segredo = ""
-    return str(segredo or os.environ.get("MP_API_KEY", "")).strip()
+    return str(segredo or os.environ.get(nome, "")).strip()
+
+
+def obter_mp_api_key() -> str:
+    """Le a chave do Materials Project sem grava-la no codigo publicado."""
+    return obter_secret_streamlit("MP_API_KEY")
+
+
+def configurar_banco_incremental_github() -> None:
+    """Configura variaveis para o notebook sincronizar dados incrementais no GitHub."""
+    os.environ["TRIAGEM_GITHUB_OWNER"] = obter_secret_streamlit("TRIAGEM_GITHUB_OWNER") or "allanmaia008-ops"
+    os.environ["TRIAGEM_GITHUB_REPO"] = obter_secret_streamlit("TRIAGEM_GITHUB_REPO") or "screening-virtual-catalisadores"
+    os.environ["TRIAGEM_GITHUB_BRANCH"] = obter_secret_streamlit("TRIAGEM_GITHUB_BRANCH") or "main"
+    os.environ["TRIAGEM_GITHUB_RANKING_PATH"] = "outputs/ranking_multicriterio_v2_incerteza_explicabilidade.csv"
+    os.environ["TRIAGEM_GITHUB_CONSULTAS_PATH"] = "outputs/consultas_bases_externas.csv"
+    os.environ["TRIAGEM_GITHUB_CATHUB_PATH"] = "outputs/catalysis_hub_incremental.csv"
+    os.environ["TRIAGEM_GITHUB_GNN_PATH"] = "outputs/proxy_gnn_local.csv"
+    token = obter_secret_streamlit("TRIAGEM_GITHUB_TOKEN") or obter_secret_streamlit("GITHUB_TOKEN")
+    if token:
+        os.environ["TRIAGEM_GITHUB_TOKEN"] = token
+    else:
+        os.environ.pop("TRIAGEM_GITHUB_TOKEN", None)
 
 
 def limpar_simbolo_quimico(valor: str) -> str:
@@ -682,6 +703,7 @@ def executar_triagem(reacao: str, metais: list[str], promotor: str, output_dir: 
     mp_api_key = obter_mp_api_key()
     if mp_api_key:
         os.environ["MP_API_KEY"] = mp_api_key
+    configurar_banco_incremental_github()
     notebook = preparar_notebook_parametrizado(reacao, metais, promotor, output_dir)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     metais_slug = slug_texto("_".join(metais))
