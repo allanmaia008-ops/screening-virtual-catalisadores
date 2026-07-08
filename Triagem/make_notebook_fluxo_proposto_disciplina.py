@@ -2528,8 +2528,22 @@ for _, row in refinado_df.iterrows():
 # Converte a avaliação por faixa em tabela.
 desempenho_faixa_df = pd.DataFrame(linhas_faixa)
 
-# Junta o desempenho médio por faixa ao ranking final nominal.
-ranking_final_df = ranking_final_df.merge(desempenho_faixa_df, on=["formula", "regime"], how="left")
+# Define apenas as colunas de desempenho por faixa que devem ser anexadas ao ranking.
+colunas_desempenho_merge = [
+    "formula",
+    "regime",
+    "conversao_media_faixa_pct",
+    "seletividade_media_faixa_pct",
+    "rendimento_medio_faixa_pct",
+    "score_faixa_condicao",
+]
+
+# Junta o desempenho médio por faixa ao ranking final nominal sem duplicar temperatura, pressão e razão.
+ranking_final_df = ranking_final_df.merge(
+    desempenho_faixa_df[colunas_desempenho_merge],
+    on=["formula", "regime"],
+    how="left",
+)
 
 # Recalcula o score final favorecendo candidatos robustos em uma faixa de condição.
 ranking_final_df["score_final"] = (
