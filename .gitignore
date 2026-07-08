@@ -1,0 +1,8 @@
+.streamlit/secrets.toml
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+Triagem/execucao_streamlit_*.ipynb
+outputs/_cache_fontes_externas/
+outputs/consultas_bases_externas.csv
+outputs/catalysis_hub_incremental.csv

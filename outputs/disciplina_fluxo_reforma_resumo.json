@@ -1,0 +1,46 @@
+{
+  "reacao": "reforma",
+  "perfil": "Reforma de CH4",
+  "produto": "syngas/H2",
+  "metais_ativos": [
+    "Fe"
+  ],
+  "promotor": "La",
+  "descritores": [
+    "ativacao_CH4",
+    "quebra_C_H",
+    "resistencia_coque",
+    "mobilidade_oxigenio",
+    "estabilidade_termica"
+  ],
+  "intermediarios_dft": [
+    "CH4*",
+    "CH3*",
+    "CHx*",
+    "C*",
+    "O*",
+    "OH*",
+    "CO*"
+  ],
+  "n_candidatos_gerados": 100,
+  "n_candidatos_viaveis": 20,
+  "n_candidatos_ranqueados": 2,
+  "arquivo_excel": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_resultados.xlsx",
+  "arquivo_relatorio_html": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_relatorio.html",
+  "arquivo_desempenho_faixa": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_desempenho_faixa_condicoes.csv",
+  "arquivo_sensibilidade": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_sensibilidade_descritores.csv",
+  "arquivo_monte_carlo": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_monte_carlo_ranking.csv",
+  "arquivo_descritores_matminer": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_descritores_matminer.csv",
+  "arquivo_descritores_pymatgen": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_descritores_pymatgen.csv",
+  "arquivo_proxy_gnn_local": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_proxy_gnn_local.csv",
+  "matminer_disponivel": true,
+  "n_descritores_matminer": 132,
+  "pymatgen_disponivel": true,
+  "n_descritores_pymatgen": 5,
+  "gnn_local_disponivel": true,
+  "gnn_modelo_usado": "CHGNet",
+  "n_candidatos_gnn_local": 12,
+  "scipy_disponivel": true,
+  "arquivo_figuras": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_figuras_geradas.csv",
+  "pasta_figuras": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_reforma_figuras"
+}

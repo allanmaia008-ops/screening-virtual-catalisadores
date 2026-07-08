@@ -1,0 +1,45 @@
+{
+  "reacao": "metanacao",
+  "perfil": "Metanação de CO2",
+  "produto": "CH4",
+  "metais_ativos": [
+    "Ni"
+  ],
+  "promotor": "Y",
+  "descritores": [
+    "ativacao_CO2",
+    "hidrogenacao",
+    "seletividade_CH4",
+    "vacancia_oxigenio",
+    "basicidade"
+  ],
+  "intermediarios_dft": [
+    "CO2*",
+    "COOH*",
+    "OCHO*",
+    "CO*",
+    "C*",
+    "H*"
+  ],
+  "n_candidatos_gerados": 100,
+  "n_candidatos_viaveis": 20,
+  "n_candidatos_ranqueados": 10,
+  "arquivo_excel": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_resultados.xlsx",
+  "arquivo_relatorio_html": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_relatorio.html",
+  "arquivo_desempenho_faixa": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_desempenho_faixa_condicoes.csv",
+  "arquivo_sensibilidade": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_sensibilidade_descritores.csv",
+  "arquivo_monte_carlo": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_monte_carlo_ranking.csv",
+  "arquivo_descritores_matminer": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_descritores_matminer.csv",
+  "arquivo_descritores_pymatgen": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_descritores_pymatgen.csv",
+  "arquivo_proxy_gnn_local": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_proxy_gnn_local.csv",
+  "matminer_disponivel": true,
+  "n_descritores_matminer": 132,
+  "pymatgen_disponivel": true,
+  "n_descritores_pymatgen": 5,
+  "gnn_local_disponivel": true,
+  "gnn_modelo_usado": "CHGNet",
+  "n_candidatos_gnn_local": 12,
+  "scipy_disponivel": true,
+  "arquivo_figuras": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_figuras_geradas.csv",
+  "pasta_figuras": "C:\\Users\\allan\\Documents\\Codex\\2026-06-23\\ana\\outputs\\disciplina_fluxo_metanacao_figuras"
+}

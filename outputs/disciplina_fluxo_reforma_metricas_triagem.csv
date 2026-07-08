@@ -1,0 +1,45 @@
+﻿grupo,métrica,valor,interpretação
+viabilidade,número de candidatos gerados,100.0,Tamanho do espaço químico inicial.
+viabilidade,número de candidatos viáveis,20.0,Candidatos que passaram nos filtros principais.
+viabilidade,taxa de viabilidade,0.2,Fração dos candidatos que sobreviveram ao filtro.
+viabilidade,número de descartados por estabilidade termodinâmica,80.0,Candidatos removidos por instabilidade ou inviabilidade.
+viabilidade,Estabilidade termodinâmica média (eV/átomo),0.0,Estabilidade média dos candidatos viáveis.
+viabilidade,"fração com estabilidade termodinâmica até 0,05 eV/átomo",1.0,Fração muito estável.
+viabilidade,"fração com estabilidade termodinâmica até 0,10 eV/átomo",1.0,Fração aceitável para triagem.
+ranking,score médio do top 10,0.5631,Qualidade média dos melhores candidatos.
+ranking,dispersão do score no top 10,0.0001,Diferença interna entre os melhores candidatos.
+ranking,diferença de score entre 1º e 2º,0.0001,Separação entre o primeiro e segundo colocado.
+ranking,peso de Boltzmann médio do top 10,1.0,Peso termodinâmico médio dos melhores candidatos.
+ranking,rendimento médio em faixa no top 10,36.5593,Desempenho médio em uma faixa de condições.
+ranking,score médio da faixa de condição no top 10,0.5288,Robustez média do top10 frente à variação de condições.
+confianca,confiança média do top 10,0.9955,Confiança média dos dez melhores.
+confianca,probabilidade Monte Carlo média de ficar no top 5,0.5217,Probabilidade Monte Carlo média de permanência no top 5.
+confianca,média Monte Carlo do score final no top 10,0.5236,Média Monte Carlo do score final entre os dez melhores.
+confianca,desvio Monte Carlo médio do score final no top 10,0.0149,Desvio médio do score final após propagação de incerteza nos descritores.
+confianca,fração de alta confiabilidade,0.0,Fração de candidatos classificados como alta confiabilidade.
+confianca,fração de média confiabilidade,0.0,Fração de candidatos classificados como média confiabilidade.
+confianca,fração de baixa confiabilidade,1.0,Fração de candidatos classificados como baixa confiabilidade.
+DFT,número de candidatos com DFT ou proxy DFT,10.0,Candidatos avaliados com evidência ou proxy DFT.
+DFT,cobertura DFT/proxy DFT,1.0,Cobertura DFT/proxy DFT da triagem refinada.
+DFT,número de candidatos com Catalysis-Hub incremental,0.0,Candidatos com evidência incremental do Catalysis-Hub.
+DFT,cobertura Catalysis-Hub incremental,0.0,Cobertura de dados Catalysis-Hub no conjunto refinado.
+DFT,número de evidências Catalysis-Hub incrementais,0.0,Número de registros Catalysis-Hub incorporados ao cache local.
+DFT,número de candidatos com GNN local,10.0,Candidatos avaliados por proxy DFT local com GNN.
+DFT,cobertura GNN local,1.0,Cobertura da camada GNN local no conjunto refinado.
+DFT,score GNN local médio,1.0,Score médio da evidência GNN local.
+volcano,score volcano médio,0.6692,Score médio do volcano simplificado.
+volcano,distância média ao ótimo volcano (eV),0.1807,Distância média ao ótimo do descritor volcano.
+volcano,fração do volcano com Catalysis-Hub,0.0,Fração do volcano baseada em dados Catalysis-Hub.
+descritores,matminer usado,1.0,Indica se descritores Magpie do matminer foram incorporados.
+descritores,número de descritores matminer,132.0,Quantidade de descritores composicionais Magpie calculados.
+descritores,pymatgen usado,1.0,Indica se descritores quimicos diretos do pymatgen foram incorporados.
+descritores,número de descritores pymatgen,5.0,Quantidade de descritores diretos calculados pelo pymatgen.
+confianca,scipy usado,1.0,Indica se scipy foi usado para intervalo de confianca Monte Carlo.
+confianca,largura média do IC95 da probabilidade top 5,0.1124,Largura media do intervalo de confianca da probabilidade top 5.
+diversidade,diversidade elementar do top 10,2.0,Número de elementos diferentes no top10.
+diversidade,fração de metais nobres no top 10,0.0,Fração do top10 contendo metais nobres.
+diversidade,número de suportes sugeridos no top 10,1.0,Diversidade de suportes sugeridos.
+especifica_reforma,score_ativacao_CH4_medio_top10,0.4291,Métrica específica da reação escolhida.
+especifica_reforma,score_resistencia_coque_medio_top10,0.65,Métrica específica da reação escolhida.
+especifica_reforma,score_mobilidade_oxigenio_medio_top10,0.3333,Métrica específica da reação escolhida.
+especifica_reforma,produtividade_syngas_prevista_medio_top10,36.7714,Métrica específica da reação escolhida.

@@ -1,0 +1,13 @@
+﻿fórmula,modelo GNN local,usou GNN local,energia GNN local (eV/átomo),energia de formação GNN local (eV/átomo),score GNN local,estrutura proxy GNN,volume proxy GNN (A³),número de sítios proxy GNN,observação GNN local
+Ni,CHGNet,True,-2.026932954788208,,0.0,estrutura_cubica_proxy_por_composicao,54.010152,1,proxy_estrutural_nao_substitui_hull
+Ni0.99Y0.01,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.98Y0.02,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.97Y0.03,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.96Y0.04,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.95Y0.05,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.94Y0.06,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.93Y0.07,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.92Y0.08,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.91Y0.09,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.90Y0.10,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull
+Ni0.89Y0.11,CHGNet,True,-4.6743574142456055,,1.0,estrutura_cubica_proxy_por_composicao,68.669157375,4,proxy_estrutural_nao_substitui_hull

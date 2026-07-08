@@ -1,0 +1,15 @@
+streamlit
+nbformat
+nbclient
+ipykernel
+pandas
+openpyxl
+matplotlib
+seaborn
+numpy
+scipy
+scikit-learn
+mp-api
+matminer
+pymatgen
+requests
