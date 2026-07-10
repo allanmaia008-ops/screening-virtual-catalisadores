@@ -391,6 +391,9 @@ O modelo gera candidatos a partir dos metais ativos e do promotor. Quando mais d
 # Importa combinations para montar pares de metais ativos sem repetir a ordem.
 from itertools import combinations
 
+# Importa re para identificar os metais ativos presentes em cada fórmula gerada.
+import re
+
 # Define a quantidade de candidatos gerados no início do funil.
 N_CANDIDATOS_GERADOS_FUNIL = 1000
 
@@ -611,6 +614,25 @@ candidatos_df = candidatos_df.drop_duplicates("formula").reset_index(drop=True)
 # Limita a lista inicial ao tamanho definido para o funil.
 candidatos_df = candidatos_df.head(N_CANDIDATOS_GERADOS_FUNIL).copy()
 
+# Define uma função para listar quais metais ativos informados aparecem na fórmula.
+def metais_ativos_presentes_na_formula(formula):
+    # Extrai os símbolos químicos presentes na fórmula candidata.
+    elementos = set(re.findall(r"[A-Z][a-z]?", str(formula)))
+    # Mantém apenas os metais ativos escolhidos pelo usuário.
+    return [metal for metal in metais_usuario if metal in elementos]
+
+# Registra textualmente os metais ativos do usuário presentes em cada candidato.
+candidatos_df["metais_ativos_presentes"] = candidatos_df["formula"].apply(lambda formula: ", ".join(metais_ativos_presentes_na_formula(formula)))
+
+# Conta quantos metais ativos do usuário aparecem em cada candidato.
+candidatos_df["n_metais_ativos_presentes"] = candidatos_df["formula"].apply(lambda formula: len(metais_ativos_presentes_na_formula(formula)))
+
+# Marca candidatos que contêm dois ou mais metais ativos escolhidos pelo usuário.
+candidatos_df["candidato_multimetal_ativo"] = candidatos_df["n_metais_ativos_presentes"] >= 2
+
+# Separa uma tabela apenas com candidatos que preservam mais de um metal ativo.
+candidatos_multimetal_ativo_df = candidatos_df[candidatos_df["candidato_multimetal_ativo"]].copy()
+
 # Interrompe com mensagem clara se o conjunto inicial não puder ser formado.
 if len(candidatos_df) < N_CANDIDATOS_GERADOS_FUNIL:
     # Explica que o caso mais comum é informar promotor igual ao metal ativo ou poucos metais distintos.
@@ -626,7 +648,27 @@ print("Candidatos gerados:", len(candidatos_df))
 print("Distribuição por tipo de candidato:")
 print(candidatos_df["tipo"].value_counts())
 
-candidatos_df.head(20)
+# Mostra quantos candidatos realmente contêm dois ou mais metais ativos informados.
+print("Candidatos com dois ou mais metais ativos:", len(candidatos_multimetal_ativo_df))
+
+# Mostra candidatos gerais e, quando houver mais de um metal ativo, mostra também a tabela multimetálica.
+try:
+    # Exibe os primeiros candidatos gerais no ambiente Jupyter/Colab.
+    display(candidatos_df.head(20))
+    # Exibe candidatos com mais de um metal ativo quando o usuário informou múltiplos metais.
+    if len(metais_usuario) > 1:
+        # Mostra os primeiros candidatos que contêm o segundo metal ativo.
+        display(candidatos_multimetal_ativo_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes"]].head(20))
+except NameError:
+    # Usa impressão textual quando display não está disponível.
+    print(candidatos_df.head(20))
+    # Mostra a tabela textual multimetálica quando aplicável.
+    if len(metais_usuario) > 1:
+        # Imprime os primeiros candidatos com dois ou mais metais ativos.
+        print(candidatos_multimetal_ativo_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes"]].head(20))
+
+# Retorna a tabela multimetálica quando houver mais de um metal ativo, facilitando a conferência visual.
+candidatos_multimetal_ativo_df.head(20) if len(metais_usuario) > 1 else candidatos_df.head(20)
 """
     ),
     md(
@@ -1836,6 +1878,37 @@ viaveis_df = viaveis_df.sort_values(
     ascending=False,
 ).reset_index(drop=True)
 
+# Define uma função para selecionar candidatos sem deixar ligas multimetálicas desaparecerem do funil.
+def selecionar_com_representacao_multimetal(df, n_candidatos, coluna_score, fracao_minima=0.30):
+    # Ordena a tabela pelo score escolhido antes de aplicar a cota de diversidade.
+    ordenado = df.sort_values(coluna_score, ascending=False).reset_index(drop=True)
+    # Retorna apenas os melhores quando o usuário escolheu um único metal ativo.
+    if len(metais_usuario) < 2:
+        # Mantém o comportamento puramente baseado em score para sistemas monometálicos.
+        return ordenado.head(n_candidatos).copy()
+    # Retorna apenas os melhores se a coluna de marcação multimetálica não existir.
+    if "candidato_multimetal_ativo" not in ordenado.columns:
+        # Mantém o comportamento padrão quando a etapa não recebeu a marcação de diversidade.
+        return ordenado.head(n_candidatos).copy()
+    # Seleciona candidatos que contêm dois ou mais metais ativos informados pelo usuário.
+    multimetal = ordenado[ordenado["candidato_multimetal_ativo"].fillna(False)].copy()
+    # Retorna apenas os melhores se nenhum candidato multimetálico estiver disponível.
+    if multimetal.empty:
+        # Mantém o ranking por score sem inventar candidatos.
+        return ordenado.head(n_candidatos).copy()
+    # Calcula a quantidade mínima de candidatos multimetálicos na etapa.
+    minimo_multimetal = min(len(multimetal), max(1, int(np.ceil(n_candidatos * fracao_minima))))
+    # Seleciona os melhores candidatos multimetálicos disponíveis.
+    selecionados_multimetal = multimetal.head(minimo_multimetal)
+    # Seleciona os melhores candidatos restantes sem repetir os multimetálicos já reservados.
+    restantes = ordenado.drop(index=selecionados_multimetal.index).head(n_candidatos - len(selecionados_multimetal))
+    # Combina a cota multimetálica com os demais melhores candidatos.
+    selecionados = pd.concat([selecionados_multimetal, restantes], ignore_index=True)
+    # Reordena a seleção final pelo score, preservando a presença mínima dos multimetálicos.
+    selecionados = selecionados.sort_values(coluna_score, ascending=False).reset_index(drop=True)
+    # Retorna a quantidade solicitada para a etapa do funil.
+    return selecionados.head(n_candidatos).copy()
+
 # Interrompe se o filtro de viabilidade não entregar candidatos suficientes.
 if len(viaveis_df) < N_CANDIDATOS_VIAVEIS_FUNIL:
     # Explica que o filtro químico foi mais restritivo que o necessário para a etapa seguinte.
@@ -1844,15 +1917,18 @@ if len(viaveis_df) < N_CANDIDATOS_VIAVEIS_FUNIL:
         f"Ajuste metais/promotor ou revise o limite de estabilidade para seguir com {N_CANDIDATOS_VIAVEIS_FUNIL} candidatos viáveis."
     )
 
-# Mantém apenas a quantidade definida para passar à próxima etapa do funil.
-viaveis_df = viaveis_df.head(N_CANDIDATOS_VIAVEIS_FUNIL).copy()
+# Mantém apenas a quantidade definida para passar à próxima etapa com cota de multimetálicos.
+viaveis_df = selecionar_com_representacao_multimetal(viaveis_df, N_CANDIDATOS_VIAVEIS_FUNIL, "score_estabilidade", fracao_minima=0.30)
 
 # Mostra quantos candidatos sobreviveram ao filtro.
 print("Candidatos antes do filtro:", len(triagem_df))
 print("Candidatos viáveis:", len(viaveis_df))
 
+# Mostra quantos viáveis preservam dois ou mais metais ativos informados.
+print("Viáveis com dois ou mais metais ativos:", int(viaveis_df.get("candidato_multimetal_ativo", pd.Series(dtype=bool)).sum()))
+
 # Exibe os candidatos viáveis.
-viaveis_df[["formula", "tipo", "energy_above_hull_eV_atom", "fonte_estabilidade_triagem", "score_estabilidade", "score_incerteza"]].head(20)
+viaveis_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "energy_above_hull_eV_atom", "fonte_estabilidade_triagem", "score_estabilidade", "score_incerteza"]].head(20)
 """
     ),
     md(
@@ -1879,11 +1955,11 @@ viaveis_df["score_preliminar"] = (
 # Ordena os candidatos do melhor para o pior.
 preliminar_df = viaveis_df.sort_values("score_preliminar", ascending=False).copy()
 
-# Limita a quantidade de candidatos preliminares ao conjunto viável definido no funil.
-preliminar_df = preliminar_df.head(N_CANDIDATOS_VIAVEIS_FUNIL).copy()
+# Limita a quantidade de candidatos preliminares mantendo representação multimetálica mínima.
+preliminar_df = selecionar_com_representacao_multimetal(preliminar_df, N_CANDIDATOS_VIAVEIS_FUNIL, "score_preliminar", fracao_minima=0.30)
 
 # Mostra o ranking preliminar.
-preliminar_df[["formula", "tipo", "score_preliminar", "score_estabilidade", "score_atividade", "score_seletividade", "score_DFT_proxy"]].head(20)
+preliminar_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "score_preliminar", "score_estabilidade", "score_atividade", "score_seletividade", "score_DFT_proxy"]].head(20)
 """
     ),
     md(
@@ -1895,8 +1971,8 @@ A busca catalítica é aplicada apenas aos melhores candidatos preliminares. O n
     ),
     code(
         """
-# Seleciona apenas os melhores candidatos para refinamento DFT.
-dft_df = preliminar_df.head(N_CANDIDATOS_REFINADOS_FUNIL).copy()
+# Seleciona apenas os melhores candidatos para refinamento DFT mantendo presença multimetálica.
+dft_df = selecionar_com_representacao_multimetal(preliminar_df, N_CANDIDATOS_REFINADOS_FUNIL, "score_preliminar", fracao_minima=0.40)
 
 # Define arquivo local para armazenar dados incrementais do Catalysis-Hub.
 CATHUB_CACHE_FILE = PROJECT_DATA_DIR / "catalysis_hub_incremental.csv"
@@ -2596,6 +2672,9 @@ for _, row in refinado_df.iterrows():
             "reacao": reacao,
             "formula": row["formula"],
             "tipo": row["tipo"],
+            "metais_ativos_presentes": row.get("metais_ativos_presentes", ""),
+            "n_metais_ativos_presentes": row.get("n_metais_ativos_presentes", 0),
+            "candidato_multimetal_ativo": row.get("candidato_multimetal_ativo", False),
             "suporte_sugerido": row["suporte_sugerido"],
             "rota_sintese_sugerida": row["rota_sintese_sugerida"],
             "pretratamento_sugerido": row["pretratamento_sugerido"],
@@ -3029,21 +3108,26 @@ def classificar_confiabilidade(row):
 # Aplica classificação de confiabilidade.
 ranking_final_df["confiabilidade"] = ranking_final_df.apply(classificar_confiabilidade, axis=1)
 
-# Seleciona a melhor condição por fórmula.
-melhor_por_candidato_df = ranking_final_df.sort_values("score_final", ascending=False).groupby("formula", as_index=False).first()
+# Seleciona a melhor condição por fórmula preservando a ordenação real por score final.
+melhor_por_candidato_df = ranking_final_df.sort_values("score_final", ascending=False).drop_duplicates("formula", keep="first").reset_index(drop=True)
 
-# Mantem os melhores candidatos refinados para classificacao top 10.
-melhor_por_candidato_df = melhor_por_candidato_df.head(N_CANDIDATOS_REFINADOS_FUNIL).copy()
+# Mantem os melhores candidatos refinados para classificacao top 10 com representação multimetálica.
+melhor_por_candidato_df = selecionar_com_representacao_multimetal(melhor_por_candidato_df, N_CANDIDATOS_REFINADOS_FUNIL, "score_final", fracao_minima=0.40)
 
-# Mantem a tabela de ranking final apenas com os candidatos prioritarios finais.
-ranking_final_df = melhor_por_candidato_df.head(N_CANDIDATOS_RANKING_FINAL).copy()
+# Mantem a tabela de ranking final com os candidatos prioritarios finais e ao menos um multimetalico quando aplicavel.
+ranking_final_df = selecionar_com_representacao_multimetal(melhor_por_candidato_df, N_CANDIDATOS_RANKING_FINAL, "score_final", fracao_minima=0.50)
 
 # Seleciona top candidatos prioritários para síntese.
 prioritarios_df = ranking_final_df.copy()
 
+# Mostra quantos candidatos finais preservam dois ou mais metais ativos.
+print("Prioritários finais com dois ou mais metais ativos:", int(prioritarios_df.get("candidato_multimetal_ativo", pd.Series(dtype=bool)).sum()))
+
 # Exibe a tabela de síntese recomendada.
 prioritarios_df[[
     "formula",
+    "metais_ativos_presentes",
+    "n_metais_ativos_presentes",
     "suporte_sugerido",
     "rota_sintese_sugerida",
     "regime",
