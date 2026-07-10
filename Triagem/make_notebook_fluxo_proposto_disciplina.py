@@ -4,8 +4,11 @@ from pathlib import Path
 import nbformat as nbf
 
 
-ROOT = Path(r"C:\Users\allan\Documents\Codex\2026-06-23\ana")
-NOTEBOOK = ROOT / "Triagem" / "notebook_disciplina_triagem_virtual_fluxo_proposto.ipynb"
+# Define a pasta em que este gerador está salvo.
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+# Define o notebook de saída dentro da mesma pasta do gerador.
+NOTEBOOK = SCRIPT_DIR / "notebook_disciplina_triagem_virtual_fluxo_proposto.ipynb"
 
 
 def md(text):
@@ -380,11 +383,14 @@ print("Intermediários DFT relevantes:", perfil["intermediarios_dft"])
         """
 ## Etapa 4 - Geração automática de candidatos
 
-O modelo gera candidatos a partir dos metais ativos e do promotor. O funil começa com 100 candidatos gerados, passa para 20 candidatos viáveis após o filtro, refina 10 candidatos e apresenta 2 candidatos no ranking final.
+O modelo gera candidatos a partir dos metais ativos e do promotor. Quando mais de um metal ativo é informado, o funil inclui ligas entre metais ativos, ligas multimetálicas e versões promovidas antes de aplicar o corte de 100 candidatos. Depois disso, passa para 20 candidatos viáveis após o filtro, refina 10 candidatos e apresenta 2 candidatos no ranking final.
 """
     ),
     code(
         """
+# Importa combinations para montar pares de metais ativos sem repetir a ordem.
+from itertools import combinations
+
 # Define a quantidade de candidatos gerados no início do funil.
 N_CANDIDATOS_GERADOS_FUNIL = 100
 
@@ -397,36 +403,139 @@ N_CANDIDATOS_REFINADOS_FUNIL = 10
 # Define quantos candidatos aparecem como prioritarios finais para sintese.
 N_CANDIDATOS_RANKING_FINAL = 2
 
-# Define proporções padrão para combinar fase ativa e promotor.
+# Define proporções finas para combinar um metal ativo com o promotor quando há apenas um metal.
 PROPORCOES_PROMOTOR = [round(i / N_CANDIDATOS_GERADOS_FUNIL, 2) for i in range(1, N_CANDIDATOS_GERADOS_FUNIL)]
 
-# Define uma função para montar fórmulas simplificadas.
+# Define frações relativas para variar a composição entre dois metais ativos.
+PROPORCOES_LIGA_ATIVA = [round(i / 10, 2) for i in range(1, 10)]
+
+# Define frações moderadas de promotor para ligas, evitando uma explosão de candidatos redundantes.
+PROPORCOES_PROMOTOR_MULTIMETAL = [0.02, 0.05, 0.08, 0.10, 0.12, 0.15, 0.18, 0.20, 0.25, 0.30]
+
+# Remove metais ativos repetidos preservando a ordem informada pelo usuário.
+metais_usuario = list(dict.fromkeys([m for m in metais_usuario if m]))
+
+# Interrompe a execução se nenhum metal ativo válido tiver sido informado.
+if not metais_usuario:
+    # Explica que a geração depende de pelo menos um elemento de fase ativa.
+    raise ValueError("Informe pelo menos um metal ativo para gerar candidatos catalíticos.")
+
+# Define uma função para formatar frações estequiométricas com duas casas decimais.
+def texto_fracao(valor):
+    # Converte o valor para float para evitar problemas com inteiros ou strings numéricas.
+    valor = float(valor)
+    # Retorna a fração no padrão compacto usado nas fórmulas de triagem.
+    return f"{valor:.2f}"
+
+# Define uma função para montar fórmulas simplificadas a partir de pares elemento-fração.
+def formula_por_composicao(componentes):
+    # Cria um dicionário para somar frações quando o mesmo elemento aparece mais de uma vez.
+    composicao = {}
+    # Cria uma lista para preservar a ordem química em que os elementos foram inseridos.
+    ordem_elementos = []
+    # Percorre cada componente químico informado.
+    for elemento, fracao in componentes:
+        # Ignora componentes vazios ou com fração nula.
+        if not elemento or fracao <= 0:
+            # Continua para o próximo componente sem alterar a fórmula.
+            continue
+        # Registra a ordem do elemento na primeira vez em que ele aparece.
+        if elemento not in composicao:
+            # Guarda o elemento na ordem de montagem da fórmula.
+            ordem_elementos.append(elemento)
+            # Inicializa a fração acumulada do elemento.
+            composicao[elemento] = 0.0
+        # Soma a fração do componente à fração total do elemento.
+        composicao[elemento] += float(fracao)
+    # Junta elementos e frações em uma fórmula textual lida pelo pymatgen.
+    return "".join([f"{elemento}{texto_fracao(composicao[elemento])}" for elemento in ordem_elementos])
+
+# Define uma função para montar fórmulas metal-promotor no caso monometálico.
 def formula_binaria(metal, promotor, fracao_promotor):
-    # Calcula a fração do metal ativo.
+    # Calcula a fração restante do metal ativo.
     fracao_metal = 1.0 - fracao_promotor
-    # Retorna fórmula compacta no padrão usado para triagem.
-    return f"{metal}{fracao_metal:.2f}{promotor}{fracao_promotor:.2f}"
+    # Retorna a fórmula binária usando a função geral de composição.
+    return formula_por_composicao([(metal, fracao_metal), (promotor, fracao_promotor)])
 
-# Inicia a lista de candidatos com os metais puros informados.
-candidatos = [{"formula": metal, "tipo": "metal_ativo_puro"} for metal in metais_usuario]
+# Define uma função auxiliar para adicionar candidatos com fórmula e tipo.
+def adicionar_candidato(formula, tipo):
+    # Adiciona apenas fórmulas não vazias à lista de candidatos.
+    if formula:
+        # Registra a fórmula e o tipo para manter rastreabilidade no funil.
+        candidatos.append({"formula": formula, "tipo": tipo})
 
-# Adiciona combinações entre metal ativo e promotor alternando metais quando houver mais de um.
-for frac in PROPORCOES_PROMOTOR:
-    # Percorre cada metal ativo para distribuir as proporções de forma balanceada.
-    for metal in metais_usuario:
-        # Evita repetir fórmula se o promotor for igual ao metal ativo.
-        if metal != promotor_usuario:
-            # Adiciona o candidato gerado à lista.
-            candidatos.append({"formula": formula_binaria(metal, promotor_usuario, frac), "tipo": "metal_promovido"})
+# Inicia a lista que receberá todos os candidatos antes do corte do funil.
+candidatos = []
 
-# Se houver mais de um metal ativo, adiciona uma composição equimolar simplificada.
-if len(metais_usuario) > 1:
-    # Junta os metais em uma fórmula textual simples.
-    formula_multimetalica = "".join([f"{m}{1/len(metais_usuario):.2f}" for m in metais_usuario])
-    # Adiciona a fórmula multimetálica sem promotor.
-    candidatos.append({"formula": formula_multimetalica, "tipo": "multimetalico"})
-    # Adiciona uma fórmula multimetálica com promotor em baixa fração.
-    candidatos.append({"formula": formula_multimetalica + f"{promotor_usuario}0.05", "tipo": "multimetalico_promovido"})
+# Adiciona os metais puros informados como referências de fase ativa.
+for metal in metais_usuario:
+    # Mantém o metal puro no funil para comparação com ligas e promovidos.
+    adicionar_candidato(metal, "metal_ativo_puro")
+
+# Adiciona ligas binárias entre metais ativos quando o usuário informa mais de um metal.
+for metal_a, metal_b in combinations(metais_usuario, 2):
+    # Varia a fração relativa do primeiro metal ativo no par.
+    for fracao_a in PROPORCOES_LIGA_ATIVA:
+        # Calcula a fração complementar do segundo metal ativo.
+        fracao_b = 1.0 - fracao_a
+        # Monta uma fórmula de liga ativa sem promotor.
+        formula_liga = formula_por_composicao([(metal_a, fracao_a), (metal_b, fracao_b)])
+        # Adiciona a liga ativa ao conjunto de candidatos.
+        adicionar_candidato(formula_liga, "liga_binaria_ativa")
+
+# Adiciona ligas com todos os metais ativos quando há três ou mais metais informados.
+if len(metais_usuario) > 2:
+    # Calcula a fração equimolar de cada metal ativo.
+    fracao_equimolar = 1.0 / len(metais_usuario)
+    # Monta a composição equimolar sem promotor.
+    formula_multimetalica = formula_por_composicao([(metal, fracao_equimolar) for metal in metais_usuario])
+    # Adiciona a liga multimetálica ao funil.
+    adicionar_candidato(formula_multimetalica, "liga_multimetalica_ativa")
+    # Adiciona versões promovidas da liga multimetálica quando o promotor é diferente da fase ativa.
+    if promotor_usuario not in metais_usuario:
+        # Percorre frações moderadas de promotor para manter diversidade química.
+        for fracao_promotor in PROPORCOES_PROMOTOR_MULTIMETAL:
+            # Calcula a fração total restante para os metais ativos.
+            fracao_ativa_total = 1.0 - fracao_promotor
+            # Divide a fração ativa igualmente entre os metais informados.
+            componentes_ativos = [(metal, fracao_ativa_total / len(metais_usuario)) for metal in metais_usuario]
+            # Acrescenta o promotor à composição multimetálica.
+            formula_promovida = formula_por_composicao(componentes_ativos + [(promotor_usuario, fracao_promotor)])
+            # Adiciona a versão promovida da liga multimetálica.
+            adicionar_candidato(formula_promovida, "liga_multimetalica_ativa_promovida")
+
+# Define a lista de frações para candidatos monometálicos promovidos.
+fracs_promotor_mono = PROPORCOES_PROMOTOR if len(metais_usuario) == 1 else PROPORCOES_PROMOTOR_MULTIMETAL
+
+# Adiciona candidatos metal-promotor para manter comparação com o comportamento monometálico.
+for metal in metais_usuario:
+    # Evita criar uma composição promovida quando metal ativo e promotor são o mesmo elemento.
+    if metal != promotor_usuario:
+        # Percorre as frações de promotor definidas para o caso atual.
+        for frac in fracs_promotor_mono:
+            # Monta a fórmula metal-promotor.
+            formula_promovida = formula_binaria(metal, promotor_usuario, frac)
+            # Adiciona o candidato monometálico promovido.
+            adicionar_candidato(formula_promovida, "metal_promovido")
+
+# Adiciona ligas binárias promovidas quando há mais de um metal ativo e promotor distinto.
+if len(metais_usuario) > 1 and promotor_usuario not in metais_usuario:
+    # Percorre todos os pares de metais ativos.
+    for metal_a, metal_b in combinations(metais_usuario, 2):
+        # Percorre frações moderadas de promotor.
+        for fracao_promotor in PROPORCOES_PROMOTOR_MULTIMETAL:
+            # Calcula a fração total disponível para a fase ativa bimetálica.
+            fracao_ativa_total = 1.0 - fracao_promotor
+            # Varia a razão interna entre os dois metais ativos.
+            for fracao_a_relativa in PROPORCOES_LIGA_ATIVA:
+                # Calcula a fração absoluta do primeiro metal ativo.
+                fracao_a = fracao_ativa_total * fracao_a_relativa
+                # Calcula a fração absoluta do segundo metal ativo.
+                fracao_b = fracao_ativa_total * (1.0 - fracao_a_relativa)
+                # Monta a fórmula da liga ativa promovida.
+                formula_liga_promovida = formula_por_composicao([(metal_a, fracao_a), (metal_b, fracao_b), (promotor_usuario, fracao_promotor)])
+                # Adiciona a liga bimetálica promovida ao funil.
+                adicionar_candidato(formula_liga_promovida, "liga_binaria_ativa_promovida")
 
 # Converte a lista de candidatos em tabela.
 candidatos_df = pd.DataFrame(candidatos)
@@ -447,6 +556,11 @@ if len(candidatos_df) < N_CANDIDATOS_GERADOS_FUNIL:
 
 # Mostra a quantidade e os primeiros candidatos.
 print("Candidatos gerados:", len(candidatos_df))
+
+# Mostra a distribuição por tipo para confirmar se ligas multimetálicas entraram no funil.
+print("Distribuição por tipo de candidato:")
+print(candidatos_df["tipo"].value_counts())
+
 candidatos_df.head(20)
 """
     ),

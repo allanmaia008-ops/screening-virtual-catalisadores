@@ -972,7 +972,19 @@ with st.sidebar:
     st.header("Configuração")
     reacao = st.selectbox("Reação", ["metanacao", "reforma", "rwgs"], format_func=lambda x: {"metanacao": "Metanação de CO2", "reforma": "Reforma de CH4", "rwgs": "RWGS"}[x])
     n_metais = st.number_input("Número de metais ativos", min_value=1, max_value=4, value=1, step=1)
-    metais_texto = st.text_input("Metais ativos", value="Fe", help="Use vírgula para mais de um metal. Exemplo: Fe, Co")
+    metais_padrao = ["Fe", "Co", "Ni", "Cu"]
+    metais = []
+    for indice_metal in range(int(n_metais)):
+        valor_padrao = metais_padrao[indice_metal] if indice_metal < len(metais_padrao) else ""
+        metal_informado = limpar_simbolo_quimico(
+            st.text_input(
+                f"Metal ativo {indice_metal + 1}",
+                value=valor_padrao,
+                key=f"metal_ativo_{indice_metal + 1}",
+            )
+        )
+        if metal_informado:
+            metais.append(metal_informado)
     promotor = limpar_simbolo_quimico(st.text_input("Promotor", value="La"))
     destino_saida = st.radio("Local de salvamento", ["Usar pasta padrão", "Escolher outra pasta"], horizontal=False)
     if destino_saida == "Escolher outra pasta":
@@ -981,17 +993,23 @@ with st.sidebar:
         output_dir_texto = ""
     executar = st.button("Executar triagem", type="primary")
 
-metais = [limpar_simbolo_quimico(item) for item in metais_texto.split(",") if limpar_simbolo_quimico(item)]
+metais_unicos = list(dict.fromkeys(metais))
+metais_repetidos = len(metais_unicos) != len(metais)
+metais = metais_unicos
 output_dir = Path(output_dir_texto).expanduser().resolve() if output_dir_texto else DEFAULT_OUTPUT_DIR.resolve()
 
-if len(metais) != int(n_metais):
-    st.warning("A quantidade de metais digitados deve ser igual ao número de metais ativos informado.")
+if metais_repetidos:
+    st.warning("Há metais ativos repetidos. Cada metal ativo deve ser informado apenas uma vez.")
+elif len(metais) != int(n_metais):
+    st.warning("Preencha todos os campos de metal ativo antes de executar.")
 
 if executar:
     if not metais:
         st.error("Informe pelo menos um metal ativo.")
+    elif metais_repetidos:
+        st.error("Remova metais ativos repetidos antes de executar.")
     elif len(metais) != int(n_metais):
-        st.error("Corrija a quantidade de metais antes de executar.")
+        st.error("Preencha todos os campos de metal ativo antes de executar.")
     elif not promotor:
         st.error("Informe o promotor.")
     else:
