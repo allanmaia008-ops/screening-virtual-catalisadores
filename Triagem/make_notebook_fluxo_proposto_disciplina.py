@@ -406,17 +406,17 @@ N_CANDIDATOS_REFINADOS_FUNIL = 10
 # Define quantos candidatos aparecem como prioritarios finais para sintese.
 N_CANDIDATOS_RANKING_FINAL = 2
 
-# Define proporções finas para combinar um metal ativo com o promotor quando há apenas um metal.
-PROPORCOES_PROMOTOR = [round(i / N_CANDIDATOS_GERADOS_FUNIL, 3) for i in range(1, N_CANDIDATOS_GERADOS_FUNIL)]
+# Define proporções em grade de 0,01 para combinar um metal ativo com o promotor.
+PROPORCOES_PROMOTOR = [round(i / 100, 2) for i in range(1, 100)]
 
-# Define frações relativas para variar a composição entre dois metais ativos.
-PROPORCOES_LIGA_ATIVA = [round(i / 10, 2) for i in range(1, 10)]
+# Define frações relativas em grade de 0,01 para variar a composição entre dois metais ativos.
+PROPORCOES_LIGA_ATIVA = [round(i / 100, 2) for i in range(1, 100)]
 
-# Define frações mais finas para completar 1000 candidatos quando o promotor coincide com um metal ativo.
-PROPORCOES_LIGA_ATIVA_FINA = [round(i / N_CANDIDATOS_GERADOS_FUNIL, 3) for i in range(1, N_CANDIDATOS_GERADOS_FUNIL)]
+# Define frações adicionais em grade de 0,01 para completar o funil quando ainda houver combinações únicas.
+PROPORCOES_LIGA_ATIVA_FINA = [round(i / 100, 2) for i in range(1, 100)]
 
-# Define frações moderadas de promotor para ligas, evitando uma explosão de candidatos redundantes.
-PROPORCOES_PROMOTOR_MULTIMETAL = [round(i / 1000, 3) for i in range(5, 301, 5)]
+# Define frações moderadas de promotor em grade de 0,01, evitando excesso de casas decimais nas fórmulas.
+PROPORCOES_PROMOTOR_MULTIMETAL = [round(i / 100, 2) for i in range(1, 31)]
 
 # Remove metais ativos repetidos preservando a ordem informada pelo usuário.
 metais_usuario = list(dict.fromkeys([m for m in metais_usuario if m]))
@@ -426,12 +426,12 @@ if not metais_usuario:
     # Explica que a geração depende de pelo menos um elemento de fase ativa.
     raise ValueError("Informe pelo menos um metal ativo para gerar candidatos catalíticos.")
 
-# Define uma função para formatar frações estequiométricas com três casas decimais.
+# Define uma função para formatar frações estequiométricas com duas casas decimais.
 def texto_fracao(valor):
     # Converte o valor para float para evitar problemas com inteiros ou strings numéricas.
     valor = float(valor)
     # Retorna a fração no padrão compacto usado nas fórmulas de triagem.
-    return f"{valor:.3f}"
+    return f"{valor:.2f}"
 
 # Define uma função para montar fórmulas simplificadas a partir de pares elemento-fração.
 def formula_por_composicao(componentes):
@@ -633,12 +633,12 @@ candidatos_df["candidato_multimetal_ativo"] = candidatos_df["n_metais_ativos_pre
 # Separa uma tabela apenas com candidatos que preservam mais de um metal ativo.
 candidatos_multimetal_ativo_df = candidatos_df[candidatos_df["candidato_multimetal_ativo"]].copy()
 
-# Interrompe com mensagem clara se o conjunto inicial não puder ser formado.
+# Avisa quando a grade com duas casas decimais não permite atingir 1000 fórmulas únicas.
 if len(candidatos_df) < N_CANDIDATOS_GERADOS_FUNIL:
-    # Explica que o caso mais comum é informar promotor igual ao metal ativo ou poucos metais distintos.
-    raise ValueError(
-        f"Foram gerados apenas {len(candidatos_df)} candidatos. "
-        f"Informe promotor diferente do metal ativo ou mais metais ativos para atingir {N_CANDIDATOS_GERADOS_FUNIL} candidatos."
+    # Explica que a limitação vem da combinação entre duas casas decimais e espaço químico pequeno.
+    print(
+        f"Aviso: foram gerados {len(candidatos_df)} candidatos únicos. "
+        f"Com duas casas decimais, sistemas com poucos elementos podem não atingir {N_CANDIDATOS_GERADOS_FUNIL} fórmulas únicas."
     )
 
 # Mostra a quantidade e os primeiros candidatos.
