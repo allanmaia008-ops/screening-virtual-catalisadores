@@ -1,4 +1,4 @@
-﻿import json
+import json
 from pathlib import Path
 
 import nbformat as nbf
@@ -43,7 +43,7 @@ nb["cells"] = [
 
 6. Calculo de descritores quimicos especificos da reacao: calcula atividade, seletividade, basicidade, redox, resistencia a coque, proxy DFT e incerteza conforme a reacao escolhida. Para reforma de CH4, adiciona penalidade de tendencia a coque, taxa proxy de desativacao por coque e atividade corrigida por coque.
 
-6.1. Descritores composicionais opcionais com matminer: calcula descritores Magpie quando o `matminer` esta disponivel e incorpora um score composicional leve ao ranking.
+6.1. Descritores composicionais obrigatorios com matminer: instala/importa `matminer`, calcula descritores Magpie e incorpora um score composicional por reacao ao ranking.
 
 6.2. Descritores quimicos diretos com pymatgen: extrai massa molar, numero de elementos, eletronegatividade media, desvio de eletronegatividade e raio atomico medio quando o `pymatgen` esta disponivel.
 
@@ -177,6 +177,30 @@ import numpy as np
 
 # Importa pandas para manipular tabelas de candidatos, descritores e rankings.
 import pandas as pd
+
+# Define funcao para instalar e importar dependencias obrigatorias da triagem.
+def garantir_dependencia_obrigatoria(pacote, modulo=None):
+    # Usa o nome do pacote como modulo quando nenhum modulo especifico foi informado.
+    modulo = modulo or pacote
+    # Tenta importar o modulo antes de instalar para evitar downloads desnecessarios.
+    try:
+        __import__(modulo)
+    # Instala o pacote quando ele ainda nao esta disponivel no ambiente.
+    except ModuleNotFoundError:
+        # Instala no mesmo Python que executa o notebook.
+        subprocess.check_call([sys.executable, "-m", "pip", "install", pacote])
+        # Tenta importar novamente depois da instalacao.
+        __import__(modulo)
+    # Captura falhas de importacao diferentes de pacote ausente.
+    except Exception as erro_dependencia:
+        # Interrompe com mensagem direta para evitar fallback silencioso em descritores obrigatorios.
+        raise RuntimeError(f"Falha ao importar dependencia obrigatoria {pacote}: {erro_dependencia}") from erro_dependencia
+
+# Garante o matminer para calcular descritores Magpie na etapa 6.1.
+garantir_dependencia_obrigatoria("matminer", "matminer")
+
+# Garante o pymatgen para interpretar composicoes quimicas e apoiar descritores estruturais.
+garantir_dependencia_obrigatoria("pymatgen", "pymatgen")
 
 # Define a pasta em que o notebook está sendo executado.
 CWD = Path.cwd()
@@ -350,21 +374,35 @@ PERFIS_REACAO = {
     },
 }
 
+# Importa unicodedata para remover acentos e cedilha das respostas digitadas.
+import unicodedata
+
 # Normaliza nomes alternativos para a reação escolhida.
 def normalizar_reacao(texto):
-    # Converte o texto para minúsculas e remove espaços.
-    t = str(texto).strip().lower()
+    # Converte a resposta para texto, remove espaços laterais e deixa em minúsculas.
+    bruto = str(texto).strip().lower()
+    # Remove acentos e cedilha para aceitar metanacao, metanação e metanaçao como equivalentes.
+    sem_acentos = unicodedata.normalize("NFKD", bruto)
+    # Mantém apenas caracteres base, descartando marcas de acentuação.
+    sem_acentos = "".join(caractere for caractere in sem_acentos if not unicodedata.combining(caractere))
+    # Padroniza separadores comuns usados em respostas textuais.
+    t = sem_acentos.replace("-", "_").replace("/", "_").replace(" ", "_")
+    # Remove duplicações de separador geradas pela padronização.
+    while "__" in t:
+        t = t.replace("__", "_")
+    # Remove separadores sobrando no início ou no fim.
+    t = t.strip("_")
     # Aceita variações de escrita para metanação.
-    if t in ["metanacao", "metanação", "methanation", "co2_methanation"]:
+    if t in ["metanacao", "metanacao_de_co2", "metanacao_co2", "co2_methanation", "methanation"]:
         return "metanacao"
     # Aceita variações de escrita para reforma.
-    if t in ["reforma", "reforming", "dry_reforming", "drm", "reforma_ch4"]:
+    if t in ["reforma", "reforming", "dry_reforming", "drm", "reforma_ch4", "reforma_de_ch4", "reforma_seca"]:
         return "reforma"
     # Aceita variações de escrita para RWGS.
-    if t in ["rwgs", "reverse_water_gas_shift"]:
+    if t in ["rwgs", "r_wgs", "reverse_water_gas_shift", "reverse_wgs"]:
         return "rwgs"
-    # Interrompe a execução se a reação não for reconhecida.
-    raise ValueError("Reação inválida. Use metanacao, reforma ou rwgs.")
+    # Interrompe a execução se a reação não for reconhecida, mostrando a entrada normalizada.
+    raise ValueError(f"Reação inválida: {texto!r}. Use metanacao, reforma ou rwgs.")
 
 # Aplica a normalização à reação informada pelo usuário.
 reacao = normalizar_reacao(reacao_usuario)
@@ -675,52 +713,52 @@ candidatos_multimetal_ativo_df.head(20) if len(metais_usuario) > 1 else candidat
         """
 ## Etapa 5 - Busca de propriedades de materiais
 
-Esta etapa procura candidatos iguais ou relacionados na base local derivada do notebook base. Quando um candidato não tem correspondência exata, o notebook identifica o sistema químico correspondente e tenta buscar novos dados de estabilidade e propriedades bulk no Materials Project e no OQMD. Os dados obtidos são anexados ao banco local para reutilização em execuções futuras. Em execução online, se houver token do GitHub configurado nos secrets do Streamlit, os arquivos incrementais são baixados antes da triagem e reenviados ao repositório após novas consultas. Se o sistema químico já foi consultado com sucesso antes, o notebook não baixa novamente.
+Esta etapa procura candidatos iguais ou relacionados na base local derivada do notebook base. Quando um candidato não tem correspondência exata, o notebook identifica o sistema químico correspondente e tenta buscar novos dados de estabilidade e propriedades bulk no Materials Project e no OQMD. Os dados obtidos são anexados ao banco local em `outputs/` para reutilização em execuções futuras. O notebook não depende de GitHub: todo incremento de dados é feito em arquivos CSV locais. Se o sistema químico já foi consultado com sucesso antes, o notebook não baixa novamente.
 """
     ),
     code(
         """
-# Define dono do repositório usado como armazenamento incremental persistente.
+# Define dono do reposit?rio usado como armazenamento incremental persistente.
 GITHUB_INCREMENTAL_OWNER = os.environ.get("TRIAGEM_GITHUB_OWNER", "").strip()
 
-# Define nome do repositório usado como armazenamento incremental persistente.
+# Define nome do reposit?rio usado como armazenamento incremental persistente.
 GITHUB_INCREMENTAL_REPO = os.environ.get("TRIAGEM_GITHUB_REPO", "").strip()
 
 # Define branch usado para ler e gravar os CSVs incrementais.
 GITHUB_INCREMENTAL_BRANCH = os.environ.get("TRIAGEM_GITHUB_BRANCH", "main").strip() or "main"
 
-# Lê token GitHub dos secrets/ambiente; quando ausente, a sincronização externa é apenas ignorada.
+# L? token GitHub dos secrets/ambiente; quando ausente, a sincroniza??o externa ? apenas ignorada.
 GITHUB_INCREMENTAL_TOKEN = os.environ.get("TRIAGEM_GITHUB_TOKEN", "").strip()
 
-# Define caminho do banco principal no repositório.
+# Define caminho do banco principal no reposit?rio.
 GITHUB_RANKING_PATH = os.environ.get("TRIAGEM_GITHUB_RANKING_PATH", "outputs/ranking_multicriterio_v2_incerteza_explicabilidade.csv").strip()
 
-# Define caminho do histórico de consultas externas no repositório.
+# Define caminho do hist?rico de consultas externas no reposit?rio.
 GITHUB_CONSULTAS_PATH = os.environ.get("TRIAGEM_GITHUB_CONSULTAS_PATH", "outputs/consultas_bases_externas.csv").strip()
 
-# Define caminho do cache Catalysis-Hub no repositório.
+# Define caminho do cache Catalysis-Hub no reposit?rio.
 GITHUB_CATHUB_PATH = os.environ.get("TRIAGEM_GITHUB_CATHUB_PATH", "outputs/catalysis_hub_incremental.csv").strip()
 
-# Define caminho do cache GNN local no repositório.
+# Define caminho do cache GNN local no reposit?rio.
 GITHUB_GNN_PATH = os.environ.get("TRIAGEM_GITHUB_GNN_PATH", "outputs/proxy_gnn_local.csv").strip()
 
-# Define função que informa se a sincronização GitHub está disponível.
+# Define fun??o que informa se a sincroniza??o GitHub est? dispon?vel.
 def github_incremental_configurado():
-    # Exige dono, repositório e token para permitir escrita persistente.
+    # Exige dono, reposit?rio e token para permitir escrita persistente.
     return bool(GITHUB_INCREMENTAL_OWNER and GITHUB_INCREMENTAL_REPO and GITHUB_INCREMENTAL_TOKEN)
 
-# Define função para montar cabeçalhos autenticados da API GitHub.
+# Define fun??o para montar cabe?alhos autenticados da API GitHub.
 def github_incremental_headers():
-    # Retorna cabeçalhos com token sem expor seu conteúdo no notebook.
+    # Retorna cabe?alhos com token sem expor seu conte?do no notebook.
     return {
         "Authorization": f"Bearer {GITHUB_INCREMENTAL_TOKEN}",
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     }
 
-# Define função para obter metadados de um arquivo no GitHub.
+# Define fun??o para obter metadados de um arquivo no GitHub.
 def github_obter_arquivo(caminho_repo):
-    # Retorna vazio quando não há configuração de persistência.
+    # Retorna vazio quando n?o h? configura??o de persist?ncia.
     if not github_incremental_configurado():
         return None
     # Monta endpoint da API Contents do GitHub.
@@ -728,7 +766,7 @@ def github_obter_arquivo(caminho_repo):
     try:
         # Busca o arquivo no branch configurado.
         resposta = requests.get(url, headers=github_incremental_headers(), params={"ref": GITHUB_INCREMENTAL_BRANCH}, timeout=20)
-        # Arquivo ausente não é erro; ele será criado no primeiro envio.
+        # Arquivo ausente n?o ? erro; ele ser? criado no primeiro envio.
         if resposta.status_code == 404:
             return None
         # Interrompe para outros erros HTTP.
@@ -740,48 +778,48 @@ def github_obter_arquivo(caminho_repo):
         print(f"Sincronizacao GitHub indisponivel para {caminho_repo}: {erro_github}")
         return None
 
-# Define função para baixar um CSV persistido no GitHub antes da triagem.
+# Define fun??o para baixar um CSV persistido no GitHub antes da triagem.
 def baixar_csv_incremental_github(caminho_repo, destino_local):
-    # Ignora quando GitHub persistente não foi configurado.
+    # Ignora quando GitHub persistente n?o foi configurado.
     if not github_incremental_configurado():
         return False
-    # Obtém metadados e conteúdo codificado do arquivo.
+    # Obt?m metadados e conte?do codificado do arquivo.
     payload = github_obter_arquivo(caminho_repo)
-    # Retorna falso se o arquivo ainda não existe no repositório.
+    # Retorna falso se o arquivo ainda n?o existe no reposit?rio.
     if not payload or "content" not in payload:
         return False
     try:
         # Garante que a pasta local existe.
         destino_local.parent.mkdir(parents=True, exist_ok=True)
-        # Decodifica o conteúdo base64 retornado pela API.
+        # Decodifica o conte?do base64 retornado pela API.
         conteudo = base64.b64decode(str(payload["content"]).replace(chr(10), ""))
         # Grava o CSV localmente para o restante do notebook ler normalmente.
         destino_local.write_bytes(conteudo)
-        # Retorna verdadeiro quando houve sincronização.
+        # Retorna verdadeiro quando houve sincroniza??o.
         return True
     except Exception as erro_github:
         # Registra falha sem interromper o fluxo.
         print(f"Nao foi possivel baixar {caminho_repo} do GitHub: {erro_github}")
         return False
 
-# Define função para enviar CSV incremental atualizado de volta ao GitHub.
+# Define fun??o para enviar CSV incremental atualizado de volta ao GitHub.
 def enviar_csv_incremental_github(caminho_repo, origem_local, mensagem):
-    # Ignora quando GitHub persistente não foi configurado ou arquivo local não existe.
+    # Ignora quando GitHub persistente n?o foi configurado ou arquivo local n?o existe.
     if not github_incremental_configurado() or not origem_local.exists():
         return False
-    # Obtém metadados atuais para recuperar o SHA quando o arquivo já existe.
+    # Obt?m metadados atuais para recuperar o SHA quando o arquivo j? existe.
     payload_atual = github_obter_arquivo(caminho_repo)
     # Monta endpoint da API Contents do GitHub.
     url = f"https://api.github.com/repos/{GITHUB_INCREMENTAL_OWNER}/{GITHUB_INCREMENTAL_REPO}/contents/{caminho_repo}"
     try:
-        # Codifica o conteúdo local em base64 para envio à API.
+        # Codifica o conte?do local em base64 para envio ? API.
         conteudo_b64 = base64.b64encode(origem_local.read_bytes()).decode("ascii")
-        # Monta corpo da requisição com branch e mensagem de commit.
+        # Monta corpo da requisi??o com branch e mensagem de commit.
         corpo = {"message": mensagem, "content": conteudo_b64, "branch": GITHUB_INCREMENTAL_BRANCH}
-        # Inclui SHA quando o arquivo já existe, evitando criar duplicata.
+        # Inclui SHA quando o arquivo j? existe, evitando criar duplicata.
         if payload_atual and payload_atual.get("sha"):
             corpo["sha"] = payload_atual["sha"]
-        # Envia criação ou atualização do arquivo.
+        # Envia cria??o ou atualiza??o do arquivo.
         resposta = requests.put(url, headers=github_incremental_headers(), json=corpo, timeout=30)
         # Interrompe se o GitHub retornar erro.
         resposta.raise_for_status()
@@ -792,7 +830,7 @@ def enviar_csv_incremental_github(caminho_repo, origem_local, mensagem):
         print(f"Nao foi possivel enviar {caminho_repo} ao GitHub: {erro_github}")
         return False
 
-# Baixa a versão mais recente do banco principal antes de carregar os dados.
+# Baixa a vers?o mais recente do banco principal antes de carregar os dados.
 baixar_csv_incremental_github(GITHUB_RANKING_PATH, RANKING_FILE)
 
 # Carrega a base local de triagem se ela existir.
@@ -811,7 +849,7 @@ def elementos_formula(formula):
 # Define o arquivo que registra sistemas químicos já consultados externamente.
 CONSULTAS_EXTERNAS_FILE = PROJECT_DATA_DIR / "consultas_bases_externas.csv"
 
-# Baixa o histórico persistente de consultas externas antes de decidir o que consultar.
+# Prepara o histórico local de consultas externas antes de decidir o que consultar.
 baixar_csv_incremental_github(GITHUB_CONSULTAS_PATH, CONSULTAS_EXTERNAS_FILE)
 
 # Carrega o histórico de consultas externas para evitar baixar o mesmo sistema novamente.
@@ -1031,7 +1069,7 @@ def anexar_dados_base_local(base, novos):
         base_atualizada = base_atualizada.drop_duplicates(subset=["formula", "origem"], keep="first")
     # Salva a base local atualizada.
     base_atualizada.to_csv(RANKING_FILE, index=False, encoding="utf-8-sig")
-    # Persiste a base principal atualizada no GitHub quando a integração estiver configurada.
+    # Registra a atualização da base principal local para rastreabilidade da execução.
     enviar_csv_incremental_github(GITHUB_RANKING_PATH, RANKING_FILE, "Atualiza banco incremental de triagem")
     # Retorna a base atualizada.
     return base_atualizada.reset_index(drop=True)
@@ -1062,7 +1100,7 @@ for chemsys in chemsys_para_buscar:
 # Anexa dados novos à base local e recarrega a base usada na triagem.
 base_local = anexar_dados_base_local(base_local, novos_registros_externos)
 
-# Persiste o histórico de consultas externas para reutilização em execuções futuras.
+# Registra o histórico de consultas externas para reutilização em execuções futuras.
 enviar_csv_incremental_github(GITHUB_CONSULTAS_PATH, CONSULTAS_EXTERNAS_FILE, "Atualiza historico incremental de consultas externas")
 
 # Mostra resumo da atualização incremental.
@@ -1257,122 +1295,134 @@ triagem_df[["formula", "score_atividade", "score_seletividade", "score_DFT_proxy
     ),
     md(
         """
-### Subetapa 6.1 - Descritores composicionais opcionais com matminer
+### Subetapa 6.1 - Descritores composicionais obrigatorios com matminer
 
-Esta subetapa tenta usar `matminer` para calcular descritores Magpie a partir das fórmulas químicas. Quando o pacote não estiver disponível ou alguma fórmula não puder ser convertida, o notebook mantém os descritores manuais e segue normalmente.
+Esta subetapa usa `matminer` como parte obrigatoria da triagem. O pacote e instalado/importado na etapa 1; aqui o notebook calcula descritores Magpie a partir das formulas quimicas e interrompe a execucao se eles nao puderem ser gerados. O score composicional usa pesos diferentes para metanacao, reforma e RWGS, porque cada rota valoriza propriedades quimicas diferentes.
 """
     ),
     code(
         """
-# Importa sys para instalar pacotes no mesmo Python usado pelo notebook quando necessário.
-import sys
-
-# Importa subprocess para chamar o instalador de pacotes de forma controlada.
-import subprocess
-
-# Começa assumindo que o matminer ainda não foi ativado.
+# Comeca assumindo que o matminer ainda nao foi ativado na etapa atual.
 matminer_disponivel = False
 
 # Cria lista vazia para guardar os nomes dos descritores Magpie calculados.
 matminer_feature_cols = []
 
-# Tenta importar os conversores e featurizers do matminer.
+# Importa conversor de formula textual para objeto de composicao.
 try:
-    # Importa conversor de fórmula textual para objeto de composição.
+    # Importa conversor de formula textual para objeto de composicao.
     from matminer.featurizers.conversions import StrToComposition
     # Importa gerador de descritores composicionais baseados no preset Magpie.
     from matminer.featurizers.composition import ElementProperty
-    # Marca o matminer como disponível.
+    # Marca o matminer como disponivel quando as importacoes funcionam.
     matminer_disponivel = True
-# Captura ausência do pacote no ambiente local ou no Colab.
-except ModuleNotFoundError:
-    # Tenta instalar matminer sem interromper imediatamente o notebook.
-    try:
-        # Instala matminer no mesmo ambiente Python do notebook.
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "matminer"])
-        # Importa conversor de fórmula textual para objeto de composição após a instalação.
-        from matminer.featurizers.conversions import StrToComposition
-        # Importa gerador de descritores composicionais após a instalação.
-        from matminer.featurizers.composition import ElementProperty
-        # Marca o matminer como disponível depois da instalação bem-sucedida.
-        matminer_disponivel = True
-    # Captura qualquer falha de instalação ou importação.
-    except Exception as erro_matminer:
-        # Registra a falha para consulta posterior.
-        erro_matminer = str(erro_matminer)
-        # Mantém o matminer como indisponível e segue com fallback manual.
-        matminer_disponivel = False
+# Interrompe a etapa se o matminer nao estiver funcional, pois agora ele e obrigatorio.
+except Exception as erro_matminer:
+    # Gera erro claro em vez de seguir com fallback neutro.
+    raise RuntimeError(f"Matminer e obrigatorio para a etapa 6.1, mas nao foi importado: {erro_matminer}") from erro_matminer
 
-# Executa a featurização apenas quando matminer estiver disponível.
-if matminer_disponivel:
-    # Copia a coluna de fórmulas para uma tabela temporária de featurização.
-    matminer_descritores_df = triagem_df[["formula"]].copy()
-    # Cria o conversor de fórmula para composição.
-    conversor = StrToComposition(target_col_id="composition")
-    # Converte fórmulas em composições químicas, ignorando erros pontuais.
-    matminer_descritores_df = conversor.featurize_dataframe(matminer_descritores_df, "formula", ignore_errors=True)
-    # Cria o featurizer Magpie.
-    featurizer_magpie = ElementProperty.from_preset("magpie")
-    # Calcula descritores Magpie para cada composição válida.
-    matminer_descritores_df = featurizer_magpie.featurize_dataframe(matminer_descritores_df, col_id="composition", ignore_errors=True)
-    # Identifica colunas numéricas geradas pelo preset Magpie.
-    matminer_feature_cols = [col for col in matminer_descritores_df.columns if col.startswith("MagpieData")]
-    # Seleciona descritores úteis para criar um score composicional leve.
-    col_numero_medio = next((col for col in matminer_feature_cols if col.endswith("mean Number")), None)
-    # Seleciona dispersão de número atômico quando existir.
-    col_numero_desvio = next((col for col in matminer_feature_cols if col.endswith("avg_dev Number")), None)
-    # Seleciona eletronegatividade média quando existir.
-    col_eletro_medio = next((col for col in matminer_feature_cols if "mean Electronegativity" in col), None)
-    # Seleciona dispersão de eletronegatividade quando existir.
-    col_eletro_desvio = next((col for col in matminer_feature_cols if "avg_dev Electronegativity" in col), None)
-    # Junta apenas os descritores Magpie à tabela principal pelo índice original.
-    triagem_df = pd.concat([triagem_df.reset_index(drop=True), matminer_descritores_df[matminer_feature_cols].reset_index(drop=True)], axis=1)
-    # Usa a normalização robusta centralizada para reduzir efeito de outliers.
-    def normalizar_minmax(serie):
-        # Encaminha a série para a função global robusta.
-        return normalizar_minmax_global(serie, neutro=0.0)
-    # Inicializa o score composicional Magpie como neutro.
-    triagem_df["score_matminer_composicional"] = 0.50
-    # Adiciona contribuição de número atômico médio quando disponível.
-    if col_numero_medio:
-        triagem_df["score_matminer_composicional"] += 0.20 * normalizar_minmax(triagem_df[col_numero_medio])
-    # Adiciona contribuição de diversidade de número atômico quando disponível.
-    if col_numero_desvio:
-        triagem_df["score_matminer_composicional"] += 0.15 * normalizar_minmax(triagem_df[col_numero_desvio])
-    # Adiciona contribuição de eletronegatividade média quando disponível.
-    if col_eletro_medio:
-        triagem_df["score_matminer_composicional"] += 0.10 * normalizar_minmax(triagem_df[col_eletro_medio])
-    # Adiciona contribuição de heterogeneidade de eletronegatividade quando disponível.
-    if col_eletro_desvio:
-        triagem_df["score_matminer_composicional"] += 0.05 * normalizar_minmax(triagem_df[col_eletro_desvio])
-    # Limita o score composicional ao intervalo de zero a um.
-    triagem_df["score_matminer_composicional"] = triagem_df["score_matminer_composicional"].clip(0, 1)
-    # Enriquece levemente o proxy DFT com o score composicional Magpie.
-    triagem_df["score_DFT_proxy"] = (0.90 * triagem_df["score_DFT_proxy"] + 0.10 * triagem_df["score_matminer_composicional"]).clip(0, 1)
-    # Enriquece levemente a atividade com o score composicional Magpie.
-    triagem_df["score_atividade"] = (0.95 * triagem_df["score_atividade"] + 0.05 * triagem_df["score_matminer_composicional"]).clip(0, 1)
-# Usa fallback quando matminer não estiver disponível.
-else:
-    # Cria score neutro para manter o mesmo schema de saída.
-    triagem_df["score_matminer_composicional"] = 0.50
-    # Cria tabela mínima para registrar que os descritores Magpie não foram calculados.
-    matminer_descritores_df = triagem_df[["formula", "score_matminer_composicional"]].copy()
+# Copia a coluna de formulas para uma tabela temporaria de featurizacao.
+matminer_descritores_df = triagem_df[["formula"]].copy()
+
+# Cria o conversor de formula para composicao.
+conversor = StrToComposition(target_col_id="composition")
+
+# Converte formulas em composicoes quimicas, ignorando erros pontuais de formula.
+matminer_descritores_df = conversor.featurize_dataframe(matminer_descritores_df, "formula", ignore_errors=True)
+
+# Cria o featurizer Magpie.
+featurizer_magpie = ElementProperty.from_preset("magpie")
+
+# Calcula descritores Magpie para cada composicao valida.
+matminer_descritores_df = featurizer_magpie.featurize_dataframe(matminer_descritores_df, col_id="composition", ignore_errors=True)
+
+# Identifica colunas numericas geradas pelo preset Magpie.
+matminer_feature_cols = [col for col in matminer_descritores_df.columns if col.startswith("MagpieData")]
+
+# Interrompe se nenhum descritor Magpie foi calculado.
+if not matminer_feature_cols:
+    # Evita que a etapa obrigatoria seja tratada como neutra sem perceber.
+    raise RuntimeError("Nenhum descritor Magpie foi calculado pelo matminer na etapa 6.1.")
+
+# Seleciona descritores uteis para criar um score composicional por reacao.
+col_numero_medio = next((col for col in matminer_feature_cols if col.endswith("mean Number")), None)
+
+# Seleciona dispersao de numero atomico quando existir.
+col_numero_desvio = next((col for col in matminer_feature_cols if col.endswith("avg_dev Number")), None)
+
+# Seleciona eletronegatividade media quando existir.
+col_eletro_medio = next((col for col in matminer_feature_cols if "mean Electronegativity" in col), None)
+
+# Seleciona dispersao de eletronegatividade quando existir.
+col_eletro_desvio = next((col for col in matminer_feature_cols if "avg_dev Electronegativity" in col), None)
+
+# Junta apenas os descritores Magpie a tabela principal pelo indice original.
+triagem_df = pd.concat([triagem_df.reset_index(drop=True), matminer_descritores_df[matminer_feature_cols].reset_index(drop=True)], axis=1)
+
+# Usa a normalizacao robusta centralizada para reduzir efeito de outliers.
+def normalizar_minmax(serie):
+    # Encaminha a serie para a funcao global robusta.
+    return normalizar_minmax_global(serie, neutro=0.0)
+
+# Define pesos Magpie especificos para cada rota catalitica.
+PESOS_MAGPIE_REACAO = {
+    # Metanacao valoriza ativacao de CO2 e interfaces com diferenca de eletronegatividade.
+    "metanacao": {"numero_medio": 0.15, "numero_desvio": 0.20, "eletro_medio": 0.20, "eletro_desvio": 0.25},
+    # Reforma valoriza heterogeneidade composicional e propriedades associadas a resistencia a coque.
+    "reforma": {"numero_medio": 0.10, "numero_desvio": 0.20, "eletro_medio": 0.20, "eletro_desvio": 0.30},
+    # RWGS valoriza ajuste eletronico para favorecer CO e evitar metanacao excessiva.
+    "rwgs": {"numero_medio": 0.10, "numero_desvio": 0.15, "eletro_medio": 0.30, "eletro_desvio": 0.25},
+}
+
+# Seleciona os pesos da reacao atual.
+pesos_magpie = PESOS_MAGPIE_REACAO.get(reacao, PESOS_MAGPIE_REACAO["metanacao"])
+
+# Inicializa o score composicional Magpie com base baixa para depender dos descritores calculados.
+triagem_df["score_matminer_composicional"] = 0.20
+
+# Adiciona contribuicao de numero atomico medio quando disponivel.
+if col_numero_medio:
+    triagem_df["score_matminer_composicional"] += pesos_magpie["numero_medio"] * normalizar_minmax(triagem_df[col_numero_medio])
+
+# Adiciona contribuicao de diversidade de numero atomico quando disponivel.
+if col_numero_desvio:
+    triagem_df["score_matminer_composicional"] += pesos_magpie["numero_desvio"] * normalizar_minmax(triagem_df[col_numero_desvio])
+
+# Adiciona contribuicao de eletronegatividade media quando disponivel.
+if col_eletro_medio:
+    triagem_df["score_matminer_composicional"] += pesos_magpie["eletro_medio"] * normalizar_minmax(triagem_df[col_eletro_medio])
+
+# Adiciona contribuicao de heterogeneidade de eletronegatividade quando disponivel.
+if col_eletro_desvio:
+    triagem_df["score_matminer_composicional"] += pesos_magpie["eletro_desvio"] * normalizar_minmax(triagem_df[col_eletro_desvio])
+
+# Limita o score composicional ao intervalo de zero a um.
+triagem_df["score_matminer_composicional"] = triagem_df["score_matminer_composicional"].clip(0, 1)
+
+# Enriquece o proxy DFT com maior peso dos descritores Magpie obrigatorios.
+triagem_df["score_DFT_proxy"] = (0.80 * triagem_df["score_DFT_proxy"] + 0.20 * triagem_df["score_matminer_composicional"]).clip(0, 1)
+
+# Enriquece a atividade com contribuicao composicional Magpie mais relevante.
+triagem_df["score_atividade"] = (0.90 * triagem_df["score_atividade"] + 0.10 * triagem_df["score_matminer_composicional"]).clip(0, 1)
 
 # Exibe estado do enriquecimento por matminer.
-print("Matminer disponível:", matminer_disponivel)
+print("Matminer obrigatorio disponivel:", matminer_disponivel)
 
 # Exibe a quantidade de descritores Magpie calculados.
 print("Descritores Magpie calculados:", len(matminer_feature_cols))
 
-# Mostra o score composicional opcional junto aos scores usados na triagem.
+# Exibe o perfil de pesos Magpie usado para a reacao.
+print("Pesos Magpie usados:", pesos_magpie)
+
+# Mostra o score composicional junto aos scores usados na triagem.
 triagem_df[["formula", "score_matminer_composicional", "score_atividade", "score_DFT_proxy"]].head(20)
 """
     ),
     md(
         """
-### Subetapa 6.2 - Descritores quimicos diretos com pymatgen
+### Subetapa 6.2 - Descritores quimicos obrigatorios com pymatgen
 
-Esta subetapa usa `pymatgen` diretamente para transformar a formula do candidato em uma composicao quimica, extrair propriedades elementares e criar um score quimico complementar. O objetivo e reforcar a triagem com informacoes de massa molar, diversidade elementar, eletronegatividade media e heterogeneidade composicional.
+Esta subetapa usa `pymatgen` como dependencia obrigatoria para transformar a formula do candidato em uma composicao quimica, extrair propriedades elementares e criar um score quimico complementar. O objetivo e reforcar a triagem com informacoes de massa molar, diversidade elementar, eletronegatividade media e heterogeneidade composicional.
 """
     ),
     code(
@@ -1393,10 +1443,8 @@ try:
     pymatgen_disponivel = True
 # Captura ausencia ou falha de importacao do pymatgen.
 except Exception as erro_pymatgen:
-    # Guarda a mensagem de erro para rastreabilidade.
-    erro_pymatgen = str(erro_pymatgen)
-    # Mantem o pymatgen como indisponivel e usa fallback neutro.
-    pymatgen_disponivel = False
+    # Interrompe com mensagem clara, pois o pymatgen agora e obrigatorio.
+    raise RuntimeError(f"Pymatgen e obrigatorio para a etapa 6.2, mas nao foi importado: {erro_pymatgen}") from erro_pymatgen
 
 # Define funcao para converter formula com separadores cataliticos em dicionario elementar.
 def extrair_composicao_elementar(formula):
@@ -1496,16 +1544,14 @@ if pymatgen_disponivel:
     triagem_df["score_pymatgen_quimico"] += 0.05 * normalizar_minmax_global(triagem_df["pymatgen_raio_atomico_medio"])
     # Limita o score quimico direto ao intervalo de zero a um.
     triagem_df["score_pymatgen_quimico"] = triagem_df["score_pymatgen_quimico"].clip(0, 1)
-    # Enriquece levemente o score de estabilidade com descritores elementares diretos.
-    triagem_df["score_DFT_proxy"] = (0.92 * triagem_df["score_DFT_proxy"] + 0.08 * triagem_df["score_pymatgen_quimico"]).clip(0, 1)
-    # Enriquece levemente a seletividade com heterogeneidade composicional.
-    triagem_df["score_seletividade"] = (0.96 * triagem_df["score_seletividade"] + 0.04 * triagem_df["score_pymatgen_quimico"]).clip(0, 1)
-# Usa fallback quando pymatgen nao estiver disponivel.
+    # Enriquece o proxy DFT com descritores elementares diretos obrigatorios.
+    triagem_df["score_DFT_proxy"] = (0.90 * triagem_df["score_DFT_proxy"] + 0.10 * triagem_df["score_pymatgen_quimico"]).clip(0, 1)
+    # Enriquece a seletividade com heterogeneidade composicional calculada pelo pymatgen.
+    triagem_df["score_seletividade"] = (0.94 * triagem_df["score_seletividade"] + 0.06 * triagem_df["score_pymatgen_quimico"]).clip(0, 1)
+# Interrompe se o pymatgen nao estiver disponivel, pois ele e obrigatorio.
 else:
-    # Cria score neutro para manter o schema de saida.
-    triagem_df["score_pymatgen_quimico"] = 0.50
-    # Cria tabela minima para registrar ausencia de descritores pymatgen.
-    pymatgen_descritores_df = triagem_df[["formula", "score_pymatgen_quimico"]].copy()
+    # Evita seguir com score neutro silencioso em uma etapa obrigatoria.
+    raise RuntimeError("Pymatgen obrigatorio indisponivel na etapa 6.2.")
 
 # Exibe estado do enriquecimento por pymatgen.
 print("Pymatgen disponivel:", pymatgen_disponivel)
@@ -1529,7 +1575,7 @@ Esta subetapa avalia a possibilidade de usar modelos GNN pré-treinados como cam
 # Define arquivo de cache para resultados locais de GNN.
 GNN_LOCAL_CACHE_FILE = PROJECT_DATA_DIR / "proxy_gnn_local.csv"
 
-# Baixa o cache GNN persistente do GitHub quando disponível.
+# Prepara o cache GNN local quando disponível.
 baixar_csv_incremental_github(GITHUB_GNN_PATH, GNN_LOCAL_CACHE_FILE)
 
 # Carrega o cache local de avaliações GNN já realizadas.
@@ -1763,7 +1809,7 @@ if not gnn_resultados_df.empty:
         gnn_local_cache_df = gnn_local_cache_df.drop_duplicates(subset=["formula", "modelo_gnn_local"], keep="last")
     # Salva cache local para reutilização.
     gnn_local_cache_df.to_csv(GNN_LOCAL_CACHE_FILE, index=False, encoding="utf-8-sig")
-    # Envia o cache GNN incremental ao GitHub quando a integração estiver configurada.
+    # Envia o cache GNN incremental ao GitHub quando a integra??o estiver configurada.
     enviar_csv_incremental_github(GITHUB_GNN_PATH, GNN_LOCAL_CACHE_FILE, "Atualiza cache GNN incremental")
 
 # Junta resultados GNN ao dataframe principal.
@@ -1977,7 +2023,7 @@ dft_df = selecionar_com_representacao_multimetal(preliminar_df, N_CANDIDATOS_REF
 # Define arquivo local para armazenar dados incrementais do Catalysis-Hub.
 CATHUB_CACHE_FILE = PROJECT_DATA_DIR / "catalysis_hub_incremental.csv"
 
-# Baixa o cache Catalysis-Hub persistente do GitHub quando disponível.
+# Prepara o cache Catalysis-Hub local quando disponível.
 baixar_csv_incremental_github(GITHUB_CATHUB_PATH, CATHUB_CACHE_FILE)
 
 # Carrega o cache local de dados catalíticos já baixados.
@@ -2169,10 +2215,10 @@ if not novos_cathub_df.empty:
     cathub_cache_df = cathub_cache_df.drop_duplicates(subset=["reacao", "formula", "metal_consultado", "adsorbato", "cathub_id"], keep="first")
     # Salva o cache local atualizado.
     cathub_cache_df.to_csv(CATHUB_CACHE_FILE, index=False, encoding="utf-8-sig")
-    # Envia o cache Catalysis-Hub ao GitHub quando a integração estiver configurada.
+    # Envia o cache Catalysis-Hub ao GitHub quando a integra??o estiver configurada.
     enviar_csv_incremental_github(GITHUB_CATHUB_PATH, CATHUB_CACHE_FILE, "Atualiza cache Catalysis-Hub incremental")
 
-# Persiste o histórico de consultas, incluindo as chamadas Catalysis-Hub.
+# Registra o histórico de consultas, incluindo as chamadas Catalysis-Hub.
 enviar_csv_incremental_github(GITHUB_CONSULTAS_PATH, CONSULTAS_EXTERNAS_FILE, "Atualiza historico incremental Catalysis-Hub")
 
 # Define função para agregar evidências Catalysis-Hub em nível de fórmula.
