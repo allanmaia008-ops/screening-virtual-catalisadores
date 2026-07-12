@@ -2105,8 +2105,8 @@ def consultar_cathub_par(formula, metal, adsorbato, limite=3):
     # Monta variáveis de consulta para o par metal-adsorbato.
     variaveis = {"first": int(limite), "surface": str(metal), "reactant": f"{adsorbato}*"}
     try:
-        # Executa a chamada HTTP com timeout curto para não travar o notebook se a API estiver lenta.
-        resposta = requests.post(CATHUB_GRAPHQL_URL, json={"query": consulta, "variables": variaveis}, timeout=8)
+        # Executa a chamada HTTP com timeout de 15 segundos para tolerar lentidao moderada da API sem travar o notebook.
+        resposta = requests.post(CATHUB_GRAPHQL_URL, json={"query": consulta, "variables": variaveis}, timeout=15)
         # Interrompe se o status HTTP indicar erro.
         resposta.raise_for_status()
         # Converte a resposta em JSON.
