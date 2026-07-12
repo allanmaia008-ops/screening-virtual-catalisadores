@@ -1365,6 +1365,9 @@ def normalizar_minmax(serie):
     return normalizar_minmax_global(serie, neutro=0.0)
 
 # Define pesos Magpie especificos para cada rota catalitica.
+# Justificativa MCDA: estes pesos sao heuristicas iniciais de especialista.
+# Eles tornam explicita a importancia relativa de composicao, eletronegatividade
+# e heterogeneidade eletronica em cada reacao; nao sao parametros ajustados por regressao.
 PESOS_MAGPIE_REACAO = {
     # Metanacao valoriza ativacao de CO2 e interfaces com diferenca de eletronegatividade.
     "metanacao": {"numero_medio": 0.15, "numero_desvio": 0.20, "eletro_medio": 0.20, "eletro_desvio": 0.25},
@@ -1533,6 +1536,11 @@ if pymatgen_disponivel:
     # Junta os descritores pymatgen ao dataframe principal.
     triagem_df = triagem_df.merge(pymatgen_descritores_df, on="formula", how="left")
     # Cria score quimico direto iniciado em valor neutro.
+    # Justificativa MCDA: os pesos abaixo sao pesos iniciais de especialista.
+    # A diversidade elementar representa interfaces metal-promotor; a dispersao de
+    # eletronegatividade representa heterogeneidade eletronica; a eletronegatividade
+    # media descreve o carater eletronico global; o raio atomico medio entra com
+    # menor peso por ser apenas um proxy estrutural simples.
     triagem_df["score_pymatgen_quimico"] = 0.50
     # Valoriza diversidade elementar moderada, util para suportes e promotores.
     triagem_df["score_pymatgen_quimico"] += 0.20 * normalizar_minmax_global(triagem_df["pymatgen_n_elementos"])
