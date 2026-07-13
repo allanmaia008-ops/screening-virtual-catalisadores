@@ -2847,21 +2847,38 @@ for _, row in refinado_df.iterrows():
 # Converte a avaliação por faixa em tabela.
 desempenho_faixa_df = pd.DataFrame(linhas_faixa)
 
-# Define apenas as colunas de desempenho por faixa que devem ser anexadas ao ranking.
-colunas_desempenho_merge = [
+# Define chaves univocas de catalisador-condicao para evitar produto cartesiano no merge.
+chaves_desempenho_merge = [
     "formula",
     "regime",
+    "temperatura_C",
+    "pressao_bar",
+    "razao_nome",
+    "razao",
+    "ghsv_h-1",
+]
+
+# Define as metricas de desempenho por faixa que devem ser anexadas ao ranking.
+metricas_desempenho_merge = [
     "conversao_media_faixa_pct",
     "seletividade_media_faixa_pct",
     "rendimento_medio_faixa_pct",
     "score_faixa_condicao",
 ]
 
+# Monta tabela de desempenho por faixa com chaves completas e metricas.
+desempenho_merge_df = desempenho_faixa_df[chaves_desempenho_merge + metricas_desempenho_merge].copy()
+
+# Agrupa eventuais duplicatas de chave antes do merge para impedir multiplicacao silenciosa de linhas.
+if desempenho_merge_df.duplicated(subset=chaves_desempenho_merge).any():
+    desempenho_merge_df = desempenho_merge_df.groupby(chaves_desempenho_merge, as_index=False)[metricas_desempenho_merge].mean()
+
 # Junta o desempenho médio por faixa ao ranking final nominal sem duplicar temperatura, pressão e razão.
 ranking_final_df = ranking_final_df.merge(
-    desempenho_faixa_df[colunas_desempenho_merge],
-    on=["formula", "regime"],
+    desempenho_merge_df,
+    on=chaves_desempenho_merge,
     how="left",
+    validate="many_to_one",
 )
 
 # Recalcula o score final favorecendo candidatos robustos em uma faixa de condição.
