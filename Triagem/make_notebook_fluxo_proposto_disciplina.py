@@ -2664,7 +2664,7 @@ def limitar_0_100(valor):
     return float(np.clip(valor, 0, 100))
 
 # Define fatores de condição para cada reação.
-def fator_condicao(condicao):
+def fator_condicao(condicao, reacao_alvo):
     # Lê temperatura da condição.
     temp = condicao["temperatura_C"]
     # Lê pressão da condição.
@@ -2672,12 +2672,12 @@ def fator_condicao(condicao):
     # Lê razão reacional da condição.
     razao = condicao["razao"]
     # Define fatores para metanação.
-    if reacao == "metanacao":
+    if reacao_alvo == "metanacao":
         conv = 0.74 + 0.34 / (1.0 + math.exp(-(temp - 345.0) / 32.0))
         sel = 1.02 - 0.000018 * (temp - 360.0) ** 2
         razao_fator = 1.0 - 0.035 * abs(razao - 4.0)
     # Define fatores para reforma.
-    elif reacao == "reforma":
+    elif reacao_alvo == "reforma":
         conv = 0.45 + 0.60 / (1.0 + math.exp(-(temp - 720.0) / 55.0))
         sel = 0.86 + 0.12 / (1.0 + math.exp(-(temp - 700.0) / 70.0))
         razao_fator = 1.0 - 0.04 * abs(razao - 1.0)
@@ -2699,7 +2699,7 @@ for _, row in refinado_df.iterrows():
     # Percorre cada condição definida no perfil da reação.
     for condicao in perfil["condicoes"]:
         # Calcula fatores de condição.
-        fator_conv, fator_sel = fator_condicao(condicao)
+        fator_conv, fator_sel = fator_condicao(condicao, reacao)
         # Calcula penalização de coque específica da condição operacional.
         coque_condicao = calcular_penalidade_coque_reforma(row, condicao.get("razao", 1.0))
         # Extrai a penalidade de coque dependente da condição.
@@ -2809,9 +2809,13 @@ for _, row in refinado_df.iterrows():
                     # Atualiza a razão gasosa da condição variada.
                     condicao_variada["razao"] = float(razao)
                     # Calcula fatores de conversão e seletividade para a condição variada.
-                    fator_conv, fator_sel = fator_condicao(condicao_variada)
+                    fator_conv, fator_sel = fator_condicao(condicao_variada, reacao)
+                    # Calcula penalização de coque para a condição variada.
+                    coque_condicao_variada = calcular_penalidade_coque_reforma(row, condicao_variada.get("razao", 1.0))
+                    # Usa atividade corrigida por coque em reforma também na análise de robustez por faixa.
+                    atividade_operacional_faixa = float(coque_condicao_variada["score_atividade_corrigida_coque"]) if reacao == "reforma" else float(row["score_atividade"])
                     # Estima conversão para a condição variada.
-                    conversao = limitar_0_100((35 + 45 * row["score_atividade"]) * fator_conv)
+                    conversao = limitar_0_100((35 + 45 * atividade_operacional_faixa) * fator_conv)
                     # Estima seletividade para a condição variada.
                     seletividade = limitar_0_100((45 + 50 * row["score_seletividade"]) * fator_sel)
                     # Calcula rendimento ou produtividade para a condição variada.
