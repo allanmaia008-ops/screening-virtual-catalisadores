@@ -2716,11 +2716,11 @@ for _, row in refinado_df.iterrows():
         rendimento = limitar_0_100(conversao * seletividade / 100.0)
         # Calcula score de condição.
         score_condicao = 0.40 * conversao/100 + 0.30 * seletividade/100 + 0.30 * rendimento/100
+        # Aplica a penalizacao explicita de coque apenas na parcela operacional da condicao.
+        if reacao == "reforma":
+            score_condicao = float(np.clip(score_condicao * (1.0 - 0.10 * penalidade_coque_condicao), 0, 1))
         # Combina score do material e score da condição.
         score_final = 0.60 * row["score_final_material"] + 0.40 * score_condicao
-        # Penaliza levemente a combinação quando a condição favorece coque em reforma.
-        if reacao == "reforma":
-            score_final = float(np.clip(score_final * (1.0 - 0.10 * penalidade_coque_condicao), 0, 1))
         # Armazena a linha final.
         linhas.append({
             "reacao": reacao,
@@ -2822,7 +2822,7 @@ for _, row in refinado_df.iterrows():
                     rendimento = limitar_0_100(conversao * seletividade / 100.0)
                     # Calcula score de condição para a simulação local.
                     score_condicao = 0.40 * conversao/100 + 0.30 * seletividade/100 + 0.30 * rendimento/100
-                    # Aplica a mesma penalizacao explicita de coque usada no score nominal para nao diluir o efeito no re-ranking por faixa.
+                    # Aplica a mesma penalizacao explicita de coque usada na parcela operacional nominal.
                     if reacao == "reforma":
                         score_condicao = float(np.clip(score_condicao * (1.0 - 0.10 * float(coque_condicao_variada["penalidade_tendencia_coque"])), 0, 1))
                     # Guarda a simulação local para cálculo das médias.
