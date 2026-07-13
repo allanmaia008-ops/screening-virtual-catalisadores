@@ -2897,8 +2897,18 @@ ranking_final_df["score_final"] = (
     + 0.20 * ranking_final_df["score_faixa_condicao"]
 )
 
+# Calcula o delta de rendimento entre o ponto nominal e a faixa perturbada de operacao.
+ranking_final_df["delta_rendimento_faixa"] = (
+    ranking_final_df["rendimento_medio_faixa_pct"]
+    - ranking_final_df["rendimento_ou_produtividade_prevista_pct"]
+)
+
 # Ordena novamente a tabela após incluir desempenho médio por faixa.
 ranking_final_df = ranking_final_df.sort_values("score_final", ascending=False).reset_index(drop=True)
+
+# Mostra os candidatos com maior estabilidade de rendimento na janela operacional.
+print("Candidatos com maior estabilidade na janela operacional:")
+print(ranking_final_df.sort_values("delta_rendimento_faixa", ascending=False)[["formula", "score_final", "delta_rendimento_faixa"]].head(5))
 
 # Mostra as melhores combinações.
 ranking_final_df.head(20)
@@ -3691,6 +3701,7 @@ nomes_colunas_pt = {
     "conversao_media_faixa_pct": "conversão média na faixa (%)",
     "seletividade_media_faixa_pct": "seletividade média na faixa (%)",
     "rendimento_medio_faixa_pct": "rendimento médio na faixa (%)",
+    "delta_rendimento_faixa": "delta de rendimento na faixa (%)",
     "score_faixa_condicao": "score da faixa de condição",
     "probabilidade_top5_mc": "probabilidade Monte Carlo de ficar no top 5",
     "probabilidade_top5_mc_ic95_inf": "limite inferior IC95 da probabilidade top 5",
