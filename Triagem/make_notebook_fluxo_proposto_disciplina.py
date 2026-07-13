@@ -2869,7 +2869,17 @@ metricas_desempenho_merge = [
 # Monta tabela de desempenho por faixa com chaves completas e metricas.
 desempenho_merge_df = desempenho_faixa_df[chaves_desempenho_merge + metricas_desempenho_merge].copy()
 
-# Agrupa eventuais duplicatas de chave antes do merge para impedir multiplicacao silenciosa de linhas.
+# Alinha tipos das chaves nos dois dataframes para evitar falhas de merge por texto ou ponto flutuante.
+colunas_chave_texto = {"formula", "regime", "razao_nome"}
+for coluna_chave in chaves_desempenho_merge:
+    if coluna_chave in colunas_chave_texto:
+        ranking_final_df[coluna_chave] = ranking_final_df[coluna_chave].astype(str).str.strip()
+        desempenho_merge_df[coluna_chave] = desempenho_merge_df[coluna_chave].astype(str).str.strip()
+    else:
+        ranking_final_df[coluna_chave] = pd.to_numeric(ranking_final_df[coluna_chave], errors="coerce").astype(float).round(8)
+        desempenho_merge_df[coluna_chave] = pd.to_numeric(desempenho_merge_df[coluna_chave], errors="coerce").astype(float).round(8)
+
+# Agrupa eventuais duplicatas de chave apos o alinhamento de tipos para impedir multiplicacao silenciosa de linhas.
 if desempenho_merge_df.duplicated(subset=chaves_desempenho_merge).any():
     desempenho_merge_df = desempenho_merge_df.groupby(chaves_desempenho_merge, as_index=False)[metricas_desempenho_merge].mean()
 
