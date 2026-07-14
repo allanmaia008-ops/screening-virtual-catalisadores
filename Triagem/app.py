@@ -379,6 +379,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             return "-"
         return formatar_valor(valor / anterior, percentual=True)
 
+    maior_valor = max(n_gerados, n_viaveis, n_refinados, n_recomendados, 1.0)
     etapas = [
         {
             "rotulo": "Candidatos gerados",
@@ -411,15 +412,19 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
     ]
     blocos = []
     for indice, etapa in enumerate(etapas):
-        conector = "" if indice == len(etapas) - 1 else '<div class="fluxo-conector"></div>'
+        largura = max(14.0, 100.0 * float(etapa["valor"]) / maior_valor)
+        conector = "" if indice == len(etapas) - 1 else '<div class="fluxo-seta">&#8595;</div>'
         blocos.append(
             f"""
-            <div class="fluxo-item">
+            <div class="fluxo-linha">
                 <div class="fluxo-marcador" style="background:{etapa['cor']};">{indice + 1}</div>
-                <div class="fluxo-card">
-                    <div class="fluxo-topo">
+                <div class="fluxo-conteudo">
+                    <div class="fluxo-cabecalho">
                         <span>{html.escape(etapa['rotulo'])}</span>
                         <strong>{html.escape(formatar_valor(etapa['valor']))}</strong>
+                    </div>
+                    <div class="fluxo-barra-externa">
+                        <div class="fluxo-barra-interna" style="width:{largura:.1f}%; background:{etapa['cor']};"></div>
                     </div>
                     <div class="fluxo-criterio">{html.escape(etapa['criterio'])}</div>
                     <div class="fluxo-retencao">Reten\u00e7\u00e3o nesta etapa: <strong>{html.escape(etapa['retencao'])}</strong></div>
@@ -428,11 +433,13 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             {conector}
             """
         )
-    st.html(
+    st.markdown(
         f"""
         <style>
             .fluxo-triagem {{
-                padding: 14px 14px 12px 14px;
+                width: 100%;
+                box-sizing: border-box;
+                padding: 18px 18px 16px 18px;
                 border: 1px solid #D8EEF8;
                 border-radius: 12px;
                 background: #FFFFFF;
@@ -440,36 +447,37 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             .fluxo-titulo {{
                 color: #0B4F7A;
                 font-family: Arial, Helvetica, sans-serif;
-                font-size: 1.05rem;
+                font-size: 1.18rem;
                 font-weight: 800;
-                margin-bottom: 12px;
+                margin-bottom: 16px;
+                text-align: center;
             }}
-            .fluxo-item {{
+            .fluxo-linha {{
                 display: grid;
-                grid-template-columns: 34px minmax(0, 1fr);
-                gap: 10px;
+                grid-template-columns: 44px minmax(0, 1fr);
+                gap: 14px;
                 align-items: start;
             }}
             .fluxo-marcador {{
-                width: 34px;
-                height: 34px;
+                width: 38px;
+                height: 38px;
                 border-radius: 999px;
                 color: #FFFFFF;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-family: Arial, Helvetica, sans-serif;
-                font-size: 0.92rem;
+                font-size: 1rem;
                 font-weight: 850;
                 box-shadow: 0 2px 8px rgba(11, 79, 122, 0.16);
             }}
-            .fluxo-card {{
+            .fluxo-conteudo {{
                 border: 1px solid #E3EFF5;
                 border-radius: 10px;
                 background: #F8FCFE;
-                padding: 10px 12px;
+                padding: 12px 14px;
             }}
-            .fluxo-topo {{
+            .fluxo-cabecalho {{
                 display: flex;
                 justify-content: space-between;
                 align-items: baseline;
@@ -478,36 +486,77 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-family: Arial, Helvetica, sans-serif;
                 font-weight: 800;
             }}
-            .fluxo-topo strong {{
+            .fluxo-cabecalho span {{
+                font-size: 1rem;
+            }}
+            .fluxo-cabecalho strong {{
                 color: #168AC8;
-                font-size: 1.28rem;
+                font-size: 1.42rem;
                 white-space: nowrap;
+            }}
+            .fluxo-barra-externa {{
+                width: 100%;
+                height: 10px;
+                border-radius: 999px;
+                background: #E9F4F9;
+                overflow: hidden;
+                margin: 9px 0 7px 0;
+            }}
+            .fluxo-barra-interna {{
+                height: 100%;
+                min-width: 18px;
+                border-radius: 999px;
             }}
             .fluxo-criterio {{
                 color: #526F82;
                 font-family: Arial, Helvetica, sans-serif;
-                font-size: 0.86rem;
-                line-height: 1.28;
-                margin-top: 5px;
+                font-size: 0.91rem;
+                line-height: 1.34;
+                margin-top: 6px;
             }}
             .fluxo-retencao {{
                 color: #315A6F;
                 font-family: Arial, Helvetica, sans-serif;
-                font-size: 0.82rem;
-                margin-top: 7px;
+                font-size: 0.88rem;
+                margin-top: 8px;
             }}
-            .fluxo-conector {{
-                width: 2px;
-                height: 18px;
-                background: #BFDDEB;
-                margin: 4px 0 4px 16px;
+            .fluxo-seta {{
+                color: #8BAFC0;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 1.4rem;
+                font-weight: 800;
+                line-height: 1;
+                margin: 8px 0 8px 18px;
+            }}
+            @media (max-width: 680px) {{
+                .fluxo-triagem {{
+                    padding: 14px;
+                }}
+                .fluxo-linha {{
+                    grid-template-columns: 36px minmax(0, 1fr);
+                    gap: 10px;
+                }}
+                .fluxo-marcador {{
+                    width: 32px;
+                    height: 32px;
+                    font-size: 0.9rem;
+                }}
+                .fluxo-cabecalho {{
+                    display: block;
+                    text-align: left;
+                }}
+                .fluxo-cabecalho strong {{
+                    display: block;
+                    margin-top: 3px;
+                }}
             }}
         </style>
         <div class="fluxo-triagem">
             <div class="fluxo-titulo">Fluxo vertical da triagem</div>
             {''.join(blocos)}
         </div>
-        """
+        """,
+        unsafe_allow_html=True,
     )
 
 
@@ -1059,11 +1108,8 @@ aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_quimica, aba_figuras,
 ])
 
 with aba_geral:
-    col_resumo, col_funil = st.columns([1.0, 1.1])
-    with col_resumo:
-        mostrar_tabela("Top 2 recomendados", prioritarios_df, linhas=2)
-    with col_funil:
-        mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
+    mostrar_tabela("Top 2 recomendados", prioritarios_df, linhas=2)
+    mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
     mostrar_tabela("Resumo tecnico dos recomendados", selecionar_colunas_tecnicas(prioritarios_df), linhas=10)
 
 with aba_candidatos:
