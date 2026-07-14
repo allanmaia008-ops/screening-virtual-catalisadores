@@ -197,7 +197,7 @@ def garantir_dependencia_obrigatoria(pacote, modulo=None):
         raise RuntimeError(f"Falha ao importar dependencia obrigatoria {pacote}: {erro_dependencia}") from erro_dependencia
 
 # Garante setuptools porque o matminer ainda usa pkg_resources em alguns ambientes Python.
-garantir_dependencia_obrigatoria("setuptools", "pkg_resources")
+garantir_dependencia_obrigatoria("setuptools<81", "pkg_resources")
 
 # Garante o matminer para calcular descritores Magpie na etapa 6.1.
 garantir_dependencia_obrigatoria("matminer", "matminer")

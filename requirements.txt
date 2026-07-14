@@ -1,5 +1,5 @@
 streamlit
-setuptools
+setuptools<81
 nbformat
 nbclient
 ipykernel

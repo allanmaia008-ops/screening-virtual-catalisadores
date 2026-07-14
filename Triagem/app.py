@@ -46,7 +46,7 @@ def garantir_pkg_resources() -> None:
     try:
         __import__("pkg_resources")
     except ModuleNotFoundError:
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "setuptools"])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "setuptools<81"])
         __import__("pkg_resources")
 
 def configurar_banco_incremental_github() -> None:
