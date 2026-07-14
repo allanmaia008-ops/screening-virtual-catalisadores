@@ -12,7 +12,6 @@ from pathlib import Path
 import nbformat
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 from nbclient import NotebookClient
 
 
@@ -559,7 +558,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
         </div>
         """
     )
-    components.html(html_fluxo, height=560, scrolling=False)
+    st.html(html_fluxo)
 
 
 def selecionar_colunas_tecnicas(dataframe: pd.DataFrame) -> pd.DataFrame:
