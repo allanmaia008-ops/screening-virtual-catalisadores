@@ -4,6 +4,7 @@ import base64
 import html
 import os
 import re
+import textwrap
 import unicodedata
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,7 @@ from pathlib import Path
 import nbformat
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from nbclient import NotebookClient
 
 
@@ -433,7 +435,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             {conector}
             """
         )
-    st.markdown(
+    html_fluxo = textwrap.dedent(
         f"""
         <style>
             .fluxo-triagem {{
@@ -555,9 +557,9 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             <div class="fluxo-titulo">Fluxo vertical da triagem</div>
             {''.join(blocos)}
         </div>
-        """,
-        unsafe_allow_html=True,
+        """
     )
+    components.html(html_fluxo, height=560, scrolling=False)
 
 
 def selecionar_colunas_tecnicas(dataframe: pd.DataFrame) -> pd.DataFrame:
