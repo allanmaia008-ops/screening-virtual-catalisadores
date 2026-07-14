@@ -218,8 +218,12 @@ def mostrar_cartoes_metricas(metricas_df: pd.DataFrame, prioritarios_df: pd.Data
     n_gerados = extrair_metrica(metricas_df, "candidatos gerados")
     n_viaveis = extrair_metrica(metricas_df, "candidatos vi")
     taxa_viabilidade = extrair_metrica(metricas_df, "taxa de viabilidade")
-    n_refinados = len(monte_carlo_df) if not monte_carlo_df.empty else None
-    n_recomendados = len(prioritarios_df) if not prioritarios_df.empty else None
+    n_refinados = extrair_metrica(metricas_df, "candidatos refinados")
+    if n_refinados is None:
+        n_refinados = len(monte_carlo_df) if not monte_carlo_df.empty else None
+    n_recomendados = extrair_metrica(metricas_df, "candidatos priorit")
+    if n_recomendados is None:
+        n_recomendados = len(prioritarios_df) if not prioritarios_df.empty else None
     cards = [
         ("Gerados", formatar_valor(n_gerados)),
         ("Viáveis", formatar_valor(n_viaveis)),
@@ -356,8 +360,14 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
     """Mostra a triagem como um fluxo vertical com criterios e retencao."""
     n_gerados = float(extrair_metrica(metricas_df, "candidatos gerados") or 0)
     n_viaveis = float(extrair_metrica(metricas_df, "candidatos vi") or 0)
-    n_refinados = float(len(monte_carlo_df) if not monte_carlo_df.empty else 0)
-    n_recomendados = float(len(prioritarios_df) if not prioritarios_df.empty else 0)
+    n_refinados_metricas = extrair_metrica(metricas_df, "candidatos refinados")
+    if n_refinados_metricas is None:
+        n_refinados_metricas = len(monte_carlo_df) if not monte_carlo_df.empty else 0
+    n_recomendados_metricas = extrair_metrica(metricas_df, "candidatos priorit")
+    if n_recomendados_metricas is None:
+        n_recomendados_metricas = len(prioritarios_df) if not prioritarios_df.empty else 0
+    n_refinados = float(n_refinados_metricas or 0)
+    n_recomendados = float(n_recomendados_metricas or 0)
     if n_gerados == 0 and n_viaveis == 0 and n_refinados == 0 and n_recomendados == 0:
         st.info("O fluxo da triagem ser\u00e1 exibido ap\u00f3s a execu\u00e7\u00e3o da triagem.")
         return
