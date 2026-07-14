@@ -4,6 +4,8 @@ import base64
 import html
 import os
 import re
+import subprocess
+import sys
 import textwrap
 import traceback
 import unicodedata
@@ -37,6 +39,15 @@ def obter_mp_api_key() -> str:
     """Le a chave do Materials Project sem grava-la no codigo publicado."""
     return obter_secret_streamlit("MP_API_KEY")
 
+
+
+def garantir_pkg_resources() -> None:
+    """Garante pkg_resources, exigido por versoes atuais do matminer."""
+    try:
+        __import__("pkg_resources")
+    except ModuleNotFoundError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "setuptools"])
+        __import__("pkg_resources")
 
 def configurar_banco_incremental_github() -> None:
     """Configura variaveis para o notebook sincronizar dados incrementais no GitHub."""
@@ -761,6 +772,7 @@ def preparar_notebook_parametrizado(reacao: str, metais: list[str], promotor: st
 
 def executar_triagem(reacao: str, metais: list[str], promotor: str, output_dir: Path) -> Path:
     """Executa o notebook parametrizado e salva uma cópia executada para auditoria."""
+    garantir_pkg_resources()
     mp_api_key = obter_mp_api_key()
     if mp_api_key:
         os.environ["MP_API_KEY"] = mp_api_key
