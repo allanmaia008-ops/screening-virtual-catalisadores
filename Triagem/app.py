@@ -5,6 +5,7 @@ import html
 import os
 import re
 import textwrap
+import traceback
 import unicodedata
 from datetime import datetime
 from pathlib import Path
@@ -1073,12 +1074,18 @@ if executar:
     elif not promotor:
         st.error("Informe o promotor.")
     else:
-        with st.spinner("Executando consultas, descritores, ranking, incerteza e figuras. Esta etapa pode demorar."):
-            notebook_executado = executar_triagem(reacao, metais, promotor, output_dir)
-        st.session_state["ultima_reacao"] = reacao
-        st.session_state["ultima_saida"] = str(output_dir)
-        st.session_state["ultimo_notebook"] = str(notebook_executado)
-        st.success("Triagem concluída.")
+        try:
+            with st.spinner("Executando consultas, descritores, ranking, incerteza e figuras. Esta etapa pode demorar."):
+                notebook_executado = executar_triagem(reacao, metais, promotor, output_dir)
+        except Exception as erro_execucao:
+            st.error("A triagem nao foi concluida. Verifique os detalhes tecnicos abaixo.")
+            with st.expander("Detalhes tecnicos do erro"):
+                st.code("".join(traceback.format_exception(erro_execucao))[-6000:])
+        else:
+            st.session_state["ultima_reacao"] = reacao
+            st.session_state["ultima_saida"] = str(output_dir)
+            st.session_state["ultimo_notebook"] = str(notebook_executado)
+            st.success("Triagem concluída.")
 
 reacao_resultado = st.session_state.get("ultima_reacao", reacao)
 saida_resultado = Path(st.session_state.get("ultima_saida", str(output_dir)))
