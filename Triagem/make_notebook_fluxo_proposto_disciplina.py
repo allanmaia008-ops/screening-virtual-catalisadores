@@ -36,7 +36,7 @@ nb["cells"] = [
 
 3. Perfis quimicos por reacao: seleciona entre metanacao de CO2, reforma de CH4 ou RWGS e carrega automaticamente descritores, intermediarios DFT esperados, pesos do ranking e limites de estabilidade adequados para a rota escolhida.
 
-4. Geracao automatica de candidatos: cria 1000 candidatos puros, promovidos, bimetalicos e multimetalicos de forma controlada, balanceando metais ativos quando houver mais de um metal informado.
+4. Geracao automatica de candidatos: cria 1000 candidatos puros, promovidos, bimetalicos e multimetalicos de forma controlada, balanceando metais ativos quando houver mais de um metal informado e usando faixas de promotor por reacao: 2-20% para metanacao, 5-30% para reforma e 0,5-10% para RWGS.
 
 5. Busca e atualizacao de propriedades de materiais: consulta a base local multi-fonte; quando um candidato nao existe na base, tenta buscar dados no Materials Project usando a chave configurada no notebook ou em `MP_API_KEY` e tambem tenta consultar o OQMD; anexa os novos registros ao banco local e evita baixar novamente sistemas quimicos ja consultados com sucesso.
    Quando a execucao ocorre no Streamlit Cloud com token GitHub configurado, o notebook baixa primeiro os CSVs incrementais persistidos no repositorio e envia de volta os novos dados obtidos.
@@ -432,7 +432,7 @@ print("Intermediários DFT relevantes:", perfil["intermediarios_dft"])
         """
 ## Etapa 4 - Geração automática de candidatos
 
-O modelo gera candidatos a partir dos metais ativos e do promotor. Quando mais de um metal ativo é informado, o funil inclui ligas entre metais ativos, ligas multimetálicas e versões promovidas antes de aplicar o corte de 1000 candidatos. Depois disso, passa para 100 candidatos viáveis após o filtro, refina 10 candidatos e apresenta 2 candidatos no ranking final.
+O modelo gera candidatos a partir dos metais ativos e do promotor. A fração de promotor é definida pela reação: 2-20% para metanação, 5-30% para reforma e 0,5-10% para RWGS. Quando mais de um metal ativo é informado, o funil inclui ligas entre metais ativos, ligas multimetálicas e versões promovidas antes de aplicar o corte de 1000 candidatos. Depois disso, passa para 100 candidatos viáveis após o filtro, refina 10 candidatos e apresenta 2 candidatos no ranking final.
 """
     ),
     code(
@@ -455,8 +455,34 @@ N_CANDIDATOS_REFINADOS_FUNIL = 10
 # Define quantos candidatos aparecem como prioritarios finais para sintese.
 N_CANDIDATOS_RANKING_FINAL = 2
 
-# Define proporções em grade de 0,01 para combinar um metal ativo com o promotor.
-PROPORCOES_PROMOTOR = [round(i / 100, 2) for i in range(1, 100)]
+# Define as faixas de promotor por reação com base nos limites definidos para a geração.
+FAIXAS_PROMOTOR_POR_REACAO = {
+    # Usa 2 a 20% de promotor para metanação de CO2.
+    "metanacao": {"inicio": 0.02, "fim": 0.20, "passo": 0.01},
+    # Usa 5 a 30% de promotor para reforma de CH4/DRM.
+    "reforma": {"inicio": 0.05, "fim": 0.30, "passo": 0.01},
+    # Usa 0,5 a 10% de promotor para RWGS.
+    "rwgs": {"inicio": 0.005, "fim": 0.10, "passo": 0.005},
+}
+
+# Define uma função para criar a grade de frações de promotor de forma reprodutível.
+def gerar_grade_promotor(config):
+    # Lê o valor inicial da faixa de promotor.
+    inicio = float(config["inicio"])
+    # Lê o valor final da faixa de promotor.
+    fim = float(config["fim"])
+    # Lê o passo usado entre duas composições consecutivas.
+    passo = float(config["passo"])
+    # Calcula quantos pontos cabem na grade incluindo o limite superior.
+    n_pontos = int(round((fim - inicio) / passo)) + 1
+    # Retorna a lista de frações arredondadas para evitar ruído de ponto flutuante.
+    return [round(inicio + i * passo, 4) for i in range(n_pontos)]
+
+# Seleciona a faixa de promotor da reação escolhida pelo usuário.
+config_promotor_reacao = FAIXAS_PROMOTOR_POR_REACAO.get(reacao, FAIXAS_PROMOTOR_POR_REACAO["metanacao"])
+
+# Define proporções do promotor usando a faixa específica da reação.
+PROPORCOES_PROMOTOR = gerar_grade_promotor(config_promotor_reacao)
 
 # Define frações relativas em grade de 0,01 para variar a composição entre dois metais ativos.
 PROPORCOES_LIGA_ATIVA = [round(i / 100, 2) for i in range(1, 100)]
@@ -464,8 +490,8 @@ PROPORCOES_LIGA_ATIVA = [round(i / 100, 2) for i in range(1, 100)]
 # Define frações adicionais em grade de 0,01 para completar o funil quando ainda houver combinações únicas.
 PROPORCOES_LIGA_ATIVA_FINA = [round(i / 100, 2) for i in range(1, 100)]
 
-# Define frações moderadas de promotor em grade de 0,01, evitando excesso de casas decimais nas fórmulas.
-PROPORCOES_PROMOTOR_MULTIMETAL = [round(i / 100, 2) for i in range(1, 31)]
+# Usa a mesma faixa de promotor em candidatos multimetálicos para preservar a lógica por reação.
+PROPORCOES_PROMOTOR_MULTIMETAL = PROPORCOES_PROMOTOR.copy()
 
 # Remove metais ativos repetidos preservando a ordem informada pelo usuário.
 metais_usuario = list(dict.fromkeys([m for m in metais_usuario if m]))
@@ -479,6 +505,10 @@ if not metais_usuario:
 def texto_fracao(valor):
     # Converte o valor para float para evitar problemas com inteiros ou strings numéricas.
     valor = float(valor)
+    # Verifica se duas casas decimais representam a fração sem alterar a composição.
+    if abs(valor - round(valor, 2)) > 1e-9:
+        # Usa três casas somente para frações como 0,5% em RWGS.
+        return f"{valor:.3f}"
     # Retorna a fração no padrão compacto usado nas fórmulas de triagem.
     return f"{valor:.2f}"
 
