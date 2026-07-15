@@ -72,11 +72,11 @@ nb["cells"] = [
 - Calcula intervalo de confianca de 95% da probabilidade de permanencia no top 5 usando `scipy`.
 - Projeta desempenho em diferentes condicoes operacionais.
 
-13. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao e sensibilidade dos descritores.
+13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica padronizacao, PCA, agrupamento KMeans, selecao de descritores, metricas da triagem virtual e planejamento fatorial simples para os candidatos finais.
 
-14. Metricas da triagem virtual: calcula metricas de viabilidade, ranking, confianca, DFT/proxy DFT, descritores, diversidade e metricas especificas da reacao.
+14. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento e DOE.
 
-15. Salvar resultados: grava todos os arquivos na pasta escolhida pelo usuario e gera automaticamente um relatório HTML autocontido com resumo, tabelas principais e figuras da triagem.
+15. Salvar resultados: grava todos os arquivos na pasta escolhida pelo usuario e gera automaticamente um relatório HTML autocontido com resumo, tabelas principais, validacao quimiometrica e figuras da triagem.
 
 - `disciplina_fluxo_<reacao>_resultados.xlsx`
 - `disciplina_fluxo_<reacao>_relatorio.html`
@@ -87,6 +87,11 @@ nb["cells"] = [
 - `disciplina_fluxo_<reacao>_desempenho_faixa_condicoes.csv`
 - `disciplina_fluxo_<reacao>_sensibilidade_descritores.csv`
 - `disciplina_fluxo_<reacao>_monte_carlo_ranking.csv`
+- `disciplina_fluxo_<reacao>_pca_quimiometrica.csv`
+- `disciplina_fluxo_<reacao>_agrupamento_quimiometrico.csv`
+- `disciplina_fluxo_<reacao>_selecao_descritores_quimiometricos.csv`
+- `disciplina_fluxo_<reacao>_validacao_quimiometrica.csv`
+- `disciplina_fluxo_<reacao>_planejamento_doe_sintese.csv`
 - `disciplina_fluxo_<reacao>_descritores_matminer.csv`
 - `disciplina_fluxo_<reacao>_descritores_pymatgen.csv`
 - `disciplina_fluxo_<reacao>_proxy_gnn_local.csv`
@@ -204,6 +209,9 @@ garantir_dependencia_obrigatoria("matminer", "matminer")
 
 # Garante o pymatgen para interpretar composicoes quimicas e apoiar descritores estruturais.
 garantir_dependencia_obrigatoria("pymatgen", "pymatgen")
+
+# Garante o scikit-learn para PCA, agrupamento e validacao quimiometrica.
+garantir_dependencia_obrigatoria("scikit-learn", "sklearn")
 
 # Define a pasta em que o notebook está sendo executado.
 CWD = Path.cwd()
@@ -3255,7 +3263,439 @@ prioritarios_df[[
     ),
     md(
         """
-## Etapa 13 - Visualização científica dos resultados
+## Etapa 13 - Validação quimiométrica, PCA, agrupamento e DOE
+
+Esta etapa aplica conceitos do livro de quimiometria com Python: padronização dos descritores, PCA para visualizar padrões, agrupamento para avaliar diversidade química, seleção de variáveis e um planejamento DOE simples para os candidatos finais. O objetivo é transformar o ranking em evidência mais apresentável e mais auditável.
+"""
+    ),
+    code(
+        """
+# Importa StandardScaler para padronizar descritores antes da PCA e do agrupamento.
+from sklearn.preprocessing import StandardScaler
+
+# Importa PCA para reduzir muitos descritores a eixos principais interpretaveis.
+from sklearn.decomposition import PCA
+
+# Importa KMeans para formar grupos de candidatos com comportamento quimico semelhante.
+from sklearn.cluster import KMeans
+
+# Importa silhouette_score para medir a separacao dos grupos quando ha dados suficientes.
+from sklearn.metrics import silhouette_score
+
+# Define descritores numericos candidatos para a matriz quimiometrica.
+candidatas_descritores_quimio = [
+    "score_estabilidade",
+    "score_atividade",
+    "score_seletividade",
+    "score_DFT",
+    "score_DFT_proxy",
+    "score_DFT_refinado",
+    "score_cathub_incremental",
+    "score_incerteza",
+    "score_basicidade",
+    "score_redox",
+    "score_resistencia_coque",
+    "score_matminer_composicional",
+    "score_pymatgen_quimico",
+    "score_gnn_local",
+    "score_volcano",
+    "energy_above_hull_eV_atom",
+    "peso_boltzmann_estabilidade",
+    "probabilidade_top5_mc",
+    "score_final_mc_desvio",
+    "delta_rendimento_faixa",
+    "score_faixa_condicao",
+]
+
+# Mantem apenas descritores que existem na tabela de melhor condicao por candidato.
+descritores_quimiometricos_cols = [col for col in candidatas_descritores_quimio if col in melhor_por_candidato_df.columns]
+
+# Usa o score final como descritor minimo caso nenhuma coluna esperada esteja disponivel.
+if not descritores_quimiometricos_cols:
+    descritores_quimiometricos_cols = ["score_final"]
+
+# Cria uma base quimiometrica com formula e descritores numericos.
+base_quimiometrica_df = melhor_por_candidato_df[["formula"] + descritores_quimiometricos_cols].copy()
+
+# Converte descritores para formato numerico e transforma textos invalidos em NaN.
+matriz_descritores = base_quimiometrica_df[descritores_quimiometricos_cols].apply(pd.to_numeric, errors="coerce")
+
+# Preenche valores ausentes com a mediana de cada descritor para evitar perda de candidatos.
+for col in descritores_quimiometricos_cols:
+    # Calcula a mediana do descritor atual.
+    mediana_col = matriz_descritores[col].median()
+    # Usa valor neutro quando a coluna inteira esta vazia.
+    if pd.isna(mediana_col):
+        mediana_col = 0.5
+    # Substitui valores ausentes pela mediana calculada.
+    matriz_descritores[col] = matriz_descritores[col].fillna(mediana_col)
+
+# Cria fallback quando a triagem nao produziu candidatos avaliaveis.
+if matriz_descritores.empty:
+    # Cria uma linha neutra para manter o notebook executavel.
+    matriz_descritores = pd.DataFrame({"score_final": [0.0]})
+    # Cria formula tecnica para indicar ausencia de candidato.
+    base_quimiometrica_df = pd.DataFrame({"formula": ["sem_candidato"]})
+    # Atualiza a lista de descritores para o fallback.
+    descritores_quimiometricos_cols = ["score_final"]
+
+# Ajusta a escala dos descritores para media zero e desvio padrao unitario.
+scaler_quimiometrico = StandardScaler()
+
+# Calcula a matriz padronizada usada na PCA e no agrupamento.
+matriz_quimiometrica_padronizada = scaler_quimiometrico.fit_transform(matriz_descritores)
+
+# Define o numero de componentes principais possivel para os dados disponiveis.
+n_componentes_pca = int(min(2, matriz_quimiometrica_padronizada.shape[0], matriz_quimiometrica_padronizada.shape[1]))
+
+# Executa PCA quando existe pelo menos um componente disponivel.
+if n_componentes_pca >= 1:
+    # Ajusta o modelo de PCA sobre a matriz padronizada.
+    modelo_pca = PCA(n_components=n_componentes_pca, random_state=42)
+    # Projeta os candidatos nos componentes principais.
+    matriz_pca = modelo_pca.fit_transform(matriz_quimiometrica_padronizada)
+    # Armazena a fracao de variancia explicada por cada componente.
+    variancias_pca = modelo_pca.explained_variance_ratio_
+    # Substitui NaN por zero quando os descritores nao apresentam variacao.
+    variancias_pca = np.nan_to_num(variancias_pca, nan=0.0)
+# Cria saida neutra quando PCA nao pode ser calculada.
+else:
+    # Usa matriz zero para manter colunas consistentes.
+    matriz_pca = np.zeros((len(base_quimiometrica_df), 1))
+    # Define variancia explicada nula.
+    variancias_pca = np.array([0.0])
+
+# Cria tabela com coordenadas PCA e variancia explicada.
+pca_quimiometrica_df = pd.DataFrame({
+    "formula": base_quimiometrica_df["formula"].astype(str).values,
+    "PC1": matriz_pca[:, 0] if matriz_pca.shape[1] >= 1 else np.zeros(len(base_quimiometrica_df)),
+    "PC2": matriz_pca[:, 1] if matriz_pca.shape[1] >= 2 else np.zeros(len(base_quimiometrica_df)),
+    "variancia_PC1": float(variancias_pca[0]) if len(variancias_pca) >= 1 else 0.0,
+    "variancia_PC2": float(variancias_pca[1]) if len(variancias_pca) >= 2 else 0.0,
+})
+
+# Define numero de grupos quimiometricos limitado ao tamanho do conjunto.
+n_grupos_quimiometricos = int(min(4, max(1, len(base_quimiometrica_df))))
+
+# Agrupa candidatos quando ha mais de uma amostra disponivel.
+if n_grupos_quimiometricos > 1:
+    # Ajusta KMeans com inicializacao robusta para reduzir dependencia do ponto inicial.
+    modelo_kmeans = KMeans(n_clusters=n_grupos_quimiometricos, random_state=42, n_init=20)
+    # Calcula o grupo quimiometrico de cada candidato.
+    grupos_quimiometricos = modelo_kmeans.fit_predict(matriz_quimiometrica_padronizada)
+# Usa grupo unico quando so existe um candidato.
+else:
+    # Atribui todos os candidatos ao grupo zero.
+    grupos_quimiometricos = np.zeros(len(base_quimiometrica_df), dtype=int)
+
+# Adiciona grupo quimiometrico a tabela de PCA.
+pca_quimiometrica_df["grupo_quimiometrico"] = grupos_quimiometricos
+
+# Calcula silhouette apenas quando a metrica e matematicamente valida.
+if n_grupos_quimiometricos > 1 and len(base_quimiometrica_df) > n_grupos_quimiometricos:
+    # Mede separacao e compactacao dos grupos.
+    silhouette_quimiometrico = float(silhouette_score(matriz_quimiometrica_padronizada, grupos_quimiometricos))
+# Usa NaN quando a quantidade de candidatos nao permite silhouette.
+else:
+    # Registra ausencia de metrica sem interromper a triagem.
+    silhouette_quimiometrico = np.nan
+
+# Junta PCA e grupos a uma copia da tabela final por candidato.
+quimiometria_candidatos_df = melhor_por_candidato_df.merge(pca_quimiometrica_df, on="formula", how="left")
+
+# Define formulas dos candidatos finais para classificar prioridade.
+formulas_prioritarias = set(prioritarios_df["formula"].astype(str)) if "formula" in prioritarios_df.columns else set()
+
+# Calcula limiar alto do score final para apoiar classificacao quimiometrica.
+limiar_score_alto = float(pd.to_numeric(melhor_por_candidato_df["score_final"], errors="coerce").quantile(0.75)) if "score_final" in melhor_por_candidato_df.columns else 0.75
+
+# Calcula limiar mediano do score final para separar confirmacao de exploracao.
+limiar_score_medio = float(pd.to_numeric(melhor_por_candidato_df["score_final"], errors="coerce").quantile(0.50)) if "score_final" in melhor_por_candidato_df.columns else 0.50
+
+# Calcula limiar mediano de robustez Monte Carlo.
+limiar_prob_mc = float(pd.to_numeric(melhor_por_candidato_df.get("probabilidade_top5_mc", pd.Series([0.0])), errors="coerce").median())
+
+# Substitui limiares ausentes por valores neutros.
+limiar_score_alto = 0.75 if pd.isna(limiar_score_alto) else limiar_score_alto
+limiar_score_medio = 0.50 if pd.isna(limiar_score_medio) else limiar_score_medio
+limiar_prob_mc = 0.0 if pd.isna(limiar_prob_mc) else limiar_prob_mc
+
+# Define funcao para classificar prioridade considerando ranking e robustez.
+def classificar_prioridade_quimiometrica(row):
+    # Lê a formula do candidato atual.
+    formula = str(row.get("formula", ""))
+    # Lê o score final com fallback neutro.
+    score = float(row.get("score_final", 0.0)) if pd.notna(row.get("score_final", np.nan)) else 0.0
+    # Lê a probabilidade Monte Carlo com fallback nulo.
+    prob_mc = float(row.get("probabilidade_top5_mc", 0.0)) if pd.notna(row.get("probabilidade_top5_mc", np.nan)) else 0.0
+    # Marca como prioritario quando ja esta no top final ou combina score alto e robustez.
+    if formula in formulas_prioritarias or (score >= limiar_score_alto and prob_mc >= limiar_prob_mc):
+        return "prioritario_para_sintese"
+    # Marca como confirmacao quando o candidato esta acima da mediana do ranking.
+    if score >= limiar_score_medio:
+        return "confirmar_em_bancada"
+    # Mantem os demais como exploratorios.
+    return "exploratorio"
+
+# Aplica a classe de prioridade quimiometrica por candidato.
+quimiometria_candidatos_df["classe_prioridade_quimiometrica"] = quimiometria_candidatos_df.apply(classificar_prioridade_quimiometrica, axis=1)
+
+# Resume cada grupo quimiometrico em uma tabela interpretavel.
+linhas_grupos_quimio = []
+
+# Percorre grupos em ordem numerica para criar resumo.
+for grupo, grupo_df in quimiometria_candidatos_df.groupby("grupo_quimiometrico", dropna=False):
+    # Ordena o grupo pelo score final para selecionar representante.
+    grupo_ordenado = grupo_df.sort_values("score_final", ascending=False)
+    # Adiciona linha de resumo do grupo.
+    linhas_grupos_quimio.append({
+        "grupo_quimiometrico": int(grupo) if pd.notna(grupo) else -1,
+        "n_candidatos": int(len(grupo_df)),
+        "score_final_medio": float(pd.to_numeric(grupo_df["score_final"], errors="coerce").mean()) if "score_final" in grupo_df else np.nan,
+        "score_final_maximo": float(pd.to_numeric(grupo_df["score_final"], errors="coerce").max()) if "score_final" in grupo_df else np.nan,
+        "estabilidade_media_eV_atom": float(pd.to_numeric(grupo_df.get("energy_above_hull_eV_atom", pd.Series(dtype=float)), errors="coerce").mean()),
+        "probabilidade_mc_media": float(pd.to_numeric(grupo_df.get("probabilidade_top5_mc", pd.Series(dtype=float)), errors="coerce").mean()),
+        "formula_representante": str(grupo_ordenado.iloc[0]["formula"]) if len(grupo_ordenado) else "",
+    })
+
+# Cria tabela de agrupamento quimiometrico.
+agrupamento_quimiometrico_df = pd.DataFrame(linhas_grupos_quimio)
+
+# Calcula mapa de sensibilidade media absoluta por descritor.
+if "descritor" in sensibilidade_descritores_df.columns and "sensibilidade_score" in sensibilidade_descritores_df.columns:
+    # Agrupa sensibilidade por descritor para reutilizar na selecao de variaveis.
+    sensibilidade_media_map = sensibilidade_descritores_df.groupby("descritor")["sensibilidade_score"].apply(lambda s: float(pd.to_numeric(s, errors="coerce").abs().mean())).to_dict()
+# Usa mapa vazio quando a analise de sensibilidade nao esta disponivel.
+else:
+    # Mantem selecao de descritores baseada apenas em correlacao e variancia.
+    sensibilidade_media_map = {}
+
+# Calcula importancia quimiometrica dos descritores.
+linhas_descritores_quimio = []
+
+# Define alvo numerico para correlacionar descritores com o score final.
+alvo_score_final = pd.to_numeric(melhor_por_candidato_df["score_final"], errors="coerce") if "score_final" in melhor_por_candidato_df.columns else pd.Series(np.zeros(len(matriz_descritores)))
+
+# Percorre descritores usados na matriz quimiometrica.
+for col in descritores_quimiometricos_cols:
+    # Lê serie numerica do descritor.
+    serie_col = pd.to_numeric(matriz_descritores[col], errors="coerce")
+    # Calcula correlacao absoluta com o score final quando existe variacao.
+    correlacao_abs = abs(float(serie_col.corr(alvo_score_final))) if serie_col.std(ddof=0) > 0 and alvo_score_final.std(ddof=0) > 0 else 0.0
+    # Calcula variancia original do descritor.
+    variancia_col = float(serie_col.var(ddof=0)) if len(serie_col) else 0.0
+    # Recupera sensibilidade media ja calculada na etapa anterior.
+    sensibilidade_abs = float(sensibilidade_media_map.get(col, 0.0))
+    # Armazena indicadores do descritor.
+    linhas_descritores_quimio.append({
+        "descritor": col,
+        "correlacao_score_final_abs": correlacao_abs if not pd.isna(correlacao_abs) else 0.0,
+        "variancia_padronizada": variancia_col if not pd.isna(variancia_col) else 0.0,
+        "sensibilidade_media_abs": sensibilidade_abs if not pd.isna(sensibilidade_abs) else 0.0,
+    })
+
+# Cria tabela de selecao de descritores.
+selecao_descritores_df = pd.DataFrame(linhas_descritores_quimio)
+
+# Calcula prioridade quimiometrica por descritor se ha dados.
+if not selecao_descritores_df.empty:
+    # Normaliza correlacao para escala 0-1.
+    prioridade_correlacao = normalizar_minmax_global(selecao_descritores_df["correlacao_score_final_abs"], neutro=0.0)
+    # Normaliza variancia para escala 0-1.
+    prioridade_variancia = normalizar_minmax_global(selecao_descritores_df["variancia_padronizada"], neutro=0.0)
+    # Normaliza sensibilidade para escala 0-1.
+    prioridade_sensibilidade = normalizar_minmax_global(selecao_descritores_df["sensibilidade_media_abs"], neutro=0.0)
+    # Combina os tres criterios em uma prioridade media.
+    selecao_descritores_df["prioridade_quimiometrica"] = (prioridade_correlacao + prioridade_variancia + prioridade_sensibilidade) / 3.0
+    # Ordena descritores mais informativos primeiro.
+    selecao_descritores_df = selecao_descritores_df.sort_values("prioridade_quimiometrica", ascending=False).reset_index(drop=True)
+
+# Define funcao auxiliar para adicionar metricas de triagem.
+linhas_metricas_triagem = []
+
+# Adiciona uma metrica estruturada a lista final.
+def adicionar_metrica(grupo, metrica, valor, unidade, interpretacao):
+    # Registra grupo, nome, valor, unidade e interpretacao em uma linha.
+    linhas_metricas_triagem.append({
+        "grupo": grupo,
+        "metrica": metrica,
+        "valor": valor,
+        "unidade": unidade,
+        "interpretacao": interpretacao,
+    })
+
+# Calcula taxa de viabilidade do funil.
+taxa_viabilidade = len(viaveis_df) / max(len(candidatos_df), 1)
+
+# Calcula taxa de refinamento do funil.
+taxa_refinamento = len(refinado_df) / max(len(viaveis_df), 1)
+
+# Calcula taxa de priorizacao final do funil.
+taxa_priorizacao = len(prioritarios_df) / max(len(candidatos_df), 1)
+
+# Separa Top 10 para metricas compactas.
+top10_metricas_df = melhor_por_candidato_df.head(N_CANDIDATOS_REFINADOS_FUNIL).copy()
+
+# Registra metricas do funil.
+adicionar_metrica("funil", "candidatos gerados", int(len(candidatos_df)), "n", "Numero inicial de formulas unicas geradas pelo modelo combinatorio.")
+adicionar_metrica("funil", "candidatos viaveis", int(len(viaveis_df)), "n", "Numero de candidatos que passaram pelo filtro de estabilidade e viabilidade.")
+adicionar_metrica("funil", "candidatos refinados", int(len(refinado_df)), "n", "Numero de candidatos enviados para refinamento catalitico/DFT.")
+adicionar_metrica("funil", "candidatos prioritarios", int(len(prioritarios_df)), "n", "Numero final recomendado para sintese ou teste inicial.")
+adicionar_metrica("funil", "taxa de viabilidade", float(taxa_viabilidade), "fracao", "Fracao de candidatos gerados que sobreviveu ao filtro de viabilidade.")
+adicionar_metrica("funil", "taxa de refinamento", float(taxa_refinamento), "fracao", "Fracao de candidatos viaveis que chegou ao refinamento.")
+adicionar_metrica("funil", "taxa de priorizacao final", float(taxa_priorizacao), "fracao", "Fracao dos gerados que ficou no conjunto final.")
+
+# Registra metricas de ranking.
+adicionar_metrica("ranking", "score final medio Top 10", float(pd.to_numeric(top10_metricas_df.get("score_final", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Media do score final dos dez melhores candidatos.")
+adicionar_metrica("ranking", "amplitude score final Top 10", float(pd.to_numeric(top10_metricas_df.get("score_final", pd.Series(dtype=float)), errors="coerce").max() - pd.to_numeric(top10_metricas_df.get("score_final", pd.Series(dtype=float)), errors="coerce").min()), "0-1", "Diferenca entre maior e menor score no Top 10.")
+
+# Registra metricas de incerteza.
+adicionar_metrica("incerteza", "probabilidade Monte Carlo media Top 10", float(pd.to_numeric(top10_metricas_df.get("probabilidade_top5_mc", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Robustez media do Top 10 frente a perturbacoes dos descritores.")
+adicionar_metrica("incerteza", "desvio Monte Carlo medio Top 10", float(pd.to_numeric(top10_metricas_df.get("score_final_mc_desvio", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Variacao media do score final nas simulacoes de Monte Carlo.")
+
+# Conta candidatos com evidencias incrementais do Catalysis-Hub.
+n_cathub_usado = int(pd.Series(refinado_df.get("cathub_incremental_usado", pd.Series(dtype=bool))).fillna(False).astype(bool).sum()) if "cathub_incremental_usado" in refinado_df.columns else 0
+
+# Registra metrica de evidencia DFT/catalitica.
+adicionar_metrica("DFT/proxy", "candidatos com Catalysis-Hub incremental", n_cathub_usado, "n", "Numero de candidatos refinados com alguma evidencia consultada no Catalysis-Hub.")
+
+# Registra metricas de descritores.
+adicionar_metrica("descritores", "matminer usado", bool(matminer_disponivel), "booleano", "Indica se descritores Magpie foram calculados obrigatoriamente.")
+adicionar_metrica("descritores", "numero de descritores matminer", int(len(matminer_feature_cols)), "n", "Quantidade de descritores Magpie disponiveis para o ranking.")
+adicionar_metrica("descritores", "pymatgen usado", bool(pymatgen_disponivel), "booleano", "Indica se composicoes foram interpretadas pelo pymatgen.")
+adicionar_metrica("descritores", "numero de descritores pymatgen", int(len(pymatgen_feature_cols)), "n", "Quantidade de descritores quimicos diretos calculados pelo pymatgen.")
+
+# Registra metricas quimiometricas.
+adicionar_metrica("quimiometria", "numero de descritores quimiometricos", int(len(descritores_quimiometricos_cols)), "n", "Quantidade de variaveis usadas em PCA, agrupamento e selecao de descritores.")
+adicionar_metrica("quimiometria", "variancia explicada PC1", float(pca_quimiometrica_df["variancia_PC1"].iloc[0]) if len(pca_quimiometrica_df) else 0.0, "fracao", "Parte da variabilidade dos descritores capturada pelo primeiro componente principal.")
+adicionar_metrica("quimiometria", "variancia explicada PC1+PC2", float((pca_quimiometrica_df["variancia_PC1"].iloc[0] + pca_quimiometrica_df["variancia_PC2"].iloc[0])) if len(pca_quimiometrica_df) else 0.0, "fracao", "Parte da variabilidade capturada pelo mapa bidimensional da PCA.")
+adicionar_metrica("quimiometria", "numero de grupos quimiometricos", int(n_grupos_quimiometricos), "n", "Quantidade de agrupamentos KMeans usados para avaliar diversidade.")
+adicionar_metrica("quimiometria", "silhouette dos grupos", float(silhouette_quimiometrico) if not pd.isna(silhouette_quimiometrico) else np.nan, "indice", "Mede separacao dos grupos; valores maiores indicam agrupamentos mais definidos.")
+
+# Identifica descritor mais relevante quando a selecao esta disponivel.
+descritor_top_quimio = str(selecao_descritores_df.iloc[0]["descritor"]) if not selecao_descritores_df.empty else ""
+
+# Registra descritor principal.
+adicionar_metrica("quimiometria", "descritor mais relevante", descritor_top_quimio, "texto", "Descritor com maior prioridade combinando correlacao, variancia e sensibilidade.")
+
+# Define funcao para recuperar valor operacional de uma linha.
+def valor_operacional_linha(row, chave, fallback):
+    # Lê valor diretamente da linha quando existe.
+    valor = row.get(chave, np.nan)
+    # Usa fallback quando o valor esta ausente.
+    if pd.isna(valor):
+        valor = fallback
+    # Retorna valor numerico.
+    return float(valor)
+
+# Recupera condicao base do perfil para preencher campos ausentes.
+condicao_base_doe = perfil["condicoes"][0] if perfil.get("condicoes") else {"temperatura_C": 400, "pressao_bar": 1, "razao": 4, "razao_nome": "razao", "ghsv_h-1": 30000}
+
+# Define amplitude de temperatura do DOE de acordo com a reacao.
+delta_temperatura_doe = 50.0 if reacao == "reforma" else 25.0
+
+# Cria linhas do planejamento DOE.
+linhas_doe = []
+
+# Percorre candidatos prioritarios para propor ensaios de confirmacao.
+for _, row in prioritarios_df.iterrows():
+    # Lê formula do candidato.
+    formula_doe = str(row.get("formula", ""))
+    # Lê temperatura nominal.
+    temperatura_base = valor_operacional_linha(row, "temperatura_C", condicao_base_doe.get("temperatura_C", 400))
+    # Lê pressao nominal.
+    pressao_base = valor_operacional_linha(row, "pressao_bar", condicao_base_doe.get("pressao_bar", 1))
+    # Lê razao nominal.
+    razao_base = valor_operacional_linha(row, "razao", condicao_base_doe.get("razao", 4))
+    # Lê GHSV nominal.
+    ghsv_base = valor_operacional_linha(row, "ghsv_h-1", condicao_base_doe.get("ghsv_h-1", 30000))
+    # Lê nome da razao reacional.
+    razao_nome_base = str(row.get("razao_nome", condicao_base_doe.get("razao_nome", "razao reacional")))
+    # Define niveis baixo e alto dos fatores.
+    niveis_doe = {
+        "temperatura_C": [max(25.0, temperatura_base - delta_temperatura_doe), temperatura_base + delta_temperatura_doe],
+        "pressao_bar": [max(0.1, pressao_base * 0.8), max(0.1, pressao_base * 1.2)],
+        "razao": [max(0.1, razao_base * 0.9), max(0.1, razao_base * 1.1)],
+        "ghsv_h-1": [max(1000.0, ghsv_base * 0.8), max(1000.0, ghsv_base * 1.2)],
+    }
+    # Adiciona ponto central para conferir repetibilidade experimental.
+    linhas_doe.append({
+        "formula": formula_doe,
+        "ensaio_doe": f"{formula_doe}_central",
+        "tipo_ponto": "central",
+        "temperatura_C": temperatura_base,
+        "pressao_bar": pressao_base,
+        "razao_nome": razao_nome_base,
+        "razao": razao_base,
+        "ghsv_h-1": ghsv_base,
+        "objetivo_quimiometrico": "confirmar ponto nominal do ranking",
+        "justificativa_doe": "Ponto central recomendado para verificar se o candidato reproduz o desempenho previsto.",
+    })
+    # Cria combinacao fatorial 2^4 para avaliar robustez operacional.
+    for i_temp, temperatura_doe in enumerate(niveis_doe["temperatura_C"]):
+        # Percorre niveis de pressao.
+        for i_pressao, pressao_doe in enumerate(niveis_doe["pressao_bar"]):
+            # Percorre niveis de razao reacional.
+            for i_razao, razao_doe in enumerate(niveis_doe["razao"]):
+                # Percorre niveis de GHSV.
+                for i_ghsv, ghsv_doe in enumerate(niveis_doe["ghsv_h-1"]):
+                    # Monta identificador do ensaio fatorial.
+                    ensaio = f"{formula_doe}_T{i_temp}_P{i_pressao}_R{i_razao}_G{i_ghsv}"
+                    # Adiciona linha fatorial ao DOE.
+                    linhas_doe.append({
+                        "formula": formula_doe,
+                        "ensaio_doe": ensaio,
+                        "tipo_ponto": "fatorial_2_niveis",
+                        "temperatura_C": float(temperatura_doe),
+                        "pressao_bar": float(pressao_doe),
+                        "razao_nome": razao_nome_base,
+                        "razao": float(razao_doe),
+                        "ghsv_h-1": float(ghsv_doe),
+                        "objetivo_quimiometrico": "avaliar robustez em janela operacional",
+                        "justificativa_doe": "Varia simultaneamente fatores de operacao para testar estabilidade do ranking fora do ponto nominal.",
+                    })
+
+# Cria tabela de planejamento DOE.
+doe_sintese_df = pd.DataFrame(linhas_doe)
+
+# Registra quantidade de ensaios DOE sugeridos.
+adicionar_metrica("DOE", "ensaios DOE sugeridos", int(len(doe_sintese_df)), "n", "Numero de pontos experimentais sugeridos para confirmar os candidatos finais.")
+
+# Cria tabela consolidada de metricas de triagem.
+metricas_triagem_df = pd.DataFrame(linhas_metricas_triagem)
+
+# Cria tabela de validacao quimiometrica em formato narrativo.
+validacao_quimiometrica_df = metricas_triagem_df[metricas_triagem_df["grupo"].isin(["quimiometria", "DOE"])].copy()
+
+# Define colunas quimiometricas que serao reincorporadas aos rankings.
+colunas_quimio_merge = ["formula", "PC1", "PC2", "variancia_PC1", "variancia_PC2", "grupo_quimiometrico", "classe_prioridade_quimiometrica"]
+
+# Define funcao para acrescentar PCA, grupo e prioridade a uma tabela.
+def incorporar_quimiometria(df):
+    # Retorna a propria tabela quando nao ha formula para mesclar.
+    if df is None or df.empty or "formula" not in df.columns:
+        return df
+    # Remove colunas antigas para evitar duplicatas apos reexecucao da celula.
+    df_limpo = df.drop(columns=[c for c in colunas_quimio_merge if c in df.columns and c != "formula"], errors="ignore")
+    # Junta informacoes quimiometricas pela formula do candidato.
+    return df_limpo.merge(quimiometria_candidatos_df[colunas_quimio_merge].drop_duplicates("formula"), on="formula", how="left")
+
+# Atualiza tabela de melhor condicao por candidato com PCA e grupos.
+melhor_por_candidato_df = incorporar_quimiometria(melhor_por_candidato_df)
+
+# Atualiza ranking final com PCA e grupos.
+ranking_final_df = incorporar_quimiometria(ranking_final_df)
+
+# Atualiza candidatos prioritarios com PCA e grupos.
+prioritarios_df = incorporar_quimiometria(prioritarios_df)
+
+# Mostra resumo da validacao quimiometrica.
+validacao_quimiometrica_df
+"""
+    ),
+    md(
+        """
+## Etapa 14 - Visualização científica dos resultados
 
 Esta etapa aplica os princípios da aula de gráficos científicos com Matplotlib para transformar as tabelas finais em figuras interpretáveis. As imagens são salvas em PNG e PDF para uso no relatório ou apresentação.
 """
@@ -3619,6 +4059,83 @@ salvar_figura("07_sensibilidade_descritores")
 # Exibe o gráfico no notebook.
 plt.show()
 
+# Cria figura para o mapa PCA quimiometrico.
+if not pca_quimiometrica_df.empty:
+    # Inicializa a figura da PCA.
+    plt.figure(figsize=(8.5, 6.0))
+    # Percorre cada grupo quimiometrico para colorir separadamente.
+    for grupo in sorted(pca_quimiometrica_df["grupo_quimiometrico"].dropna().unique()):
+        # Filtra candidatos do grupo atual.
+        dados_grupo = pca_quimiometrica_df[pca_quimiometrica_df["grupo_quimiometrico"] == grupo]
+        # Desenha pontos do grupo no mapa PC1 versus PC2.
+        plt.scatter(dados_grupo["PC1"], dados_grupo["PC2"], s=85, alpha=0.86, edgecolor="black", linewidth=0.45, label=f"Grupo {grupo}")
+    # Anota formulas dos dez primeiros candidatos para manter legibilidade.
+    for _, row in pca_quimiometrica_df.head(10).iterrows():
+        # Posiciona rotulo perto do ponto.
+        plt.annotate(str(row["formula"]), (row["PC1"], row["PC2"]), textcoords="offset points", xytext=(6, 6), fontsize=8)
+    # Define rotulo do eixo PC1 com variancia explicada.
+    plt.xlabel(f"PC1 ({100 * float(pca_quimiometrica_df['variancia_PC1'].iloc[0]):.1f}% da variancia)")
+    # Define rotulo do eixo PC2 com variancia explicada.
+    plt.ylabel(f"PC2 ({100 * float(pca_quimiometrica_df['variancia_PC2'].iloc[0]):.1f}% da variancia)")
+    # Define titulo do mapa PCA.
+    plt.title("PCA dos descritores cataliticos")
+    # Adiciona legenda dos grupos.
+    plt.legend()
+    # Ajusta layout para evitar cortes.
+    plt.tight_layout()
+    # Salva a figura de PCA.
+    salvar_figura("08_pca_quimiometrica")
+    # Exibe a figura de PCA.
+    plt.show()
+
+# Cria figura de distribuicao dos grupos quimiometricos.
+if not agrupamento_quimiometrico_df.empty:
+    # Inicializa figura de barras dos grupos.
+    plt.figure(figsize=(8.2, 4.8))
+    # Define rotulos dos grupos.
+    labels_grupos = agrupamento_quimiometrico_df["grupo_quimiometrico"].astype(str)
+    # Desenha barras com numero de candidatos por grupo.
+    plt.bar(labels_grupos, agrupamento_quimiometrico_df["n_candidatos"], color="#00897B")
+    # Escreve representante de cada grupo sobre a barra.
+    for indice, row in agrupamento_quimiometrico_df.reset_index(drop=True).iterrows():
+        # Posiciona rotulo acima da barra.
+        plt.text(indice, row["n_candidatos"] + max(agrupamento_quimiometrico_df["n_candidatos"]) * 0.03, str(row["formula_representante"]), ha="center", va="bottom", fontsize=8)
+    # Define rotulo do eixo x.
+    plt.xlabel("Grupo quimiometrico")
+    # Define rotulo do eixo y.
+    plt.ylabel("Numero de candidatos")
+    # Define titulo da figura.
+    plt.title("Diversidade quimiometrica dos candidatos")
+    # Ajusta layout da figura.
+    plt.tight_layout()
+    # Salva a figura dos grupos.
+    salvar_figura("09_grupos_quimiometricos")
+    # Exibe a figura dos grupos.
+    plt.show()
+
+# Cria figura do planejamento DOE sugerido.
+if not doe_sintese_df.empty:
+    # Inicializa figura do DOE.
+    plt.figure(figsize=(8.5, 5.5))
+    # Percorre cada candidato para diferenciar pontos experimentais.
+    for formula, dados_formula in doe_sintese_df.groupby("formula"):
+        # Desenha temperatura versus razao reacional como mapa de condicoes.
+        plt.scatter(dados_formula["temperatura_C"], dados_formula["razao"], s=72, alpha=0.78, edgecolor="black", linewidth=0.35, label=str(formula))
+    # Define rotulo do eixo x.
+    plt.xlabel("Temperatura (C)")
+    # Define rotulo do eixo y.
+    plt.ylabel("Razao reacional")
+    # Define titulo do DOE.
+    plt.title("Planejamento DOE sugerido para confirmacao")
+    # Adiciona legenda dos candidatos.
+    plt.legend()
+    # Ajusta layout.
+    plt.tight_layout()
+    # Salva figura do DOE.
+    salvar_figura("10_doe_sintese")
+    # Exibe figura do DOE.
+    plt.show()
+
 # Converte a lista de figuras em tabela.
 figuras_geradas_df = pd.DataFrame(figuras_geradas)
 
@@ -3628,9 +4145,9 @@ figuras_geradas_df
     ),
     md(
         """
-## Etapa 14 - Salvar resultados
+## Etapa 15 - Salvar resultados
 
-As tabelas finais são salvas em CSV e Excel para uso no relatório ou apresentação da disciplina.
+As tabelas finais são salvas em CSV e Excel para uso no relatório ou apresentação da disciplina. Esta etapa também exporta as métricas de triagem, a validação quimiométrica e o planejamento DOE sugerido.
 """
     ),
     code(
@@ -3694,8 +4211,11 @@ nomes_colunas_pt = {
     "score_final_material": "score final do material",
     "temperatura_C": "temperatura (°C)",
     "pressao_bar": "pressão (bar)",
+    "razao_nome": "nome da razão reacional",
+    "razao": "valor da razão reacional",
     "razao_reacional": "razão reacional",
     "GHSV_h_1": "GHSV (h⁻¹)",
+    "ghsv_h-1": "GHSV (h⁻¹)",
     "regime": "regime operacional",
     "conversao_prevista_pct": "conversão prevista (%)",
     "seletividade_produto_prevista_pct": "seletividade prevista (%)",
@@ -3726,6 +4246,27 @@ nomes_colunas_pt = {
     "pymatgen_eletronegatividade_media": "eletronegatividade média calculada pelo pymatgen",
     "pymatgen_eletronegatividade_desvio": "desvio de eletronegatividade calculado pelo pymatgen",
     "pymatgen_raio_atomico_medio": "raio atômico médio calculado pelo pymatgen",
+    "PC1": "componente principal 1",
+    "PC2": "componente principal 2",
+    "variancia_PC1": "variancia explicada pelo PC1",
+    "variancia_PC2": "variancia explicada pelo PC2",
+    "grupo_quimiometrico": "grupo quimiometrico",
+    "classe_prioridade_quimiometrica": "classe de prioridade quimiometrica",
+    "correlacao_score_final_abs": "correlacao absoluta com o score final",
+    "variancia_padronizada": "variancia do descritor",
+    "sensibilidade_media_abs": "sensibilidade media absoluta",
+    "prioridade_quimiometrica": "prioridade quimiometrica do descritor",
+    "n_candidatos": "numero de candidatos",
+    "score_final_medio": "score final medio",
+    "score_final_maximo": "score final maximo",
+    "estabilidade_media_eV_atom": "estabilidade termodinamica media (eV/atomo)",
+    "probabilidade_mc_media": "probabilidade Monte Carlo media",
+    "formula_representante": "formula representante",
+    "unidade": "unidade",
+    "ensaio_doe": "ensaio DOE",
+    "tipo_ponto": "tipo de ponto",
+    "objetivo_quimiometrico": "objetivo quimiometrico",
+    "justificativa_doe": "justificativa DOE",
 }
 
 # Define função auxiliar para traduzir apenas os nomes das colunas exportadas.
@@ -3763,6 +4304,24 @@ traduzir_colunas(gnn_local_descritores_df).to_csv(OUTPUT_DIR / f"{prefixo}_proxy
 # Salva o índice das figuras geradas.
 traduzir_colunas(figuras_geradas_df).to_csv(OUTPUT_DIR / f"{prefixo}_figuras_geradas.csv", index=False, encoding="utf-8-sig")
 
+# Salva as métricas consolidadas da triagem virtual.
+traduzir_colunas(metricas_triagem_df).to_csv(OUTPUT_DIR / f"{prefixo}_metricas_triagem.csv", index=False, encoding="utf-8-sig")
+
+# Salva a projeção PCA dos candidatos.
+traduzir_colunas(pca_quimiometrica_df).to_csv(OUTPUT_DIR / f"{prefixo}_pca_quimiometrica.csv", index=False, encoding="utf-8-sig")
+
+# Salva o resumo dos grupos quimiométricos.
+traduzir_colunas(agrupamento_quimiometrico_df).to_csv(OUTPUT_DIR / f"{prefixo}_agrupamento_quimiometrico.csv", index=False, encoding="utf-8-sig")
+
+# Salva a seleção quimiométrica de descritores.
+traduzir_colunas(selecao_descritores_df).to_csv(OUTPUT_DIR / f"{prefixo}_selecao_descritores_quimiometricos.csv", index=False, encoding="utf-8-sig")
+
+# Salva a validação quimiométrica em formato compacto.
+traduzir_colunas(validacao_quimiometrica_df).to_csv(OUTPUT_DIR / f"{prefixo}_validacao_quimiometrica.csv", index=False, encoding="utf-8-sig")
+
+# Salva o planejamento DOE sugerido para síntese/teste.
+traduzir_colunas(doe_sintese_df).to_csv(OUTPUT_DIR / f"{prefixo}_planejamento_doe_sintese.csv", index=False, encoding="utf-8-sig")
+
 # Salva um arquivo Excel com abas organizadas.
 with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl") as writer:
     # Aba com candidatos prioritários.
@@ -3785,6 +4344,18 @@ with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl"
     traduzir_colunas(pymatgen_descritores_df.head(150)).to_excel(writer, sheet_name="Pymatgen", index=False)
     # Aba com proxy DFT local por GNN.
     traduzir_colunas(gnn_local_descritores_df.head(150)).to_excel(writer, sheet_name="GNN_local", index=False)
+    # Aba com métricas consolidadas da triagem.
+    traduzir_colunas(metricas_triagem_df).to_excel(writer, sheet_name="Metricas", index=False)
+    # Aba com coordenadas PCA dos candidatos.
+    traduzir_colunas(pca_quimiometrica_df).to_excel(writer, sheet_name="PCA", index=False)
+    # Aba com resumo dos grupos quimiométricos.
+    traduzir_colunas(agrupamento_quimiometrico_df).to_excel(writer, sheet_name="Agrupamento", index=False)
+    # Aba com prioridade dos descritores.
+    traduzir_colunas(selecao_descritores_df).to_excel(writer, sheet_name="Selecao_descritores", index=False)
+    # Aba com validação quimiométrica.
+    traduzir_colunas(validacao_quimiometrica_df).to_excel(writer, sheet_name="Validacao_quimio", index=False)
+    # Aba com planejamento DOE sugerido.
+    traduzir_colunas(doe_sintese_df).to_excel(writer, sheet_name="DOE_sintese", index=False)
 
 # Define caminho do relatório HTML automático.
 relatorio_html_path = OUTPUT_DIR / f"{prefixo}_relatorio.html"
@@ -3956,6 +4527,16 @@ figcaption {{
 {tabela_html(ranking_final_df, linhas=20)}
 <h2>Incerteza Monte Carlo</h2>
 {tabela_html(monte_carlo_ranking_df, linhas=20)}
+<h2>M&eacute;tricas da triagem virtual</h2>
+{tabela_html(metricas_triagem_df, linhas=40)}
+<h2>Valida&ccedil;&atilde;o quimiom&eacute;trica</h2>
+{tabela_html(validacao_quimiometrica_df, linhas=20)}
+<h2>PCA e agrupamento</h2>
+{tabela_html(pca_quimiometrica_df, linhas=20)}
+<h2>Sele&ccedil;&atilde;o de descritores</h2>
+{tabela_html(selecao_descritores_df, linhas=20)}
+<h2>DOE sugerido</h2>
+{tabela_html(doe_sintese_df, linhas=40)}
 <h2>Figuras principais</h2>
 {''.join(figuras_relatorio) if figuras_relatorio else "<p class='muted'>Nenhuma figura foi encontrada para embutir no relat&oacute;rio.</p>"}
 </main>
@@ -3983,6 +4564,12 @@ resumo = {
     "arquivo_desempenho_faixa": str(OUTPUT_DIR / f"{prefixo}_desempenho_faixa_condicoes.csv"),
     "arquivo_sensibilidade": str(OUTPUT_DIR / f"{prefixo}_sensibilidade_descritores.csv"),
     "arquivo_monte_carlo": str(OUTPUT_DIR / f"{prefixo}_monte_carlo_ranking.csv"),
+    "arquivo_metricas_triagem": str(OUTPUT_DIR / f"{prefixo}_metricas_triagem.csv"),
+    "arquivo_pca_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_pca_quimiometrica.csv"),
+    "arquivo_agrupamento_quimiometrico": str(OUTPUT_DIR / f"{prefixo}_agrupamento_quimiometrico.csv"),
+    "arquivo_selecao_descritores_quimiometricos": str(OUTPUT_DIR / f"{prefixo}_selecao_descritores_quimiometricos.csv"),
+    "arquivo_validacao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_validacao_quimiometrica.csv"),
+    "arquivo_planejamento_doe_sintese": str(OUTPUT_DIR / f"{prefixo}_planejamento_doe_sintese.csv"),
     "arquivo_descritores_matminer": str(OUTPUT_DIR / f"{prefixo}_descritores_matminer.csv"),
     "arquivo_descritores_pymatgen": str(OUTPUT_DIR / f"{prefixo}_descritores_pymatgen.csv"),
     "arquivo_proxy_gnn_local": str(OUTPUT_DIR / f"{prefixo}_proxy_gnn_local.csv"),
@@ -3990,6 +4577,10 @@ resumo = {
     "n_descritores_matminer": int(len(matminer_feature_cols)),
     "pymatgen_disponivel": bool(pymatgen_disponivel),
     "n_descritores_pymatgen": int(len(pymatgen_feature_cols)),
+    "n_descritores_quimiometricos": int(len(descritores_quimiometricos_cols)),
+    "n_grupos_quimiometricos": int(n_grupos_quimiometricos),
+    "silhouette_quimiometrico": None if pd.isna(silhouette_quimiometrico) else float(silhouette_quimiometrico),
+    "n_ensaios_doe_sugeridos": int(len(doe_sintese_df)),
     "gnn_local_disponivel": bool(gnn_local_disponivel),
     "gnn_modelo_usado": gnn_modelo_usado,
     "n_candidatos_gnn_local": int(gnn_local_descritores_df["gnn_local_usado"].fillna(False).sum()) if "gnn_local_usado" in gnn_local_descritores_df else 0,
