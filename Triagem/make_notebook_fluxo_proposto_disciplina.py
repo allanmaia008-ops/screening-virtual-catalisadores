@@ -72,7 +72,7 @@ nb["cells"] = [
 - Calcula intervalo de confianca de 95% da probabilidade de permanencia no top 5 usando `scipy`.
 - Projeta desempenho em diferentes condicoes operacionais.
 
-13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica padronizacao, PCA, agrupamento KMeans, selecao de descritores, metricas da triagem virtual e planejamento fatorial simples para os candidatos finais.
+13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica pre-processamento formal, padronizacao, PCA, deteccao de outliers, correlacao/colinearidade, agrupamento KMeans, selecao de descritores, validacao de robustez do ranking, PCR/PLSR proxy, metricas da triagem virtual e planejamento experimental ampliado para os candidatos finais.
 
 14. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento e DOE.
 
@@ -92,6 +92,14 @@ nb["cells"] = [
 - `disciplina_fluxo_<reacao>_selecao_descritores_quimiometricos.csv`
 - `disciplina_fluxo_<reacao>_validacao_quimiometrica.csv`
 - `disciplina_fluxo_<reacao>_planejamento_doe_sintese.csv`
+- `disciplina_fluxo_<reacao>_preprocessamento_descritores.csv`
+- `disciplina_fluxo_<reacao>_correlacao_descritores.csv`
+- `disciplina_fluxo_<reacao>_colinearidade_descritores.csv`
+- `disciplina_fluxo_<reacao>_outliers_quimiometricos.csv`
+- `disciplina_fluxo_<reacao>_validacao_ranking.csv`
+- `disciplina_fluxo_<reacao>_modelos_regressao_quimiometrica.csv`
+- `disciplina_fluxo_<reacao>_predicoes_regressao_quimiometrica.csv`
+- `disciplina_fluxo_<reacao>_relatorio_validacao_metodo.csv`
 - `disciplina_fluxo_<reacao>_descritores_matminer.csv`
 - `disciplina_fluxo_<reacao>_descritores_pymatgen.csv`
 - `disciplina_fluxo_<reacao>_proxy_gnn_local.csv`
@@ -171,8 +179,7 @@ import html
 # Importa base64 para embutir figuras no relatório HTML.
 import base64
 
-# Importa requests para consultar OQMD via API REST.
-import requests
+# O requests sera instalado e importado no bloco de dependencias obrigatorias.
 
 # Importa Path para trabalhar com caminhos de arquivos de forma robusta.
 from pathlib import Path
@@ -212,6 +219,12 @@ garantir_dependencia_obrigatoria("pymatgen", "pymatgen")
 
 # Garante o scikit-learn para PCA, agrupamento e validacao quimiometrica.
 garantir_dependencia_obrigatoria("scikit-learn", "sklearn")
+
+# Garante requests para consultar APIs REST como OQMD, Materials Project e Catalysis-Hub.
+garantir_dependencia_obrigatoria("requests", "requests")
+
+# Importa requests somente apos garantir que o pacote existe no ambiente.
+import requests
 
 # Define a pasta em que o notebook está sendo executado.
 CWD = Path.cwd()
@@ -2004,16 +2017,19 @@ def selecionar_com_representacao_multimetal(df, n_candidatos, coluna_score, frac
     # Retorna a quantidade solicitada para a etapa do funil.
     return selecionados.head(n_candidatos).copy()
 
-# Interrompe se o filtro de viabilidade não entregar candidatos suficientes.
-if len(viaveis_df) < N_CANDIDATOS_VIAVEIS_FUNIL:
-    # Explica que o filtro químico foi mais restritivo que o necessário para a etapa seguinte.
-    raise ValueError(
-        f"O filtro gerou apenas {len(viaveis_df)} candidatos viáveis. "
-        f"Ajuste metais/promotor ou revise o limite de estabilidade para seguir com {N_CANDIDATOS_VIAVEIS_FUNIL} candidatos viáveis."
+# Define a quantidade real que seguira adiante depois do filtro de viabilidade.
+n_viaveis_alvo_execucao = min(N_CANDIDATOS_VIAVEIS_FUNIL, len(viaveis_df))
+
+# Avisa quando o filtro quimico entrega menos candidatos que o alvo planejado.
+if n_viaveis_alvo_execucao < N_CANDIDATOS_VIAVEIS_FUNIL:
+    # Mantem a execucao para nao descartar um sistema quimicamente restrito.
+    print(
+        f"Aviso: o filtro gerou {len(viaveis_df)} candidatos viaveis; "
+        f"a triagem seguira com todos eles em vez de interromper."
     )
 
 # Mantém apenas a quantidade definida para passar à próxima etapa com cota de multimetálicos.
-viaveis_df = selecionar_com_representacao_multimetal(viaveis_df, N_CANDIDATOS_VIAVEIS_FUNIL, "score_estabilidade", fracao_minima=0.30)
+viaveis_df = selecionar_com_representacao_multimetal(viaveis_df, n_viaveis_alvo_execucao, "score_estabilidade", fracao_minima=0.30)
 
 # Mostra quantos candidatos sobreviveram ao filtro.
 print("Candidatos antes do filtro:", len(triagem_df))
@@ -2051,7 +2067,7 @@ viaveis_df["score_preliminar"] = (
 preliminar_df = viaveis_df.sort_values("score_preliminar", ascending=False).copy()
 
 # Limita a quantidade de candidatos preliminares mantendo representação multimetálica mínima.
-preliminar_df = selecionar_com_representacao_multimetal(preliminar_df, N_CANDIDATOS_VIAVEIS_FUNIL, "score_preliminar", fracao_minima=0.30)
+preliminar_df = selecionar_com_representacao_multimetal(preliminar_df, n_viaveis_alvo_execucao, "score_preliminar", fracao_minima=0.30)
 
 # Mostra o ranking preliminar.
 preliminar_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "score_preliminar", "score_estabilidade", "score_atividade", "score_seletividade", "score_DFT_proxy"]].head(20)
@@ -3295,7 +3311,7 @@ prioritarios_df[[
         """
 ## Etapa 13 - Validação quimiométrica, PCA, agrupamento e DOE
 
-Esta etapa aplica conceitos do livro de quimiometria com Python: padronização dos descritores, PCA para visualizar padrões, agrupamento para avaliar diversidade química, seleção de variáveis e um planejamento DOE simples para os candidatos finais. O objetivo é transformar o ranking em evidência mais apresentável e mais auditável.
+Esta etapa aplica conceitos do livro de quimiometria com Python: pré-processamento formal, padronização dos descritores, PCA para visualizar padrões, detecção de outliers, correlação/colinearidade, agrupamento, seleção de variáveis, validação do ranking, PCR/PLSR proxy e planejamento experimental ampliado. O objetivo é transformar o ranking em evidência mais apresentável e mais auditável.
 """
     ),
     code(
@@ -3311,6 +3327,24 @@ from sklearn.cluster import KMeans
 
 # Importa silhouette_score para medir a separacao dos grupos quando ha dados suficientes.
 from sklearn.metrics import silhouette_score
+
+# Importa PLSRegression para regressao multivariada por minimos quadrados parciais.
+from sklearn.cross_decomposition import PLSRegression
+
+# Importa LinearRegression para a etapa PCR apos a PCA.
+from sklearn.linear_model import LinearRegression
+
+# Importa KFold e cross_val_predict para validacao cruzada dos modelos proxy.
+from sklearn.model_selection import KFold, cross_val_predict
+
+# Importa make_pipeline para combinar escalonamento, PCA e regressao.
+from sklearn.pipeline import make_pipeline
+
+# Importa metricas para avaliar regressao proxy.
+from sklearn.metrics import r2_score, mean_squared_error
+
+# Importa product para montar combinacoes fatoriais do planejamento experimental.
+from itertools import product
 
 # Define descritores numericos candidatos para a matriz quimiometrica.
 candidatas_descritores_quimio = [
@@ -3348,17 +3382,41 @@ if not descritores_quimiometricos_cols:
 base_quimiometrica_df = melhor_por_candidato_df[["formula"] + descritores_quimiometricos_cols].copy()
 
 # Converte descritores para formato numerico e transforma textos invalidos em NaN.
-matriz_descritores = base_quimiometrica_df[descritores_quimiometricos_cols].apply(pd.to_numeric, errors="coerce")
+matriz_descritores_bruta = base_quimiometrica_df[descritores_quimiometricos_cols].apply(pd.to_numeric, errors="coerce")
+
+# Cria uma copia que recebera imputacao e escalonamento.
+matriz_descritores = matriz_descritores_bruta.copy()
+
+# Cria lista para auditar o pre-processamento aplicado a cada descritor.
+linhas_preprocessamento = []
 
 # Preenche valores ausentes com a mediana de cada descritor para evitar perda de candidatos.
 for col in descritores_quimiometricos_cols:
+    # Lê a serie original antes da imputacao.
+    serie_original = matriz_descritores_bruta[col]
+    # Calcula a quantidade de valores ausentes antes do tratamento.
+    n_ausentes = int(serie_original.isna().sum())
+    # Calcula a fracao de valores ausentes antes do tratamento.
+    fracao_ausente = float(n_ausentes / max(len(serie_original), 1))
     # Calcula a mediana do descritor atual.
-    mediana_col = matriz_descritores[col].median()
+    mediana_col = serie_original.median()
     # Usa valor neutro quando a coluna inteira esta vazia.
     if pd.isna(mediana_col):
         mediana_col = 0.5
     # Substitui valores ausentes pela mediana calculada.
     matriz_descritores[col] = matriz_descritores[col].fillna(mediana_col)
+    # Registra estatisticas de pre-processamento.
+    linhas_preprocessamento.append({
+        "descritor": col,
+        "n_valores": int(len(serie_original)),
+        "n_ausentes_antes": n_ausentes,
+        "fracao_ausente_antes": fracao_ausente,
+        "mediana_imputacao": float(mediana_col),
+        "media_apos_imputacao": float(pd.to_numeric(matriz_descritores[col], errors="coerce").mean()),
+        "desvio_apos_imputacao": float(pd.to_numeric(matriz_descritores[col], errors="coerce").std(ddof=0)),
+        "metodo_imputacao": "mediana_por_descritor",
+        "metodo_escalonamento": "StandardScaler_media_zero_desvio_um",
+    })
 
 # Cria fallback quando a triagem nao produziu candidatos avaliaveis.
 if matriz_descritores.empty:
@@ -3368,6 +3426,21 @@ if matriz_descritores.empty:
     base_quimiometrica_df = pd.DataFrame({"formula": ["sem_candidato"]})
     # Atualiza a lista de descritores para o fallback.
     descritores_quimiometricos_cols = ["score_final"]
+    # Registra pre-processamento minimo para o fallback.
+    linhas_preprocessamento = [{
+        "descritor": "score_final",
+        "n_valores": 1,
+        "n_ausentes_antes": 0,
+        "fracao_ausente_antes": 0.0,
+        "mediana_imputacao": 0.0,
+        "media_apos_imputacao": 0.0,
+        "desvio_apos_imputacao": 0.0,
+        "metodo_imputacao": "fallback_sem_candidato",
+        "metodo_escalonamento": "StandardScaler_media_zero_desvio_um",
+    }]
+
+# Cria tabela formal de pre-processamento dos descritores.
+preprocessamento_descritores_df = pd.DataFrame(linhas_preprocessamento)
 
 # Ajusta a escala dos descritores para media zero e desvio padrao unitario.
 scaler_quimiometrico = StandardScaler()
@@ -3404,6 +3477,105 @@ pca_quimiometrica_df = pd.DataFrame({
     "variancia_PC2": float(variancias_pca[1]) if len(variancias_pca) >= 2 else 0.0,
 })
 
+# Calcula matriz de correlacao dos descritores para detectar redundancia.
+correlacao_descritores_df = matriz_descritores[descritores_quimiometricos_cols].corr(method="pearson").fillna(0.0)
+
+# Converte a matriz de correlacao para formato longo sem repetir pares.
+linhas_colinearidade = []
+
+# Percorre pares de descritores para identificar colinearidade forte.
+for i, descritor_a in enumerate(descritores_quimiometricos_cols):
+    # Compara apenas com descritores posteriores para evitar duplicidade.
+    for descritor_b in descritores_quimiometricos_cols[i + 1:]:
+        # Lê a correlacao absoluta entre os dois descritores.
+        correlacao_abs = abs(float(correlacao_descritores_df.loc[descritor_a, descritor_b]))
+        # Registra apenas pares com colinearidade forte.
+        if correlacao_abs >= 0.90:
+            linhas_colinearidade.append({
+                "descritor_a": descritor_a,
+                "descritor_b": descritor_b,
+                "correlacao_abs": correlacao_abs,
+                "limiar_colinearidade": 0.90,
+                "interpretacao": "descritores fortemente colineares; considerar reduzir peso ou manter apenas o mais informativo",
+            })
+
+# Cria tabela de pares colineares.
+colinearidade_descritores_df = pd.DataFrame(linhas_colinearidade)
+
+# Calcula distancia dos candidatos no plano PCA.
+distancia_pca = np.sqrt(np.square(pca_quimiometrica_df["PC1"].to_numpy()) + np.square(pca_quimiometrica_df["PC2"].to_numpy()))
+
+# Calcula centro da matriz padronizada.
+centro_padronizado = np.nanmean(matriz_quimiometrica_padronizada, axis=0)
+
+# Centraliza a matriz padronizada para calculo de Mahalanobis.
+matriz_centralizada = matriz_quimiometrica_padronizada - centro_padronizado
+
+# Calcula distancia de Mahalanobis quando ha candidatos suficientes.
+if matriz_quimiometrica_padronizada.shape[0] >= 2 and matriz_quimiometrica_padronizada.shape[1] >= 1:
+    # Calcula matriz de covariancia.
+    covariancia = np.cov(matriz_quimiometrica_padronizada, rowvar=False)
+    # Garante matriz bidimensional quando existe apenas um descritor.
+    covariancia = np.atleast_2d(covariancia)
+    # Adiciona pequena regularizacao para evitar singularidade numerica.
+    covariancia_regularizada = covariancia + np.eye(covariancia.shape[0]) * 1e-9
+    # Calcula inversa generalizada da covariancia.
+    inv_covariancia = np.linalg.pinv(covariancia_regularizada)
+    # Calcula distancia de Mahalanobis por candidato.
+    distancia_mahalanobis = np.sqrt(np.sum((matriz_centralizada @ inv_covariancia) * matriz_centralizada, axis=1))
+else:
+    # Usa zeros quando nao ha candidatos suficientes para a matriz de covariancia.
+    distancia_mahalanobis = np.zeros(len(pca_quimiometrica_df))
+
+# Define funcao robusta para limiar de outlier por distancia.
+def limiar_outlier_robusto(valores):
+    # Converte valores para array numerico.
+    valores = np.asarray(valores, dtype=float)
+    # Remove valores nao finitos.
+    valores = valores[np.isfinite(valores)]
+    # Retorna infinito quando nao ha variacao suficiente.
+    if len(valores) < 4 or np.nanstd(valores) == 0:
+        return np.inf
+    # Calcula mediana robusta.
+    mediana = float(np.nanmedian(valores))
+    # Calcula desvio absoluto mediano.
+    mad = float(np.nanmedian(np.abs(valores - mediana)))
+    # Usa percentil 95 como criterio complementar.
+    p95 = float(np.nanpercentile(valores, 95))
+    # Retorna o maior criterio para evitar excesso de falsos outliers.
+    return max(p95, mediana + 3.0 * mad)
+
+# Calcula limiar de outlier no plano PCA.
+limiar_pca_outlier = limiar_outlier_robusto(distancia_pca)
+
+# Calcula limiar de outlier pela distancia de Mahalanobis.
+limiar_mahalanobis_outlier = limiar_outlier_robusto(distancia_mahalanobis)
+
+# Cria tabela de outliers quimiometricos.
+outliers_quimiometricos_df = pd.DataFrame({
+    "formula": base_quimiometrica_df["formula"].astype(str).values,
+    "distancia_pca": distancia_pca,
+    "distancia_mahalanobis": distancia_mahalanobis,
+    "limiar_pca": limiar_pca_outlier,
+    "limiar_mahalanobis": limiar_mahalanobis_outlier,
+})
+
+# Marca outliers por PCA.
+outliers_quimiometricos_df["outlier_pca"] = outliers_quimiometricos_df["distancia_pca"] > outliers_quimiometricos_df["limiar_pca"]
+
+# Marca outliers por Mahalanobis.
+outliers_quimiometricos_df["outlier_mahalanobis"] = outliers_quimiometricos_df["distancia_mahalanobis"] > outliers_quimiometricos_df["limiar_mahalanobis"]
+
+# Consolida as duas regras em uma unica bandeira de outlier.
+outliers_quimiometricos_df["outlier_quimiometrico"] = outliers_quimiometricos_df["outlier_pca"] | outliers_quimiometricos_df["outlier_mahalanobis"]
+
+# Explica o motivo do alerta de outlier.
+outliers_quimiometricos_df["motivo_outlier"] = np.where(
+    outliers_quimiometricos_df["outlier_quimiometrico"],
+    "distancia multivariada acima do limite robusto",
+    "dentro do dominio multivariado observado",
+)
+
 # Define numero de grupos quimiometricos limitado ao tamanho do conjunto.
 n_grupos_quimiometricos = int(min(4, max(1, len(base_quimiometrica_df))))
 
@@ -3432,6 +3604,13 @@ else:
 
 # Junta PCA e grupos a uma copia da tabela final por candidato.
 quimiometria_candidatos_df = melhor_por_candidato_df.merge(pca_quimiometrica_df, on="formula", how="left")
+
+# Incorpora marcadores de outlier a tabela quimiometrica por candidato.
+quimiometria_candidatos_df = quimiometria_candidatos_df.merge(
+    outliers_quimiometricos_df[["formula", "distancia_pca", "distancia_mahalanobis", "outlier_quimiometrico", "motivo_outlier"]],
+    on="formula",
+    how="left",
+)
 
 # Define formulas dos candidatos finais para classificar prioridade.
 formulas_prioritarias = set(prioritarios_df["formula"].astype(str)) if "formula" in prioritarios_df.columns else set()
@@ -3540,6 +3719,51 @@ if not selecao_descritores_df.empty:
     # Ordena descritores mais informativos primeiro.
     selecao_descritores_df = selecao_descritores_df.sort_values("prioridade_quimiometrica", ascending=False).reset_index(drop=True)
 
+# Cria mapa de prioridade para decidir qual descritor manter em pares colineares.
+prioridade_descritor_map = selecao_descritores_df.set_index("descritor")["prioridade_quimiometrica"].to_dict() if not selecao_descritores_df.empty else {}
+
+# Adiciona recomendacao de reducao de colinearidade.
+if not colinearidade_descritores_df.empty:
+    # Calcula prioridade do primeiro descritor do par.
+    colinearidade_descritores_df["prioridade_a"] = colinearidade_descritores_df["descritor_a"].map(prioridade_descritor_map).fillna(0.0)
+    # Calcula prioridade do segundo descritor do par.
+    colinearidade_descritores_df["prioridade_b"] = colinearidade_descritores_df["descritor_b"].map(prioridade_descritor_map).fillna(0.0)
+    # Recomenda manter o descritor com maior prioridade quimiometrica.
+    colinearidade_descritores_df["descritor_recomendado"] = np.where(
+        colinearidade_descritores_df["prioridade_a"] >= colinearidade_descritores_df["prioridade_b"],
+        colinearidade_descritores_df["descritor_a"],
+        colinearidade_descritores_df["descritor_b"],
+    )
+    # Indica o descritor mais redundante do par.
+    colinearidade_descritores_df["descritor_redundante"] = np.where(
+        colinearidade_descritores_df["prioridade_a"] >= colinearidade_descritores_df["prioridade_b"],
+        colinearidade_descritores_df["descritor_b"],
+        colinearidade_descritores_df["descritor_a"],
+    )
+else:
+    # Mantem colunas esperadas quando nao existem pares colineares.
+    colinearidade_descritores_df = pd.DataFrame(columns=[
+        "descritor_a",
+        "descritor_b",
+        "correlacao_abs",
+        "limiar_colinearidade",
+        "interpretacao",
+        "prioridade_a",
+        "prioridade_b",
+        "descritor_recomendado",
+        "descritor_redundante",
+    ])
+
+# Define descritores redundantes a partir dos pares colineares.
+descritores_redundantes_colinearidade = set(colinearidade_descritores_df["descritor_redundante"].dropna().astype(str)) if not colinearidade_descritores_df.empty else set()
+
+# Define descritores filtrados apos remover redundancias sugeridas.
+descritores_filtrados_colinearidade = [col for col in descritores_quimiometricos_cols if col not in descritores_redundantes_colinearidade]
+
+# Garante que ao menos um descritor permaneca no conjunto filtrado.
+if not descritores_filtrados_colinearidade:
+    descritores_filtrados_colinearidade = descritores_quimiometricos_cols.copy()
+
 # Define funcao auxiliar para adicionar metricas de triagem.
 linhas_metricas_triagem = []
 
@@ -3565,6 +3789,200 @@ taxa_priorizacao = len(prioritarios_df) / max(len(candidatos_df), 1)
 
 # Separa Top 10 para metricas compactas.
 top10_metricas_df = melhor_por_candidato_df.head(N_CANDIDATOS_REFINADOS_FUNIL).copy()
+
+# Cria tabela de validacao do ranking com robustez por candidato.
+validacao_ranking_df = quimiometria_candidatos_df.sort_values("score_final", ascending=False).reset_index(drop=True).copy()
+
+# Adiciona posicao nominal no ranking.
+validacao_ranking_df["posicao_ranking"] = np.arange(1, len(validacao_ranking_df) + 1)
+
+# Normaliza desvio Monte Carlo para penalizar candidatos instaveis.
+desvio_mc_ranking = pd.to_numeric(validacao_ranking_df.get("score_final_mc_desvio", pd.Series(np.zeros(len(validacao_ranking_df)))), errors="coerce").fillna(0.0)
+
+# Calcula escala maxima do desvio Monte Carlo.
+escala_desvio_mc = float(desvio_mc_ranking.max()) if len(desvio_mc_ranking) and float(desvio_mc_ranking.max()) > 0 else 1.0
+
+# Normaliza largura do intervalo de confianca para penalizar incerteza estatistica.
+largura_ic_ranking = pd.to_numeric(validacao_ranking_df.get("largura_ic95_top5_mc", pd.Series(np.zeros(len(validacao_ranking_df)))), errors="coerce").fillna(0.0)
+
+# Calcula escala maxima da largura de intervalo.
+escala_largura_ic = float(largura_ic_ranking.max()) if len(largura_ic_ranking) and float(largura_ic_ranking.max()) > 0 else 1.0
+
+# Lê probabilidade Monte Carlo de permanencia no top 5.
+prob_mc_ranking = pd.to_numeric(validacao_ranking_df.get("probabilidade_top5_mc", pd.Series(np.zeros(len(validacao_ranking_df)))), errors="coerce").fillna(0.0)
+
+# Penaliza candidatos marcados como outliers multivariados.
+penalidade_outlier = validacao_ranking_df.get("outlier_quimiometrico", pd.Series([False] * len(validacao_ranking_df))).fillna(False).astype(bool).astype(float)
+
+# Calcula score de robustez do ranking combinando Monte Carlo, intervalo e outlier.
+validacao_ranking_df["score_robustez_ranking"] = np.clip(
+    0.50 * prob_mc_ranking
+    + 0.25 * (1.0 - desvio_mc_ranking / escala_desvio_mc)
+    + 0.15 * (1.0 - largura_ic_ranking / escala_largura_ic)
+    + 0.10 * (1.0 - penalidade_outlier),
+    0,
+    1,
+)
+
+# Classifica a robustez individual do candidato no ranking.
+validacao_ranking_df["classe_robustez_ranking"] = pd.cut(
+    validacao_ranking_df["score_robustez_ranking"],
+    bins=[-0.01, 0.45, 0.70, 1.01],
+    labels=["baixa", "media", "alta"],
+)
+
+# Calcula margem entre candidatos consecutivos no ranking.
+validacao_ranking_df["margem_score_para_proximo"] = validacao_ranking_df["score_final"].diff(-1).fillna(0.0)
+
+# Calcula rank por media Monte Carlo quando disponivel.
+if "score_final_mc_media" in validacao_ranking_df.columns:
+    # Rank baseado no score medio das simulacoes.
+    validacao_ranking_df["posicao_media_monte_carlo"] = pd.to_numeric(validacao_ranking_df["score_final_mc_media"], errors="coerce").rank(ascending=False, method="min")
+else:
+    # Usa a posicao nominal quando nao existe media Monte Carlo.
+    validacao_ranking_df["posicao_media_monte_carlo"] = validacao_ranking_df["posicao_ranking"]
+
+# Calcula deslocamento entre ranking nominal e ranking medio de Monte Carlo.
+validacao_ranking_df["deslocamento_posicao_mc"] = validacao_ranking_df["posicao_media_monte_carlo"] - validacao_ranking_df["posicao_ranking"]
+
+# Calcula correlacao de Spearman entre ranking nominal e ranking medio Monte Carlo.
+if len(validacao_ranking_df) >= 3:
+    # Usa pandas para evitar dependencia adicional.
+    correlacao_rank_mc = float(validacao_ranking_df["posicao_ranking"].corr(validacao_ranking_df["posicao_media_monte_carlo"], method="spearman"))
+else:
+    # Registra NaN quando nao ha candidatos suficientes.
+    correlacao_rank_mc = np.nan
+
+# Define base de descritores filtrada por colinearidade para regressao proxy.
+matriz_regressao_quimio = matriz_descritores[descritores_filtrados_colinearidade].copy()
+
+# Cria listas para resultados dos modelos de regressao proxy.
+linhas_modelos_regressao = []
+linhas_predicoes_regressao = []
+
+# Define alvos proxy para PCR/PLSR.
+alvos_regressao_proxy = {
+    "score_final": "score_final",
+    "rendimento_ou_produtividade_prevista_pct": "rendimento_ou_produtividade_prevista_pct",
+}
+
+# Percorre cada alvo proxy disponivel.
+for nome_objetivo, coluna_objetivo in alvos_regressao_proxy.items():
+    # Verifica se o alvo existe na tabela por candidato.
+    if coluna_objetivo not in melhor_por_candidato_df.columns:
+        # Registra ausencia do alvo.
+        linhas_modelos_regressao.append({
+            "objetivo": nome_objetivo,
+            "modelo": "PCR/PLSR",
+            "n_componentes": 0,
+            "r2_cv": np.nan,
+            "rmse_cv": np.nan,
+            "r2_treino": np.nan,
+            "rmse_treino": np.nan,
+            "observacao": "alvo indisponivel nesta execucao",
+        })
+        continue
+    # Alinha o alvo a mesma ordem da matriz de descritores.
+    alvo_df = base_quimiometrica_df[["formula"]].merge(
+        melhor_por_candidato_df[["formula", coluna_objetivo]],
+        on="formula",
+        how="left",
+    )
+    # Converte alvo para numerico.
+    y_total = pd.to_numeric(alvo_df[coluna_objetivo], errors="coerce")
+    # Mantem apenas linhas com alvo valido.
+    mascara_valida = y_total.notna()
+    # Separa matriz X valida.
+    X_reg = matriz_regressao_quimio.loc[mascara_valida].to_numpy(dtype=float)
+    # Separa vetor y valido.
+    y_reg = y_total.loc[mascara_valida].to_numpy(dtype=float)
+    # Separa formulas validas.
+    formulas_reg = alvo_df.loc[mascara_valida, "formula"].astype(str).tolist()
+    # Verifica quantidade minima e variacao do alvo.
+    if len(y_reg) < 4 or np.nanstd(y_reg) == 0 or X_reg.shape[1] < 1:
+        # Registra que nao ha dados suficientes para validar regressao.
+        linhas_modelos_regressao.append({
+            "objetivo": nome_objetivo,
+            "modelo": "PCR/PLSR",
+            "n_componentes": 0,
+            "r2_cv": np.nan,
+            "rmse_cv": np.nan,
+            "r2_treino": np.nan,
+            "rmse_treino": np.nan,
+            "observacao": "dados insuficientes ou alvo sem variacao",
+        })
+        continue
+    # Define numero de particoes da validacao cruzada.
+    n_splits = int(min(5, len(y_reg)))
+    # Calcula menor tamanho de treino em cada particao.
+    menor_treino = len(y_reg) - int(np.ceil(len(y_reg) / n_splits))
+    # Define numero seguro de componentes latentes.
+    n_componentes_reg = int(max(1, min(5, X_reg.shape[1], max(1, menor_treino - 1))))
+    # Configura validacao cruzada reprodutivel.
+    cv_reg = KFold(n_splits=n_splits, shuffle=True, random_state=42)
+    # Define modelos quimiometricos proxy.
+    modelos_reg = {
+        "PCR": make_pipeline(StandardScaler(), PCA(n_components=n_componentes_reg), LinearRegression()),
+        "PLSR": make_pipeline(StandardScaler(), PLSRegression(n_components=n_componentes_reg)),
+    }
+    # Ajusta e valida cada modelo.
+    for nome_modelo, modelo_reg in modelos_reg.items():
+        try:
+            # Calcula predicoes por validacao cruzada.
+            y_pred_cv = np.asarray(cross_val_predict(modelo_reg, X_reg, y_reg, cv=cv_reg)).ravel()
+            # Ajusta o modelo com todos os dados para obter metricas de treino.
+            modelo_reg.fit(X_reg, y_reg)
+            # Calcula predicoes ajustadas no conjunto completo.
+            y_pred_treino = np.asarray(modelo_reg.predict(X_reg)).ravel()
+            # Calcula R2 por validacao cruzada.
+            r2_cv = float(r2_score(y_reg, y_pred_cv))
+            # Calcula RMSE por validacao cruzada.
+            rmse_cv = float(np.sqrt(mean_squared_error(y_reg, y_pred_cv)))
+            # Calcula R2 de treino.
+            r2_treino = float(r2_score(y_reg, y_pred_treino))
+            # Calcula RMSE de treino.
+            rmse_treino = float(np.sqrt(mean_squared_error(y_reg, y_pred_treino)))
+            # Registra metricas do modelo.
+            linhas_modelos_regressao.append({
+                "objetivo": nome_objetivo,
+                "modelo": nome_modelo,
+                "n_componentes": n_componentes_reg,
+                "r2_cv": r2_cv,
+                "rmse_cv": rmse_cv,
+                "r2_treino": r2_treino,
+                "rmse_treino": rmse_treino,
+                "observacao": "modelo proxy interno; requer validacao experimental externa",
+            })
+            # Registra predicoes por candidato.
+            for formula_reg, y_obs, y_cv, y_fit in zip(formulas_reg, y_reg, y_pred_cv, y_pred_treino):
+                # Adiciona uma linha de predicao.
+                linhas_predicoes_regressao.append({
+                    "formula": formula_reg,
+                    "objetivo": nome_objetivo,
+                    "modelo": nome_modelo,
+                    "valor_observado_proxy": float(y_obs),
+                    "valor_predito_cv": float(y_cv),
+                    "valor_predito_treino": float(y_fit),
+                    "residuo_cv": float(y_obs - y_cv),
+                })
+        except Exception as erro_regressao:
+            # Registra falha sem interromper a triagem.
+            linhas_modelos_regressao.append({
+                "objetivo": nome_objetivo,
+                "modelo": nome_modelo,
+                "n_componentes": n_componentes_reg,
+                "r2_cv": np.nan,
+                "rmse_cv": np.nan,
+                "r2_treino": np.nan,
+                "rmse_treino": np.nan,
+                "observacao": f"falha no ajuste proxy: {erro_regressao}",
+            })
+
+# Cria tabela de metricas dos modelos PCR/PLSR.
+modelos_regressao_quimiometrica_df = pd.DataFrame(linhas_modelos_regressao)
+
+# Cria tabela de predicoes dos modelos PCR/PLSR.
+predicoes_regressao_quimiometrica_df = pd.DataFrame(linhas_predicoes_regressao)
 
 # Registra metricas do funil.
 adicionar_metrica("funil", "candidatos gerados", int(len(candidatos_df)), "n", "Numero inicial de formulas unicas geradas pelo modelo combinatorio.")
@@ -3624,66 +4042,161 @@ condicao_base_doe = perfil["condicoes"][0] if perfil.get("condicoes") else {"tem
 # Define amplitude de temperatura do DOE de acordo com a reacao.
 delta_temperatura_doe = 50.0 if reacao == "reforma" else 25.0
 
+# Define faixas de teor de promotor usadas na geracao e no planejamento experimental.
+faixas_promotor_doe = globals().get("FAIXAS_PROMOTOR_POR_REACAO", {
+    "metanacao": {"inicio": 0.02, "fim": 0.20},
+    "reforma": {"inicio": 0.05, "fim": 0.30},
+    "rwgs": {"inicio": 0.005, "fim": 0.10},
+})
+
+# Recupera faixa de promotor da reacao selecionada.
+config_promotor_doe = faixas_promotor_doe.get(reacao, {"inicio": 0.02, "fim": 0.20})
+
+# Converte limite inferior do promotor para fracao.
+promotor_min_doe = float(config_promotor_doe.get("inicio", 0.02))
+
+# Converte limite superior do promotor para fracao.
+promotor_max_doe = float(config_promotor_doe.get("fim", 0.20))
+
 # Cria linhas do planejamento DOE.
 linhas_doe = []
 
+# Calcula a fracao aproximada de promotor a partir da formula gerada.
+def fracao_promotor_formula(formula):
+    # Interpreta a formula pela funcao de composicao ja definida no notebook.
+    composicao_formula = extrair_composicao_elementar(formula)
+    # Soma os coeficientes atomicos lidos na formula.
+    total_atomico = float(sum(composicao_formula.values()))
+    # Retorna NaN quando a formula nao pode ser interpretada.
+    if total_atomico <= 0:
+        return np.nan
+    # Calcula a fracao atomica do promotor escolhido pelo usuario.
+    return float(composicao_formula.get(promotor_usuario, 0.0) / total_atomico)
+
+# Limita um nivel numerico dentro de uma faixa fisicamente aceitavel.
+def limitar_nivel_doe(valor, minimo, maximo):
+    # Converte o valor para float antes de aplicar os limites.
+    valor_float = float(valor)
+    # Retorna o valor limitado pelo intervalo informado.
+    return float(np.clip(valor_float, minimo, maximo))
+
+# Adiciona uma linha padronizada ao planejamento DOE.
+def adicionar_linha_doe(formula, ensaio, tipo_ponto, etapa_planejamento, razao_nome, valores, codigos, objetivo, justificativa):
+    # Insere uma combinacao experimental com niveis reais e codificados.
+    linhas_doe.append({
+        "formula": formula,
+        "ensaio_doe": ensaio,
+        "tipo_ponto": tipo_ponto,
+        "etapa_planejamento": etapa_planejamento,
+        "temperatura_C": float(valores["temperatura_C"]),
+        "pressao_bar": float(valores["pressao_bar"]),
+        "razao_nome": razao_nome,
+        "razao": float(valores["razao"]),
+        "ghsv_h-1": float(valores["ghsv_h-1"]),
+        "fracao_promotor_planejada": float(valores["fracao_promotor"]),
+        "percentual_promotor_planejado": float(100.0 * valores["fracao_promotor"]),
+        "nivel_codificado_temperatura": int(codigos["temperatura_C"]),
+        "nivel_codificado_pressao": int(codigos["pressao_bar"]),
+        "nivel_codificado_razao": int(codigos["razao"]),
+        "nivel_codificado_ghsv": int(codigos["ghsv_h-1"]),
+        "nivel_codificado_promotor": int(codigos["fracao_promotor"]),
+        "objetivo_quimiometrico": objetivo,
+        "justificativa_doe": justificativa,
+    })
+
 # Percorre candidatos prioritarios para propor ensaios de confirmacao.
 for _, row in prioritarios_df.iterrows():
-    # Lê formula do candidato.
+    # Le formula do candidato.
     formula_doe = str(row.get("formula", ""))
-    # Lê temperatura nominal.
+    # Le temperatura nominal.
     temperatura_base = valor_operacional_linha(row, "temperatura_C", condicao_base_doe.get("temperatura_C", 400))
-    # Lê pressao nominal.
+    # Le pressao nominal.
     pressao_base = valor_operacional_linha(row, "pressao_bar", condicao_base_doe.get("pressao_bar", 1))
-    # Lê razao nominal.
+    # Le razao nominal.
     razao_base = valor_operacional_linha(row, "razao", condicao_base_doe.get("razao", 4))
-    # Lê GHSV nominal.
+    # Le GHSV nominal.
     ghsv_base = valor_operacional_linha(row, "ghsv_h-1", condicao_base_doe.get("ghsv_h-1", 30000))
-    # Lê nome da razao reacional.
+    # Le nome da razao reacional.
     razao_nome_base = str(row.get("razao_nome", condicao_base_doe.get("razao_nome", "razao reacional")))
-    # Define niveis baixo e alto dos fatores.
+    # Calcula teor de promotor aproximado a partir da formula candidata.
+    promotor_base = fracao_promotor_formula(formula_doe)
+    # Usa o ponto medio da faixa quando a formula nao contem explicitamente o promotor.
+    if pd.isna(promotor_base) or promotor_base <= 0:
+        promotor_base = (promotor_min_doe + promotor_max_doe) / 2.0
+    # Limita o teor nominal de promotor a faixa definida para a reacao.
+    promotor_base = limitar_nivel_doe(promotor_base, promotor_min_doe, promotor_max_doe)
+    # Define niveis baixo, central e alto dos fatores operacionais e composicionais.
     niveis_doe = {
-        "temperatura_C": [max(25.0, temperatura_base - delta_temperatura_doe), temperatura_base + delta_temperatura_doe],
-        "pressao_bar": [max(0.1, pressao_base * 0.8), max(0.1, pressao_base * 1.2)],
-        "razao": [max(0.1, razao_base * 0.9), max(0.1, razao_base * 1.1)],
-        "ghsv_h-1": [max(1000.0, ghsv_base * 0.8), max(1000.0, ghsv_base * 1.2)],
+        "temperatura_C": {-1: max(25.0, temperatura_base - delta_temperatura_doe), 0: temperatura_base, 1: temperatura_base + delta_temperatura_doe},
+        "pressao_bar": {-1: max(0.1, pressao_base * 0.8), 0: pressao_base, 1: max(0.1, pressao_base * 1.2)},
+        "razao": {-1: max(0.1, razao_base * 0.9), 0: razao_base, 1: max(0.1, razao_base * 1.1)},
+        "ghsv_h-1": {-1: max(1000.0, ghsv_base * 0.8), 0: ghsv_base, 1: max(1000.0, ghsv_base * 1.2)},
+        "fracao_promotor": {-1: limitar_nivel_doe(promotor_base * 0.8, promotor_min_doe, promotor_max_doe), 0: promotor_base, 1: limitar_nivel_doe(promotor_base * 1.2, promotor_min_doe, promotor_max_doe)},
     }
-    # Adiciona ponto central para conferir repetibilidade experimental.
-    linhas_doe.append({
-        "formula": formula_doe,
-        "ensaio_doe": f"{formula_doe}_central",
-        "tipo_ponto": "central",
-        "temperatura_C": temperatura_base,
-        "pressao_bar": pressao_base,
-        "razao_nome": razao_nome_base,
-        "razao": razao_base,
-        "ghsv_h-1": ghsv_base,
-        "objetivo_quimiometrico": "confirmar ponto nominal do ranking",
-        "justificativa_doe": "Ponto central recomendado para verificar se o candidato reproduz o desempenho previsto.",
-    })
-    # Cria combinacao fatorial 2^4 para avaliar robustez operacional.
-    for i_temp, temperatura_doe in enumerate(niveis_doe["temperatura_C"]):
-        # Percorre niveis de pressao.
-        for i_pressao, pressao_doe in enumerate(niveis_doe["pressao_bar"]):
-            # Percorre niveis de razao reacional.
-            for i_razao, razao_doe in enumerate(niveis_doe["razao"]):
-                # Percorre niveis de GHSV.
-                for i_ghsv, ghsv_doe in enumerate(niveis_doe["ghsv_h-1"]):
-                    # Monta identificador do ensaio fatorial.
-                    ensaio = f"{formula_doe}_T{i_temp}_P{i_pressao}_R{i_razao}_G{i_ghsv}"
-                    # Adiciona linha fatorial ao DOE.
-                    linhas_doe.append({
-                        "formula": formula_doe,
-                        "ensaio_doe": ensaio,
-                        "tipo_ponto": "fatorial_2_niveis",
-                        "temperatura_C": float(temperatura_doe),
-                        "pressao_bar": float(pressao_doe),
-                        "razao_nome": razao_nome_base,
-                        "razao": float(razao_doe),
-                        "ghsv_h-1": float(ghsv_doe),
-                        "objetivo_quimiometrico": "avaliar robustez em janela operacional",
-                        "justificativa_doe": "Varia simultaneamente fatores de operacao para testar estabilidade do ranking fora do ponto nominal.",
-                    })
+    # Define codigos centrais para todos os fatores.
+    codigos_centrais = {fator: 0 for fator in niveis_doe}
+    # Define valores centrais para todos os fatores.
+    valores_centrais = {fator: niveis_doe[fator][0] for fator in niveis_doe}
+    # Adiciona replicatas centrais para estimar repetibilidade experimental.
+    for repeticao in range(1, 4):
+        # Registra uma repeticao do ponto central.
+        adicionar_linha_doe(
+            formula_doe,
+            f"{formula_doe}_central_rep{repeticao}",
+            "central_replicata",
+            "repetibilidade",
+            razao_nome_base,
+            valores_centrais,
+            codigos_centrais,
+            "confirmar ponto nominal e estimar erro experimental puro",
+            "Replicata central recomendada para diferenciar variabilidade experimental de efeito real dos fatores.",
+        )
+    # Define fatores basicos do fatorial fracionario.
+    fatores_basicos = ["temperatura_C", "pressao_bar", "razao", "ghsv_h-1"]
+    # Cria fatorial fracionario 2^(5-1) usando promotor como produto dos sinais basicos.
+    for indice_fatorial, sinais in enumerate(product([-1, 1], repeat=4), start=1):
+        # Monta codigos para os quatro fatores operacionais.
+        codigos = dict(zip(fatores_basicos, sinais))
+        # Define sinal do promotor pela relacao geradora do fatorial fracionario.
+        codigos["fracao_promotor"] = int(np.prod(sinais))
+        # Converte codigos em valores reais de operacao e composicao.
+        valores = {fator: niveis_doe[fator][int(codigo)] for fator, codigo in codigos.items()}
+        # Adiciona linha fatorial fracionaria.
+        adicionar_linha_doe(
+            formula_doe,
+            f"{formula_doe}_ff_{indice_fatorial:02d}",
+            "fatorial_fracionario_2_5_menos_1",
+            "rastreamento_de_fatores",
+            razao_nome_base,
+            valores,
+            codigos,
+            "avaliar efeitos principais com numero moderado de ensaios",
+            "Planejamento fracionario reduz o numero de experimentos e ainda permite comparar temperatura, pressao, razao, GHSV e teor de promotor.",
+        )
+    # Define lista de fatores para pontos axiais de superficie de resposta.
+    fatores_axiais = ["temperatura_C", "pressao_bar", "razao", "ghsv_h-1", "fracao_promotor"]
+    # Adiciona pontos axiais para avaliar curvatura local de cada fator.
+    for fator_axial in fatores_axiais:
+        # Percorre nivel baixo e alto do fator axial mantendo os demais no centro.
+        for sinal_axial in [-1, 1]:
+            # Inicia codigos no ponto central.
+            codigos = {fator: 0 for fator in fatores_axiais}
+            # Altera apenas o fator axial.
+            codigos[fator_axial] = sinal_axial
+            # Converte codigos em valores reais.
+            valores = {fator: niveis_doe[fator][int(codigo)] for fator, codigo in codigos.items()}
+            # Adiciona ponto axial ao DOE.
+            adicionar_linha_doe(
+                formula_doe,
+                f"{formula_doe}_axial_{fator_axial}_{sinal_axial:+d}",
+                "axial_superficie_resposta",
+                "curvatura_local",
+                razao_nome_base,
+                valores,
+                codigos,
+                "avaliar curvatura e sensibilidade local do fator",
+                "Ponto axial ajuda a verificar se o desempenho muda de forma linear ou curva em torno da condicao recomendada.",
+            )
 
 # Cria tabela de planejamento DOE.
 doe_sintese_df = pd.DataFrame(linhas_doe)
@@ -3691,14 +4204,132 @@ doe_sintese_df = pd.DataFrame(linhas_doe)
 # Registra quantidade de ensaios DOE sugeridos.
 adicionar_metrica("DOE", "ensaios DOE sugeridos", int(len(doe_sintese_df)), "n", "Numero de pontos experimentais sugeridos para confirmar os candidatos finais.")
 
+# Registra quantidade de replicatas centrais no DOE.
+adicionar_metrica("DOE", "replicatas centrais DOE", int((doe_sintese_df.get("tipo_ponto", pd.Series(dtype=str)) == "central_replicata").sum()) if not doe_sintese_df.empty else 0, "n", "Numero de pontos centrais repetidos para estimar erro experimental.")
+
+# Registra quantidade de pontos fatoriais fracionarios no DOE.
+adicionar_metrica("DOE", "pontos fatoriais fracionarios DOE", int((doe_sintese_df.get("tipo_ponto", pd.Series(dtype=str)) == "fatorial_fracionario_2_5_menos_1").sum()) if not doe_sintese_df.empty else 0, "n", "Numero de pontos de rastreamento dos efeitos principais.")
+
+# Registra quantidade de pontos axiais no DOE.
+adicionar_metrica("DOE", "pontos axiais DOE", int((doe_sintese_df.get("tipo_ponto", pd.Series(dtype=str)) == "axial_superficie_resposta").sum()) if not doe_sintese_df.empty else 0, "n", "Numero de pontos usados para avaliar curvatura local.")
+
+# Registra quantidade de outliers multivariados.
+adicionar_metrica("quimiometria", "outliers quimiometricos", int(outliers_quimiometricos_df["outlier_quimiometrico"].sum()) if not outliers_quimiometricos_df.empty else 0, "n", "Numero de candidatos com distancia multivariada elevada na matriz de descritores.")
+
+# Registra pares de descritores com colinearidade forte.
+adicionar_metrica("quimiometria", "pares de descritores colineares", int(len(colinearidade_descritores_df)), "n", "Numero de pares com correlacao absoluta acima de 0,90.")
+
+# Registra quantidade de descritores mantidos apos remover redundancias fortes.
+adicionar_metrica("quimiometria", "descritores apos filtro de colinearidade", int(len(descritores_filtrados_colinearidade)), "n", "Quantidade de descritores mantidos para PCR/PLSR apos remover redundancias fortes.")
+
+# Registra robustez media do ranking no Top 10.
+adicionar_metrica("ranking", "robustez media do ranking Top 10", float(pd.to_numeric(validacao_ranking_df.head(10).get("score_robustez_ranking", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Media da robustez combinando Monte Carlo, intervalo de confianca e penalidade por outlier.")
+
+# Registra correlacao entre ranking nominal e ranking medio por Monte Carlo.
+adicionar_metrica("ranking", "correlacao Spearman ranking vs Monte Carlo", float(correlacao_rank_mc) if not pd.isna(correlacao_rank_mc) else np.nan, "indice", "Valores proximos de 1 indicam que o ranking nominal permanece estavel sob perturbacoes.")
+
+# Calcula melhor desempenho R2 de validacao cruzada entre PCR e PLSR.
+melhor_r2_regressao = pd.to_numeric(modelos_regressao_quimiometrica_df.get("r2_cv", pd.Series(dtype=float)), errors="coerce").max() if not modelos_regressao_quimiometrica_df.empty else np.nan
+
+# Calcula menor RMSE de validacao cruzada entre PCR e PLSR.
+melhor_rmse_regressao = pd.to_numeric(modelos_regressao_quimiometrica_df.get("rmse_cv", pd.Series(dtype=float)), errors="coerce").min() if not modelos_regressao_quimiometrica_df.empty else np.nan
+
+# Registra melhor R2 dos modelos PCR/PLSR proxy.
+adicionar_metrica("regressao_proxy", "melhor R2 CV PCR/PLSR", float(melhor_r2_regressao) if not pd.isna(melhor_r2_regressao) else np.nan, "R2", "Melhor coeficiente de determinacao em validacao cruzada interna dos modelos proxy.")
+
+# Registra melhor RMSE dos modelos PCR/PLSR proxy.
+adicionar_metrica("regressao_proxy", "melhor RMSE CV PCR/PLSR", float(melhor_rmse_regressao) if not pd.isna(melhor_rmse_regressao) else np.nan, "unidade do alvo", "Menor erro medio quadratico em validacao cruzada interna dos modelos proxy.")
+
 # Cria tabela consolidada de metricas de triagem.
 metricas_triagem_df = pd.DataFrame(linhas_metricas_triagem)
 
 # Cria tabela de validacao quimiometrica em formato narrativo.
-validacao_quimiometrica_df = metricas_triagem_df[metricas_triagem_df["grupo"].isin(["quimiometria", "DOE"])].copy()
+validacao_quimiometrica_df = metricas_triagem_df[metricas_triagem_df["grupo"].isin(["quimiometria", "DOE", "ranking", "regressao_proxy"])].copy()
+
+# Monta relatorio compacto de validacao metodologica.
+relatorio_validacao_metodo_df = pd.DataFrame([
+    {
+        "criterio": "pre-processamento",
+        "status": "concluido",
+        "evidencia": f"{len(preprocessamento_descritores_df)} descritores auditados; {int(preprocessamento_descritores_df.get('n_ausentes_antes', pd.Series(dtype=float)).sum()) if not preprocessamento_descritores_df.empty else 0} valores imputados.",
+        "risco_residual": "imputacao por mediana preserva candidatos, mas nao substitui dados experimentais ausentes.",
+        "acao_recomendada": "revisar descritores com alta fracao de ausencia antes de usar em decisao experimental final.",
+    },
+    {
+        "criterio": "outliers",
+        "status": "alerta" if (not outliers_quimiometricos_df.empty and bool(outliers_quimiometricos_df["outlier_quimiometrico"].any())) else "ok",
+        "evidencia": f"{int(outliers_quimiometricos_df['outlier_quimiometrico'].sum()) if not outliers_quimiometricos_df.empty else 0} candidatos marcados como outliers multivariados.",
+        "risco_residual": "outlier pode indicar candidato interessante ou extrapolacao fora do dominio do modelo.",
+        "acao_recomendada": "avaliar manualmente candidatos outliers antes de descartar ou priorizar.",
+    },
+    {
+        "criterio": "colinearidade",
+        "status": "alerta" if len(colinearidade_descritores_df) else "ok",
+        "evidencia": f"{len(colinearidade_descritores_df)} pares de descritores com correlacao absoluta >= 0,90.",
+        "risco_residual": "descritores redundantes podem inflar a importancia aparente de uma mesma propriedade.",
+        "acao_recomendada": "priorizar descritores recomendados e evitar interpretar pares redundantes como evidencias independentes.",
+    },
+    {
+        "criterio": "robustez do ranking",
+        "status": "concluido",
+        "evidencia": f"Spearman nominal vs Monte Carlo = {correlacao_rank_mc:.3f}" if not pd.isna(correlacao_rank_mc) else "Spearman indisponivel por quantidade insuficiente de candidatos.",
+        "risco_residual": "a robustez e interna ao conjunto de proxies e nao representa validacao experimental externa.",
+        "acao_recomendada": "usar o score de robustez junto com score final, nao isoladamente.",
+    },
+    {
+        "criterio": "PCR/PLSR proxy",
+        "status": "concluido" if not modelos_regressao_quimiometrica_df.empty else "indisponivel",
+        "evidencia": f"melhor R2 CV = {melhor_r2_regressao:.3f}; melhor RMSE CV = {melhor_rmse_regressao:.3f}" if not pd.isna(melhor_r2_regressao) and not pd.isna(melhor_rmse_regressao) else "dados insuficientes para metricas robustas de regressao.",
+        "risco_residual": "PCR/PLSR foi treinado sobre alvos proxy derivados do proprio fluxo.",
+        "acao_recomendada": "substituir alvos proxy por conversao, seletividade ou rendimento experimentais quando houver dados reais.",
+    },
+    {
+        "criterio": "planejamento experimental",
+        "status": "concluido" if len(doe_sintese_df) else "indisponivel",
+        "evidencia": f"{len(doe_sintese_df)} ensaios DOE sugeridos incluindo replicatas centrais, fatorial fracionario e pontos axiais.",
+        "risco_residual": "DOE sugerido e uma proposta inicial; deve respeitar limites do reator e seguranca operacional.",
+        "acao_recomendada": "executar primeiro os pontos centrais e ajustar a faixa antes de fazer o fatorial completo.",
+    },
+])
 
 # Define colunas quimiometricas que serao reincorporadas aos rankings.
-colunas_quimio_merge = ["formula", "PC1", "PC2", "variancia_PC1", "variancia_PC2", "grupo_quimiometrico", "classe_prioridade_quimiometrica"]
+colunas_validacao_ranking_merge = [
+    "formula",
+    "posicao_ranking",
+    "score_robustez_ranking",
+    "classe_robustez_ranking",
+    "margem_score_para_proximo",
+    "posicao_media_monte_carlo",
+    "deslocamento_posicao_mc",
+]
+
+# Reincorpora informacoes de robustez do ranking a tabela quimiometrica.
+quimiometria_candidatos_df = quimiometria_candidatos_df.drop(columns=[c for c in colunas_validacao_ranking_merge if c in quimiometria_candidatos_df.columns and c != "formula"], errors="ignore").merge(
+    validacao_ranking_df[colunas_validacao_ranking_merge].drop_duplicates("formula"),
+    on="formula",
+    how="left",
+)
+
+# Define colunas quimiometricas que serao reincorporadas aos rankings.
+colunas_quimio_merge = [
+    "formula",
+    "PC1",
+    "PC2",
+    "variancia_PC1",
+    "variancia_PC2",
+    "distancia_pca",
+    "distancia_mahalanobis",
+    "outlier_quimiometrico",
+    "motivo_outlier",
+    "grupo_quimiometrico",
+    "classe_prioridade_quimiometrica",
+    "posicao_ranking",
+    "score_robustez_ranking",
+    "classe_robustez_ranking",
+    "margem_score_para_proximo",
+    "posicao_media_monte_carlo",
+    "deslocamento_posicao_mc",
+]
 
 # Define funcao para acrescentar PCA, grupo e prioridade a uma tabela.
 def incorporar_quimiometria(df):
@@ -3757,6 +4388,11 @@ FIGURE_DIR = OUTPUT_DIR / f"{prefixo}_figuras"
 
 # Cria a pasta de figuras caso ela ainda não exista.
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
+
+# Remove figuras antigas para evitar mistura entre execucoes com nomes de graficos diferentes.
+for figura_antiga in list(FIGURE_DIR.glob("*.png")) + list(FIGURE_DIR.glob("*.pdf")):
+    # Apaga apenas arquivos dentro da pasta de figuras calculada pelo notebook.
+    figura_antiga.unlink()
 
 # Define um estilo visual limpo para todos os gráficos.
 plt.style.use("seaborn-v0_8-whitegrid")
@@ -4166,6 +4802,120 @@ if not doe_sintese_df.empty:
     # Exibe figura do DOE.
     plt.show()
 
+# Cria figura da matriz de correlacao dos descritores.
+if not correlacao_descritores_df.empty:
+    # Calcula tamanho proporcional ao numero de descritores.
+    tamanho_figura_corr = max(7.5, 0.55 * len(correlacao_descritores_df.columns))
+    # Inicializa a figura do mapa de calor.
+    plt.figure(figsize=(tamanho_figura_corr, tamanho_figura_corr * 0.85))
+    # Desenha a matriz de correlacao em escala divergente.
+    imagem_corr = plt.imshow(correlacao_descritores_df.values, vmin=-1, vmax=1, cmap="coolwarm")
+    # Adiciona barra de cores para interpretar correlacoes positivas e negativas.
+    plt.colorbar(imagem_corr, fraction=0.046, pad=0.04, label="Correlacao de Pearson")
+    # Define posicoes dos descritores no eixo x.
+    plt.xticks(range(len(correlacao_descritores_df.columns)), correlacao_descritores_df.columns, rotation=45, ha="right", fontsize=8)
+    # Define posicoes dos descritores no eixo y.
+    plt.yticks(range(len(correlacao_descritores_df.index)), correlacao_descritores_df.index, fontsize=8)
+    # Define titulo do mapa de calor.
+    plt.title("Correlacao entre descritores quimiometricos")
+    # Ajusta layout para manter os nomes visiveis.
+    plt.tight_layout()
+    # Salva figura de correlacao.
+    salvar_figura("11_correlacao_descritores")
+    # Exibe figura no notebook.
+    plt.show()
+
+# Cria figura de outliers no espaco PCA.
+if not pca_quimiometrica_df.empty and not outliers_quimiometricos_df.empty:
+    # Junta coordenadas PCA com a marcacao de outlier.
+    pca_outlier_plot = pca_quimiometrica_df.merge(
+        outliers_quimiometricos_df[["formula", "outlier_quimiometrico"]],
+        on="formula",
+        how="left",
+    )
+    # Preenche valores ausentes de outlier como falso.
+    pca_outlier_plot["outlier_quimiometrico"] = pca_outlier_plot["outlier_quimiometrico"].fillna(False).astype(bool)
+    # Inicializa a figura de outliers.
+    plt.figure(figsize=(8.5, 6.0))
+    # Desenha candidatos normais em azul.
+    dados_normais = pca_outlier_plot[~pca_outlier_plot["outlier_quimiometrico"]]
+    # Desenha candidatos outliers em vermelho.
+    dados_outliers = pca_outlier_plot[pca_outlier_plot["outlier_quimiometrico"]]
+    # Plota candidatos dentro do dominio multivariado.
+    plt.scatter(dados_normais["PC1"], dados_normais["PC2"], s=80, alpha=0.78, color="#1976D2", edgecolor="black", linewidth=0.35, label="dentro do dominio")
+    # Plota candidatos marcados como outliers.
+    if not dados_outliers.empty:
+        # Usa marcador destacado para facilitar identificacao visual.
+        plt.scatter(dados_outliers["PC1"], dados_outliers["PC2"], s=115, alpha=0.90, color="#C62828", edgecolor="black", linewidth=0.50, label="outlier")
+        # Anota as formulas dos outliers.
+        for _, row in dados_outliers.head(10).iterrows():
+            # Posiciona rotulo proximo ao ponto.
+            plt.annotate(str(row["formula"]), (row["PC1"], row["PC2"]), textcoords="offset points", xytext=(7, 7), fontsize=8)
+    # Define rotulo do eixo PC1.
+    plt.xlabel("PC1")
+    # Define rotulo do eixo PC2.
+    plt.ylabel("PC2")
+    # Define titulo da figura de outliers.
+    plt.title("Deteccao de outliers no espaco PCA")
+    # Adiciona legenda.
+    plt.legend()
+    # Ajusta layout.
+    plt.tight_layout()
+    # Salva figura de outliers.
+    salvar_figura("12_outliers_quimiometricos")
+    # Exibe figura no notebook.
+    plt.show()
+
+# Cria figura de robustez do ranking.
+if not validacao_ranking_df.empty and "score_robustez_ranking" in validacao_ranking_df.columns:
+    # Seleciona os dez primeiros candidatos para visualizacao.
+    robustez_plot = validacao_ranking_df.head(10).copy()
+    # Inicializa figura de robustez.
+    plt.figure(figsize=(9.5, 5.2))
+    # Desenha barras horizontais de robustez.
+    plt.barh(robustez_plot["formula"], robustez_plot["score_robustez_ranking"], color="#00897B")
+    # Inverte eixo para exibir o melhor ranking no topo.
+    plt.gca().invert_yaxis()
+    # Define limites do score de robustez.
+    plt.xlim(0, 1.0)
+    # Define rotulo do eixo x.
+    plt.xlabel("Score de robustez do ranking")
+    # Define titulo da figura.
+    plt.title("Validade interna e robustez do Top 10")
+    # Ajusta layout.
+    plt.tight_layout()
+    # Salva figura de robustez.
+    salvar_figura("13_validacao_robustez_ranking")
+    # Exibe figura no notebook.
+    plt.show()
+
+# Cria figura de desempenho dos modelos PCR/PLSR proxy.
+if not modelos_regressao_quimiometrica_df.empty:
+    # Mantem apenas modelos com R2 de validacao cruzada calculado.
+    modelos_plot = modelos_regressao_quimiometrica_df.dropna(subset=["r2_cv"]).copy()
+    # Gera figura apenas quando ha metricas disponiveis.
+    if not modelos_plot.empty:
+        # Cria rotulo combinando objetivo e modelo.
+        modelos_plot["rotulo"] = modelos_plot["objetivo"].astype(str) + " - " + modelos_plot["modelo"].astype(str)
+        # Inicializa figura de desempenho.
+        plt.figure(figsize=(10.5, 4.8))
+        # Desenha barras de R2 em validacao cruzada.
+        plt.bar(modelos_plot["rotulo"], modelos_plot["r2_cv"], color="#5E35B1")
+        # Marca linha de R2 igual a zero para separar ganho de desempenho de desempenho ruim.
+        plt.axhline(0, color="#424242", linewidth=1.0)
+        # Rotaciona rotulos do eixo x.
+        plt.xticks(rotation=25, ha="right")
+        # Define rotulo do eixo y.
+        plt.ylabel("R2 em validacao cruzada")
+        # Define titulo da figura.
+        plt.title("PCR/PLSR como validacao quimiometrica proxy")
+        # Ajusta layout.
+        plt.tight_layout()
+        # Salva figura de regressao proxy.
+        salvar_figura("14_regressao_quimiometrica_proxy")
+        # Exibe figura no notebook.
+        plt.show()
+
 # Converte a lista de figuras em tabela.
 figuras_geradas_df = pd.DataFrame(figuras_geradas)
 
@@ -4295,8 +5045,63 @@ nomes_colunas_pt = {
     "unidade": "unidade",
     "ensaio_doe": "ensaio DOE",
     "tipo_ponto": "tipo de ponto",
+    "etapa_planejamento": "etapa do planejamento",
+    "fracao_promotor_planejada": "fracao de promotor planejada",
+    "percentual_promotor_planejado": "percentual de promotor planejado (%)",
+    "nivel_codificado_temperatura": "nivel codificado da temperatura",
+    "nivel_codificado_pressao": "nivel codificado da pressao",
+    "nivel_codificado_razao": "nivel codificado da razao",
+    "nivel_codificado_ghsv": "nivel codificado do GHSV",
+    "nivel_codificado_promotor": "nivel codificado do promotor",
     "objetivo_quimiometrico": "objetivo quimiometrico",
     "justificativa_doe": "justificativa DOE",
+    "n_valores": "numero de valores",
+    "n_ausentes_antes": "valores ausentes antes",
+    "fracao_ausente_antes": "fracao ausente antes",
+    "mediana_imputacao": "mediana usada na imputacao",
+    "media_apos_imputacao": "media apos imputacao",
+    "desvio_apos_imputacao": "desvio apos imputacao",
+    "metodo_imputacao": "metodo de imputacao",
+    "metodo_escalonamento": "metodo de escalonamento",
+    "descritor_a": "descritor A",
+    "descritor_b": "descritor B",
+    "correlacao_abs": "correlacao absoluta",
+    "limiar_colinearidade": "limiar de colinearidade",
+    "prioridade_a": "prioridade do descritor A",
+    "prioridade_b": "prioridade do descritor B",
+    "descritor_recomendado": "descritor recomendado",
+    "descritor_redundante": "descritor redundante",
+    "distancia_pca": "distancia no espaco PCA",
+    "distancia_mahalanobis": "distancia de Mahalanobis",
+    "limiar_pca": "limiar PCA",
+    "limiar_mahalanobis": "limiar Mahalanobis",
+    "outlier_pca": "outlier por PCA",
+    "outlier_mahalanobis": "outlier por Mahalanobis",
+    "outlier_quimiometrico": "outlier quimiometrico",
+    "motivo_outlier": "motivo do outlier",
+    "posicao_ranking": "posicao no ranking",
+    "score_robustez_ranking": "score de robustez do ranking",
+    "classe_robustez_ranking": "classe de robustez do ranking",
+    "margem_score_para_proximo": "margem de score para o proximo",
+    "posicao_media_monte_carlo": "posicao media por Monte Carlo",
+    "deslocamento_posicao_mc": "deslocamento de posicao por Monte Carlo",
+    "objetivo": "objetivo",
+    "modelo": "modelo",
+    "n_componentes": "numero de componentes",
+    "r2_cv": "R2 em validacao cruzada",
+    "rmse_cv": "RMSE em validacao cruzada",
+    "r2_treino": "R2 no treino",
+    "rmse_treino": "RMSE no treino",
+    "observacao": "observacao",
+    "valor_observado_proxy": "valor observado proxy",
+    "valor_predito_cv": "valor predito em validacao cruzada",
+    "valor_predito_treino": "valor predito no treino",
+    "residuo_cv": "residuo em validacao cruzada",
+    "criterio": "criterio",
+    "status": "status",
+    "evidencia": "evidencia",
+    "risco_residual": "risco residual",
+    "acao_recomendada": "acao recomendada",
 }
 
 # Define função auxiliar para traduzir apenas os nomes das colunas exportadas.
@@ -4352,6 +5157,30 @@ traduzir_colunas(validacao_quimiometrica_df).to_csv(OUTPUT_DIR / f"{prefixo}_val
 # Salva o planejamento DOE sugerido para síntese/teste.
 traduzir_colunas(doe_sintese_df).to_csv(OUTPUT_DIR / f"{prefixo}_planejamento_doe_sintese.csv", index=False, encoding="utf-8-sig")
 
+# Salva a auditoria de pre-processamento dos descritores.
+traduzir_colunas(preprocessamento_descritores_df).to_csv(OUTPUT_DIR / f"{prefixo}_preprocessamento_descritores.csv", index=False, encoding="utf-8-sig")
+
+# Salva a matriz de correlacao dos descritores.
+traduzir_colunas(correlacao_descritores_df.reset_index().rename(columns={"index": "descritor"})).to_csv(OUTPUT_DIR / f"{prefixo}_correlacao_descritores.csv", index=False, encoding="utf-8-sig")
+
+# Salva os pares de descritores colineares.
+traduzir_colunas(colinearidade_descritores_df).to_csv(OUTPUT_DIR / f"{prefixo}_colinearidade_descritores.csv", index=False, encoding="utf-8-sig")
+
+# Salva a deteccao de outliers quimiometricos.
+traduzir_colunas(outliers_quimiometricos_df).to_csv(OUTPUT_DIR / f"{prefixo}_outliers_quimiometricos.csv", index=False, encoding="utf-8-sig")
+
+# Salva a validacao de robustez do ranking.
+traduzir_colunas(validacao_ranking_df).to_csv(OUTPUT_DIR / f"{prefixo}_validacao_ranking.csv", index=False, encoding="utf-8-sig")
+
+# Salva as metricas dos modelos PCR/PLSR proxy.
+traduzir_colunas(modelos_regressao_quimiometrica_df).to_csv(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv", index=False, encoding="utf-8-sig")
+
+# Salva as predicoes dos modelos PCR/PLSR proxy.
+traduzir_colunas(predicoes_regressao_quimiometrica_df).to_csv(OUTPUT_DIR / f"{prefixo}_predicoes_regressao_quimiometrica.csv", index=False, encoding="utf-8-sig")
+
+# Salva o relatorio compacto de validacao do metodo.
+traduzir_colunas(relatorio_validacao_metodo_df).to_csv(OUTPUT_DIR / f"{prefixo}_relatorio_validacao_metodo.csv", index=False, encoding="utf-8-sig")
+
 # Salva um arquivo Excel com abas organizadas.
 with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl") as writer:
     # Aba com candidatos prioritários.
@@ -4386,6 +5215,22 @@ with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl"
     traduzir_colunas(validacao_quimiometrica_df).to_excel(writer, sheet_name="Validacao_quimio", index=False)
     # Aba com planejamento DOE sugerido.
     traduzir_colunas(doe_sintese_df).to_excel(writer, sheet_name="DOE_sintese", index=False)
+    # Aba com auditoria de pre-processamento.
+    traduzir_colunas(preprocessamento_descritores_df).to_excel(writer, sheet_name="Preprocessamento", index=False)
+    # Aba com matriz de correlacao.
+    traduzir_colunas(correlacao_descritores_df.reset_index().rename(columns={"index": "descritor"})).to_excel(writer, sheet_name="Correlacao", index=False)
+    # Aba com pares colineares.
+    traduzir_colunas(colinearidade_descritores_df).to_excel(writer, sheet_name="Colinearidade", index=False)
+    # Aba com outliers quimiometricos.
+    traduzir_colunas(outliers_quimiometricos_df).to_excel(writer, sheet_name="Outliers", index=False)
+    # Aba com robustez do ranking.
+    traduzir_colunas(validacao_ranking_df.head(150)).to_excel(writer, sheet_name="Validacao_ranking", index=False)
+    # Aba com metricas PCR/PLSR.
+    traduzir_colunas(modelos_regressao_quimiometrica_df).to_excel(writer, sheet_name="Regressao_modelos", index=False)
+    # Aba com predicoes PCR/PLSR.
+    traduzir_colunas(predicoes_regressao_quimiometrica_df.head(300)).to_excel(writer, sheet_name="Regressao_pred", index=False)
+    # Aba com relatorio de validacao do metodo.
+    traduzir_colunas(relatorio_validacao_metodo_df).to_excel(writer, sheet_name="Validacao_metodo", index=False)
 
 # Define caminho do relatório HTML automático.
 relatorio_html_path = OUTPUT_DIR / f"{prefixo}_relatorio.html"
@@ -4561,10 +5406,22 @@ figcaption {{
 {tabela_html(metricas_triagem_df, linhas=40)}
 <h2>Valida&ccedil;&atilde;o quimiom&eacute;trica</h2>
 {tabela_html(validacao_quimiometrica_df, linhas=20)}
+<h2>Relat&oacute;rio de valida&ccedil;&atilde;o do m&eacute;todo</h2>
+{tabela_html(relatorio_validacao_metodo_df, linhas=20)}
+<h2>Pre-processamento dos descritores</h2>
+{tabela_html(preprocessamento_descritores_df, linhas=30)}
+<h2>Outliers e colinearidade</h2>
+{tabela_html(outliers_quimiometricos_df, linhas=20)}
+{tabela_html(colinearidade_descritores_df, linhas=20)}
 <h2>PCA e agrupamento</h2>
 {tabela_html(pca_quimiometrica_df, linhas=20)}
 <h2>Sele&ccedil;&atilde;o de descritores</h2>
 {tabela_html(selecao_descritores_df, linhas=20)}
+<h2>Valida&ccedil;&atilde;o do ranking</h2>
+{tabela_html(validacao_ranking_df, linhas=20)}
+<h2>PCR/PLSR proxy</h2>
+{tabela_html(modelos_regressao_quimiometrica_df, linhas=20)}
+{tabela_html(predicoes_regressao_quimiometrica_df, linhas=20)}
 <h2>DOE sugerido</h2>
 {tabela_html(doe_sintese_df, linhas=40)}
 <h2>Figuras principais</h2>
@@ -4600,6 +5457,14 @@ resumo = {
     "arquivo_selecao_descritores_quimiometricos": str(OUTPUT_DIR / f"{prefixo}_selecao_descritores_quimiometricos.csv"),
     "arquivo_validacao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_validacao_quimiometrica.csv"),
     "arquivo_planejamento_doe_sintese": str(OUTPUT_DIR / f"{prefixo}_planejamento_doe_sintese.csv"),
+    "arquivo_preprocessamento_descritores": str(OUTPUT_DIR / f"{prefixo}_preprocessamento_descritores.csv"),
+    "arquivo_correlacao_descritores": str(OUTPUT_DIR / f"{prefixo}_correlacao_descritores.csv"),
+    "arquivo_colinearidade_descritores": str(OUTPUT_DIR / f"{prefixo}_colinearidade_descritores.csv"),
+    "arquivo_outliers_quimiometricos": str(OUTPUT_DIR / f"{prefixo}_outliers_quimiometricos.csv"),
+    "arquivo_validacao_ranking": str(OUTPUT_DIR / f"{prefixo}_validacao_ranking.csv"),
+    "arquivo_modelos_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv"),
+    "arquivo_predicoes_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_predicoes_regressao_quimiometrica.csv"),
+    "arquivo_relatorio_validacao_metodo": str(OUTPUT_DIR / f"{prefixo}_relatorio_validacao_metodo.csv"),
     "arquivo_descritores_matminer": str(OUTPUT_DIR / f"{prefixo}_descritores_matminer.csv"),
     "arquivo_descritores_pymatgen": str(OUTPUT_DIR / f"{prefixo}_descritores_pymatgen.csv"),
     "arquivo_proxy_gnn_local": str(OUTPUT_DIR / f"{prefixo}_proxy_gnn_local.csv"),
@@ -4608,9 +5473,15 @@ resumo = {
     "pymatgen_disponivel": bool(pymatgen_disponivel),
     "n_descritores_pymatgen": int(len(pymatgen_feature_cols)),
     "n_descritores_quimiometricos": int(len(descritores_quimiometricos_cols)),
+    "n_descritores_apos_filtro_colinearidade": int(len(descritores_filtrados_colinearidade)),
+    "n_outliers_quimiometricos": int(outliers_quimiometricos_df["outlier_quimiometrico"].sum()) if not outliers_quimiometricos_df.empty else 0,
+    "n_pares_descritores_colineares": int(len(colinearidade_descritores_df)),
     "n_grupos_quimiometricos": int(n_grupos_quimiometricos),
     "silhouette_quimiometrico": None if pd.isna(silhouette_quimiometrico) else float(silhouette_quimiometrico),
     "n_ensaios_doe_sugeridos": int(len(doe_sintese_df)),
+    "melhor_r2_cv_pcr_plsr": None if pd.isna(melhor_r2_regressao) else float(melhor_r2_regressao),
+    "melhor_rmse_cv_pcr_plsr": None if pd.isna(melhor_rmse_regressao) else float(melhor_rmse_regressao),
+    "correlacao_spearman_ranking_monte_carlo": None if pd.isna(correlacao_rank_mc) else float(correlacao_rank_mc),
     "gnn_local_disponivel": bool(gnn_local_disponivel),
     "gnn_modelo_usado": gnn_modelo_usado,
     "n_candidatos_gnn_local": int(gnn_local_descritores_df["gnn_local_usado"].fillna(False).sum()) if "gnn_local_usado" in gnn_local_descritores_df else 0,
