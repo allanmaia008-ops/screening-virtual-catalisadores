@@ -175,6 +175,9 @@ import math
 # Importa re para extrair símbolos químicos das fórmulas.
 import re
 
+# Importa unicodedata para aceitar nomes de elementos com acentos nas entradas do usuário.
+import unicodedata
+
 # Importa html para escapar textos no relatório HTML.
 import html
 
@@ -312,6 +315,73 @@ def perguntar(texto, chave_auto):
     # Retorna a resposta digitada pelo usuario ou recebida por variavel de ambiente.
     return resposta
 
+# Remove acentos e padroniza textos antes de reconhecer nomes de elementos.
+def normalizar_texto_entrada(valor):
+    # Converte a entrada para texto e remove espaços laterais.
+    texto = str(valor).strip()
+    # Separa letras e marcas de acento para permitir comparação sem acentuação.
+    texto_sem_acentos = unicodedata.normalize("NFKD", texto)
+    # Remove marcas de acento e preserva as letras base.
+    texto_sem_acentos = "".join(caractere for caractere in texto_sem_acentos if not unicodedata.combining(caractere))
+    # Retorna em minúsculas para comparação independente da forma digitada.
+    return texto_sem_acentos.lower()
+
+# Mapeia nomes comuns em português para símbolos químicos válidos.
+NOMES_ELEMENTOS_PARA_SIMBOLOS = {
+    # Converte cério por extenso para o símbolo químico usado nas fórmulas.
+    "cerio": "Ce",
+    # Converte lantânio por extenso para o símbolo químico.
+    "lantanio": "La",
+    # Converte tungstênio por extenso para o símbolo químico W.
+    "tungstenio": "W",
+    # Aceita wolfrâmio como nome alternativo do tungstênio.
+    "wolframio": "W",
+    # Converte níquel por extenso para o símbolo químico.
+    "niquel": "Ni",
+    # Converte cobalto por extenso para o símbolo químico.
+    "cobalto": "Co",
+    # Converte ferro por extenso para o símbolo químico.
+    "ferro": "Fe",
+    # Converte rutênio por extenso para o símbolo químico.
+    "rutenio": "Ru",
+    # Converte zircônio por extenso para o símbolo químico.
+    "zirconio": "Zr",
+    # Converte magnésio por extenso para o símbolo químico.
+    "magnesio": "Mg",
+    # Converte alumínio por extenso para o símbolo químico.
+    "aluminio": "Al",
+    # Converte titânio por extenso para o símbolo químico.
+    "titanio": "Ti",
+    # Converte molibdênio por extenso para o símbolo químico.
+    "molibdenio": "Mo",
+    # Converte manganês por extenso para o símbolo químico.
+    "manganes": "Mn",
+    # Converte cobre por extenso para o símbolo químico.
+    "cobre": "Cu",
+    # Converte zinco por extenso para o símbolo químico.
+    "zinco": "Zn",
+    # Converte ítrio por extenso para o símbolo químico.
+    "itrio": "Y",
+}
+
+# Normaliza símbolos ou nomes de elementos antes da geração das fórmulas.
+def normalizar_simbolo_quimico(valor):
+    # Remove espaços laterais para evitar entradas com caracteres invisíveis.
+    bruto = str(valor).strip()
+    # Retorna vazio quando o usuário não informou elemento.
+    if not bruto:
+        return ""
+    # Cria chave sem acentos para reconhecer nomes em português.
+    chave_nome = normalizar_texto_entrada(bruto).replace(" ", "_")
+    # Usa o símbolo tabelado quando a entrada é um nome de elemento.
+    if chave_nome in NOMES_ELEMENTOS_PARA_SIMBOLOS:
+        return NOMES_ELEMENTOS_PARA_SIMBOLOS[chave_nome]
+    # Padroniza símbolos digitados com uma ou duas letras, como w, LA ou ce.
+    if re.fullmatch(r"[A-Za-z]{1,2}", bruto):
+        return bruto[0].upper() + bruto[1:].lower()
+    # Mantém uma forma previsível para entradas não mapeadas.
+    return bruto[0].upper() + bruto[1:].lower()
+
 # Pergunta qual reação será avaliada.
 reacao_usuario = perguntar("Qual reação deseja avaliar? Use metanacao, reforma ou rwgs", "reacao")
 
@@ -328,10 +398,10 @@ else:
     metais_usuario = perguntar("Quais metais de fase ativa? Separe por vírgula", "metais_multiplos").split(",")
 
 # Limpa espaços extras dos símbolos informados.
-metais_usuario = [m.strip() for m in metais_usuario if m.strip()]
+metais_usuario = [normalizar_simbolo_quimico(m) for m in metais_usuario if normalizar_simbolo_quimico(m)]
 
 # Pergunta qual promotor será usado.
-promotor_usuario = perguntar("Qual será o promotor?", "promotor").strip()
+promotor_usuario = normalizar_simbolo_quimico(perguntar("Qual será o promotor?", "promotor"))
 
 # Mostra as escolhas do usuário.
 print("Reação:", reacao_usuario)
@@ -520,11 +590,7 @@ if not metais_usuario:
 def texto_fracao(valor):
     # Converte o valor para float para evitar problemas com inteiros ou strings numéricas.
     valor = float(valor)
-    # Verifica se duas casas decimais representam a fração sem alterar a composição.
-    if abs(valor - round(valor, 2)) > 1e-9:
-        # Usa três casas somente para frações como 0,5% em RWGS.
-        return f"{valor:.3f}"
-    # Retorna a fração no padrão compacto usado nas fórmulas de triagem.
+    # Retorna sempre duas casas decimais para manter leitura uniforme das fórmulas.
     return f"{valor:.2f}"
 
 # Define uma função para montar fórmulas simplificadas a partir de pares elemento-fração.
@@ -724,8 +790,26 @@ candidatos_df["n_metais_ativos_presentes"] = candidatos_df["formula"].apply(lamb
 # Marca candidatos que contêm dois ou mais metais ativos escolhidos pelo usuário.
 candidatos_df["candidato_multimetal_ativo"] = candidatos_df["n_metais_ativos_presentes"] >= 2
 
+# Define uma função para verificar se a fórmula contém o promotor informado.
+def formula_contem_promotor(formula):
+    # Extrai símbolos químicos presentes na fórmula candidata.
+    elementos = set(re.findall(r"[A-Z][a-z]?", str(formula)))
+    # Retorna verdadeiro apenas quando o promotor aparece explicitamente na fórmula.
+    return bool(promotor_usuario and promotor_usuario in elementos)
+
+# Marca candidatos que preservam o promotor escolhido pelo usuário.
+candidatos_df["candidato_com_promotor"] = candidatos_df["formula"].apply(formula_contem_promotor)
+
 # Separa uma tabela apenas com candidatos que preservam mais de um metal ativo.
 candidatos_multimetal_ativo_df = candidatos_df[candidatos_df["candidato_multimetal_ativo"]].copy()
+
+# Separa uma tabela apenas com candidatos que preservam o promotor informado.
+candidatos_promovidos_df = candidatos_df[candidatos_df["candidato_com_promotor"]].copy()
+
+# Separa candidatos que preservam simultaneamente metais ativos múltiplos e o promotor.
+candidatos_multimetal_promovidos_df = candidatos_df[
+    candidatos_df["candidato_multimetal_ativo"] & candidatos_df["candidato_com_promotor"]
+].copy()
 
 # Avisa quando a grade com duas casas decimais não permite atingir 1000 fórmulas únicas.
 if len(candidatos_df) < N_CANDIDATOS_GERADOS_FUNIL:
@@ -745,6 +829,12 @@ print(candidatos_df["tipo"].value_counts())
 # Mostra quantos candidatos realmente contêm dois ou mais metais ativos informados.
 print("Candidatos com dois ou mais metais ativos:", len(candidatos_multimetal_ativo_df))
 
+# Mostra quantos candidatos preservam explicitamente o promotor informado.
+print("Candidatos contendo o promotor:", len(candidatos_promovidos_df))
+
+# Mostra quantos candidatos combinam os metais ativos informados com o promotor na mesma fórmula.
+print("Candidatos com metais ativos e promotor:", len(candidatos_multimetal_promovidos_df))
+
 # Mostra candidatos gerais e, quando houver mais de um metal ativo, mostra também a tabela multimetálica.
 try:
     # Exibe os primeiros candidatos gerais no ambiente Jupyter/Colab.
@@ -753,6 +843,10 @@ try:
     if len(metais_usuario) > 1:
         # Mostra os primeiros candidatos que contêm o segundo metal ativo.
         display(candidatos_multimetal_ativo_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes"]].head(20))
+        # Mostra candidatos que contêm simultaneamente os metais ativos e o promotor.
+        display(candidatos_multimetal_promovidos_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "candidato_com_promotor"]].head(20))
+    # Exibe candidatos promovidos para confirmar que o promotor entrou nas formulações.
+    display(candidatos_promovidos_df[["formula", "tipo", "candidato_com_promotor"]].head(20))
 except NameError:
     # Usa impressão textual quando display não está disponível.
     print(candidatos_df.head(20))
@@ -760,9 +854,13 @@ except NameError:
     if len(metais_usuario) > 1:
         # Imprime os primeiros candidatos com dois ou mais metais ativos.
         print(candidatos_multimetal_ativo_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes"]].head(20))
+        # Imprime candidatos que contêm simultaneamente os metais ativos e o promotor.
+        print(candidatos_multimetal_promovidos_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "candidato_com_promotor"]].head(20))
+    # Imprime candidatos promovidos para confirmar a presença do promotor.
+    print(candidatos_promovidos_df[["formula", "tipo", "candidato_com_promotor"]].head(20))
 
 # Retorna a tabela multimetálica quando houver mais de um metal ativo, facilitando a conferência visual.
-candidatos_multimetal_ativo_df.head(20) if len(metais_usuario) > 1 else candidatos_df.head(20)
+candidatos_multimetal_promovidos_df.head(20) if len(candidatos_multimetal_promovidos_df) else (candidatos_promovidos_df.head(20) if len(candidatos_promovidos_df) else (candidatos_multimetal_ativo_df.head(20) if len(metais_usuario) > 1 else candidatos_df.head(20)))
 """
     ),
     md(
@@ -1989,7 +2087,7 @@ viaveis_df = viaveis_df.sort_values(
 ).reset_index(drop=True)
 
 # Define uma função para selecionar candidatos sem deixar ligas multimetálicas desaparecerem do funil.
-def selecionar_com_representacao_multimetal(df, n_candidatos, coluna_score, fracao_minima=0.30):
+def selecionar_com_representacao_multimetal_legado(df, n_candidatos, coluna_score, fracao_minima=0.30):
     # Ordena a tabela pelo score escolhido antes de aplicar a cota de diversidade.
     ordenado = df.sort_values(coluna_score, ascending=False).reset_index(drop=True)
     # Retorna apenas os melhores quando o usuário escolheu um único metal ativo.
@@ -2019,6 +2117,79 @@ def selecionar_com_representacao_multimetal(df, n_candidatos, coluna_score, frac
     # Retorna a quantidade solicitada para a etapa do funil.
     return selecionados.head(n_candidatos).copy()
 
+# Redefine a seleção para preservar simultaneamente multimetálicos e candidatos promovidos.
+def selecionar_com_representacao_multimetal(df, n_candidatos, coluna_score, fracao_minima=0.30, fracao_minima_promotor=0.30):
+    # Ordena a tabela pelo score escolhido antes de aplicar cotas químicas.
+    ordenado = df.sort_values(coluna_score, ascending=False).reset_index(drop=True)
+    # Retorna tabela vazia quando não há candidato disponível para a etapa.
+    if n_candidatos <= 0 or ordenado.empty:
+        return ordenado.head(0).copy()
+    # Cria lista de índices selecionados para impedir duplicatas entre cotas.
+    indices_selecionados = []
+    # Define função interna para reservar candidatos de um subconjunto químico.
+    def reservar_cota(subconjunto, minimo):
+        # Inicia contador local para limitar a reserva ao mínimo solicitado.
+        adicionados = 0
+        # Percorre os candidatos já ordenados por score dentro do subconjunto.
+        for indice in subconjunto.index:
+            # Interrompe quando a etapa já atingiu o número desejado de candidatos.
+            if len(indices_selecionados) >= n_candidatos:
+                break
+            # Ignora candidatos já reservados por outra cota química.
+            if indice in indices_selecionados:
+                continue
+            # Adiciona o índice do candidato reservado.
+            indices_selecionados.append(indice)
+            # Atualiza o contador da cota local.
+            adicionados += 1
+            # Interrompe quando a cota mínima do subconjunto foi satisfeita.
+            if adicionados >= minimo:
+                break
+    # Prioriza candidatos que combinam dois metais ativos e o promotor na mesma fórmula.
+    if len(metais_usuario) >= 2 and {"candidato_multimetal_ativo", "candidato_com_promotor"}.issubset(ordenado.columns):
+        # Filtra candidatos que preservam simultaneamente os metais ativos e o promotor.
+        multimetal_promovido = ordenado[
+            ordenado["candidato_multimetal_ativo"].fillna(False)
+            & ordenado["candidato_com_promotor"].fillna(False)
+        ].copy()
+        # Calcula uma cota mínima para a interseção quimicamente mais fiel ao pedido do usuário.
+        minimo_multimetal_promovido = min(
+            len(multimetal_promovido),
+            max(1, int(np.ceil(n_candidatos * min(fracao_minima, fracao_minima_promotor)))),
+        ) if not multimetal_promovido.empty else 0
+        # Reserva primeiro os candidatos que contêm os dois metais ativos e o promotor.
+        reservar_cota(multimetal_promovido, minimo_multimetal_promovido)
+    # Reserva candidatos com dois ou mais metais ativos quando o usuário informou múltiplos metais.
+    if len(metais_usuario) >= 2 and "candidato_multimetal_ativo" in ordenado.columns:
+        # Filtra candidatos que preservam dois ou mais metais ativos na fórmula.
+        multimetal = ordenado[ordenado["candidato_multimetal_ativo"].fillna(False)].copy()
+        # Calcula a cota mínima de multimetálicos sem inventar candidatos ausentes.
+        minimo_multimetal = min(len(multimetal), max(1, int(np.ceil(n_candidatos * fracao_minima)))) if not multimetal.empty else 0
+        # Reserva os melhores multimetálicos disponíveis.
+        reservar_cota(multimetal, minimo_multimetal)
+    # Reserva candidatos que contêm explicitamente o promotor escolhido.
+    if promotor_usuario and "candidato_com_promotor" in ordenado.columns:
+        # Filtra candidatos em que o promotor aparece na fórmula.
+        promovidos = ordenado[ordenado["candidato_com_promotor"].fillna(False)].copy()
+        # Calcula a cota mínima de promovidos sem ultrapassar o conjunto disponível.
+        minimo_promotor = min(len(promovidos), max(1, int(np.ceil(n_candidatos * fracao_minima_promotor)))) if not promovidos.empty else 0
+        # Reserva os melhores candidatos promovidos disponíveis.
+        reservar_cota(promovidos, minimo_promotor)
+    # Completa a seleção com os melhores candidatos gerais ainda não usados.
+    for indice in ordenado.index:
+        # Interrompe quando a seleção já atingiu o tamanho da etapa.
+        if len(indices_selecionados) >= n_candidatos:
+            break
+        # Evita duplicar candidatos já reservados pelas cotas.
+        if indice not in indices_selecionados:
+            indices_selecionados.append(indice)
+    # Recupera as linhas selecionadas.
+    selecionados = ordenado.loc[indices_selecionados].copy()
+    # Reordena a seleção final pelo score, preservando as cotas químicas.
+    selecionados = selecionados.sort_values(coluna_score, ascending=False).reset_index(drop=True)
+    # Retorna a quantidade solicitada para a etapa do funil.
+    return selecionados.head(n_candidatos).copy()
+
 # Define a quantidade real que seguira adiante depois do filtro de viabilidade.
 n_viaveis_alvo_execucao = min(N_CANDIDATOS_VIAVEIS_FUNIL, len(viaveis_df))
 
@@ -2040,8 +2211,11 @@ print("Candidatos viáveis:", len(viaveis_df))
 # Mostra quantos viáveis preservam dois ou mais metais ativos informados.
 print("Viáveis com dois ou mais metais ativos:", int(viaveis_df.get("candidato_multimetal_ativo", pd.Series(dtype=bool)).sum()))
 
+# Mostra quantos viáveis preservam explicitamente o promotor informado.
+print("Viáveis contendo o promotor:", int(viaveis_df.get("candidato_com_promotor", pd.Series(dtype=bool)).sum()))
+
 # Exibe os candidatos viáveis.
-viaveis_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "energy_above_hull_eV_atom", "fonte_estabilidade_triagem", "score_estabilidade", "score_incerteza"]].head(20)
+viaveis_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "candidato_com_promotor", "energy_above_hull_eV_atom", "fonte_estabilidade_triagem", "score_estabilidade", "score_incerteza"]].head(20)
 """
     ),
     md(
@@ -2086,6 +2260,9 @@ A busca catalítica é aplicada apenas aos melhores candidatos preliminares. O n
         """
 # Seleciona apenas os melhores candidatos para refinamento DFT mantendo presença multimetálica.
 dft_df = selecionar_com_representacao_multimetal(preliminar_df, N_CANDIDATOS_REFINADOS_FUNIL, "score_preliminar", fracao_minima=0.40)
+
+# Mostra quantos candidatos refinados preservam explicitamente o promotor informado.
+print("Refinados contendo o promotor:", int(dft_df.get("candidato_com_promotor", pd.Series(dtype=bool)).sum()))
 
 # Define arquivo local para armazenar dados incrementais do Catalysis-Hub.
 CATHUB_CACHE_FILE = PROJECT_DATA_DIR / "catalysis_hub_incremental.csv"
@@ -3279,6 +3456,9 @@ prioritarios_df = ranking_final_df.copy()
 
 # Mostra quantos candidatos finais preservam dois ou mais metais ativos.
 print("Prioritários finais com dois ou mais metais ativos:", int(prioritarios_df.get("candidato_multimetal_ativo", pd.Series(dtype=bool)).sum()))
+
+# Mostra quantos candidatos finais preservam explicitamente o promotor informado.
+print("Prioritários finais contendo o promotor:", int(prioritarios_df.get("candidato_com_promotor", pd.Series(dtype=bool)).sum()))
 
 # Exibe a tabela de síntese recomendada.
 prioritarios_df[[

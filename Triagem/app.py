@@ -73,6 +73,40 @@ def limpar_simbolo_quimico(valor: str) -> str:
     return valor[0].upper() + valor[1:].lower()
 
 
+NOMES_ELEMENTOS_PARA_SIMBOLOS = {
+    "cerio": "Ce",
+    "lantanio": "La",
+    "tungstenio": "W",
+    "wolframio": "W",
+    "niquel": "Ni",
+    "cobalto": "Co",
+    "ferro": "Fe",
+    "rutenio": "Ru",
+    "zirconio": "Zr",
+    "magnesio": "Mg",
+    "aluminio": "Al",
+    "titanio": "Ti",
+    "molibdenio": "Mo",
+    "manganes": "Mn",
+    "cobre": "Cu",
+    "zinco": "Zn",
+    "itrio": "Y",
+}
+
+
+def limpar_simbolo_quimico_basico(valor: str) -> str:
+    """Normaliza símbolo ou nome químico digitado pelo usuário."""
+    valor = str(valor).strip()
+    if not valor:
+        return ""
+    chave_nome = normalizar_texto(valor).replace(" ", "_")
+    if chave_nome in NOMES_ELEMENTOS_PARA_SIMBOLOS:
+        return NOMES_ELEMENTOS_PARA_SIMBOLOS[chave_nome]
+    if re.fullmatch(r"[A-Za-z]{1,2}", valor):
+        return valor[0].upper() + valor[1:].lower()
+    return valor[0].upper() + valor[1:].lower()
+
+
 def slug_texto(valor: str) -> str:
     """Cria um texto seguro para nomes de arquivos."""
     return re.sub(r"[^A-Za-z0-9_-]+", "_", valor).strip("_")
