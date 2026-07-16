@@ -24,6 +24,7 @@ NOTEBOOK_PATH = APP_DIR / "notebook_disciplina_triagem_virtual_fluxo_proposto.ip
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs"
 BRASAO_PATH = APP_DIR / "assets" / "logo_ufrn_header.png"
 PROJECT_LOGO_PATH = APP_DIR / "assets" / "logo_triagem_catalitica.png"
+LABTAM_LOGO_PATH = APP_DIR / "assets" / "logo_labtam.png"
 
 
 def obter_secret_streamlit(nome: str) -> str:
@@ -1086,10 +1087,39 @@ def renderizar_cabecalho() -> None:
         st.title("Screening Virtual")
 
 
+def renderizar_logo_labtam_sidebar() -> None:
+    """Renderiza o logotipo do LabTAm no topo da barra lateral."""
+    if not LABTAM_LOGO_PATH.exists():
+        return
+    labtam_base64 = base64.b64encode(LABTAM_LOGO_PATH.read_bytes()).decode("utf-8")
+    st.markdown(
+        f"""
+        <div style="
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 4px 0 14px 0;
+            margin: 0 0 8px 0;
+            border-bottom: 1px solid rgba(11, 79, 122, 0.16);
+        ">
+            <img src="data:image/png;base64,{labtam_base64}" alt="LabTAm UFRN" style="
+                width: min(210px, 92%);
+                max-height: 84px;
+                object-fit: contain;
+                display: block;
+            " />
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 st.set_page_config(page_title="Triagem virtual de catalisadores", layout="wide")
 renderizar_cabecalho()
 
 with st.sidebar:
+    renderizar_logo_labtam_sidebar()
     st.header("Configuração")
     reacao = st.selectbox("Reação", ["metanacao", "reforma", "rwgs"], format_func=lambda x: {"metanacao": "Metanação de CO2", "reforma": "Reforma de CH4", "rwgs": "RWGS"}[x])
     n_metais = st.number_input("Número de metais ativos", min_value=1, max_value=4, value=1, step=1)
