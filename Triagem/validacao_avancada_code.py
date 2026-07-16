@@ -280,8 +280,10 @@ def avaliar_adsorcao_avancada(row):
     score_dft_local = valor_float_avancado(row, "score_DFT", valor_float_avancado(row, "score_DFT_proxy", 0.5))
     # Le score Catalysis-Hub.
     score_cathub_local = valor_float_avancado(row, "score_cathub_incremental", 0.0)
-    # Le largura do volcano.
-    largura_volcano = float(volcano_cfg.get("largura_eV", 0.35)) if isinstance(volcano_cfg, dict) else 0.35
+    # Le configuracao do volcano quando ela existir no notebook.
+    volcano_cfg_local = globals().get("volcano_cfg", {})
+    # Le largura do volcano com fallback para execucoes parciais.
+    largura_volcano = float(volcano_cfg_local.get("largura_eV", 0.35)) if isinstance(volcano_cfg_local, dict) else 0.35
     # Le distancia ao ponto otimo do volcano.
     distancia = abs(valor_float_avancado(row, "distancia_otimo_volcano_eV", largura_volcano))
     # Penaliza adsorcao muito longe do otimo.
