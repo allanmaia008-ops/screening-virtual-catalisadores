@@ -17,6 +17,10 @@ colunas_validacao_avancada = [
     "risco_coque_avancado",
     "score_anti_coque_avancado",
     "score_correcao_temperatura",
+    "temperatura_correcao_K",
+    "deltaG_correcao_temperatura_eV",
+    "energia_adsorcao_corrigida_temperatura_eV",
+    "score_volcano_corrigido_temperatura",
     "score_robustez_vies_sistematico",
     "score_cenario_pessimista",
     "acao_validacao_avancada",
@@ -351,6 +355,112 @@ def avaliar_correcao_temperatura_avancada(row, score_evidencia, score_cathub_evi
     # Retorna score de confianca termica aproximada.
     return float(np.clip(1.0 - 0.35 * severidade * (1.0 - cobertura_evidencia), 0, 1))
 
+# Define correcoes aproximadas para converter energia estatica de adsorcao em energia livre efetiva.
+correcoes_termicas_adsorbatos = {
+    "CO": {"zpe_eV": 0.13, "cp_eV_K": 0.000035, "s_perdida_eV_K": 0.00022},
+    "C": {"zpe_eV": 0.04, "cp_eV_K": 0.000020, "s_perdida_eV_K": 0.00005},
+    "O": {"zpe_eV": 0.05, "cp_eV_K": 0.000022, "s_perdida_eV_K": 0.00006},
+    "H": {"zpe_eV": 0.16, "cp_eV_K": 0.000018, "s_perdida_eV_K": 0.00008},
+    "CH": {"zpe_eV": 0.19, "cp_eV_K": 0.000040, "s_perdida_eV_K": 0.00013},
+    "CH2": {"zpe_eV": 0.25, "cp_eV_K": 0.000048, "s_perdida_eV_K": 0.00016},
+    "CH3": {"zpe_eV": 0.32, "cp_eV_K": 0.000055, "s_perdida_eV_K": 0.00018},
+    "HCOO": {"zpe_eV": 0.30, "cp_eV_K": 0.000075, "s_perdida_eV_K": 0.00025},
+    "COOH": {"zpe_eV": 0.28, "cp_eV_K": 0.000070, "s_perdida_eV_K": 0.00024},
+}
+
+# Normaliza o descritor do volcano para escolher a correcao termica aproximada.
+def normalizar_descritor_correcao_temperatura(row):
+    # Le descritor do volcano quando existir.
+    descritor = str(row.get("descritor_volcano", "")).upper().replace("*", "").strip()
+    # Usa descritor do perfil do volcano como fallback.
+    if not descritor:
+        volcano_cfg_local = globals().get("volcano_cfg", {})
+        descritor = str(volcano_cfg_local.get("descritor", "CO")).upper() if isinstance(volcano_cfg_local, dict) else "CO"
+    # Mapeia descritores compostos para chaves tabeladas.
+    if "HCOO" in descritor or "FORM" in descritor:
+        return "HCOO"
+    if "COOH" in descritor:
+        return "COOH"
+    if "CH3" in descritor:
+        return "CH3"
+    if "CH2" in descritor:
+        return "CH2"
+    if "CH" in descritor:
+        return "CH"
+    if "CO" in descritor:
+        return "CO"
+    if "O" == descritor or "O_" in descritor:
+        return "O"
+    if "H" == descritor:
+        return "H"
+    if "C" in descritor:
+        return "C"
+    return "CO"
+
+# Calcula energia de adsorcao corrigida por temperatura e novo score volcano.
+def calcular_correcao_temperatura_adsorcao(row):
+    # Le configuracao do volcano definida na etapa catalitica.
+    volcano_cfg_local = globals().get("volcano_cfg", {})
+    # Define energia otima da reacao.
+    energia_otima = float(volcano_cfg_local.get("energia_otima_eV", 0.85)) if isinstance(volcano_cfg_local, dict) else 0.85
+    # Define largura da curva volcano.
+    largura = float(volcano_cfg_local.get("largura_eV", 0.35)) if isinstance(volcano_cfg_local, dict) else 0.35
+    # Define barreira base para taxa relativa.
+    barreira_base = float(volcano_cfg_local.get("barreira_base_eV", 0.62)) if isinstance(volcano_cfg_local, dict) else 0.62
+    # Le energia de adsorcao estatica/proxy.
+    energia_ads = valor_float_avancado(row, "energia_adsorcao_volcano_eV", energia_otima)
+    # Corrige energia invalida pelo alvo otimo.
+    if not np.isfinite(energia_ads):
+        energia_ads = energia_otima
+    # Le temperatura operacional em Celsius.
+    temperatura_C = valor_float_avancado(row, "temperatura_C", perfil["condicoes"][0]["temperatura_C"] if perfil.get("condicoes") else 400)
+    # Converte temperatura para Kelvin.
+    temperatura_K = float(temperatura_C + 273.15)
+    # Define temperatura de referencia termodinamica.
+    temperatura_ref_K = 298.15
+    # Escolhe parametros aproximados do adsorbato guia.
+    descritor_corr = normalizar_descritor_correcao_temperatura(row)
+    # Recupera parametros tabelados.
+    params = correcoes_termicas_adsorbatos.get(descritor_corr, correcoes_termicas_adsorbatos["CO"])
+    # Calcula contribuicao de energia de ponto zero aproximada.
+    zpe = float(params["zpe_eV"])
+    # Calcula contribuicao entalpica vibracional aproximada.
+    termo_entalpico = float(params["cp_eV_K"]) * max(temperatura_K - temperatura_ref_K, 0.0)
+    # Calcula penalizacao entropica associada a perda de graus de liberdade na adsorcao.
+    termo_entropico = float(params["s_perdida_eV_K"]) * temperatura_K
+    # Converte as contribuicoes em enfraquecimento efetivo da adsorcao em alta temperatura.
+    enfraquecimento_adsorcao = float(np.clip(termo_entropico - zpe - termo_entalpico, -0.15, 0.45))
+    # Corrige a energia de adsorcao efetiva; temperatura alta tende a reduzir a forca efetiva de ligacao.
+    energia_corrigida = float(np.clip(energia_ads - enfraquecimento_adsorcao, 0.05, 2.50))
+    # Calcula distancia ao otimo apos correcao.
+    distancia_corrigida = abs(energia_corrigida - energia_otima)
+    # Recalcula score volcano com a energia corrigida.
+    score_volcano_corrigido = float(np.clip(math.exp(-distancia_corrigida / max(largura, 0.05)), 0, 1))
+    # Recalcula barreira aparente corrigida.
+    barreira_corrigida = barreira_base + distancia_corrigida
+    # Usa constante de Boltzmann do notebook quando disponivel.
+    k_b_ev_local = float(globals().get("K_B_EV", 8.617333262e-5))
+    # Calcula taxa relativa corrigida pela temperatura operacional.
+    taxa_corrigida = float(math.exp(-barreira_corrigida / (k_b_ev_local * temperatura_K))) if temperatura_K > 0 else 0.0
+    # Le score volcano nominal.
+    score_volcano_nominal = valor_float_avancado(row, "score_volcano", 0.5)
+    # Le score final nominal.
+    score_final_nominal = valor_float_avancado(row, "score_final", valor_float_avancado(row, "score_final_material", 0.0))
+    # Recalcula score final alterando apenas a parcela do volcano.
+    score_final_corrigido = float(np.clip(score_final_nominal + 0.12 * (score_volcano_corrigido - score_volcano_nominal), 0, 1))
+    # Retorna campos de auditoria.
+    return pd.Series({
+        "descritor_correcao_temperatura": descritor_corr,
+        "temperatura_correcao_K": temperatura_K,
+        "energia_adsorcao_estatica_eV": energia_ads,
+        "deltaG_correcao_temperatura_eV": enfraquecimento_adsorcao,
+        "energia_adsorcao_corrigida_temperatura_eV": energia_corrigida,
+        "distancia_otimo_corrigida_temperatura_eV": distancia_corrigida,
+        "score_volcano_corrigido_temperatura": score_volcano_corrigido,
+        "taxa_relativa_corrigida_temperatura": taxa_corrigida,
+        "score_final_corrigido_temperatura": score_final_corrigido,
+    })
+
 # Calcula robustez frente a vies sistematico dos proxies.
 def avaliar_vies_sistematico_avancado(row, score_evidencia):
     # Le probabilidade Monte Carlo.
@@ -410,6 +520,8 @@ for _, row in prioritarios_df.head(N_CANDIDATOS_RANKING_FINAL).copy().iterrows()
     score_anti_coque, risco_coque = avaliar_coque_avancado(row)
     # Calcula correcao aproximada de temperatura.
     score_temperatura = avaliar_correcao_temperatura_avancada(row, score_evidencia, score_cathub_evidencia)
+    # Recalcula energia de adsorcao e volcano em temperatura operacional.
+    correcao_adsorcao_temperatura = calcular_correcao_temperatura_adsorcao(row)
     # Calcula robustez contra vies sistematico.
     score_vies = avaliar_vies_sistematico_avancado(row, score_evidencia)
     # Le score final nominal.
@@ -492,6 +604,10 @@ for _, row in prioritarios_df.head(N_CANDIDATOS_RANKING_FINAL).copy().iterrows()
         "risco_coque_avancado": risco_coque,
         "score_anti_coque_avancado": score_anti_coque,
         "score_correcao_temperatura": score_temperatura,
+        "temperatura_correcao_K": correcao_adsorcao_temperatura.get("temperatura_correcao_K", np.nan),
+        "deltaG_correcao_temperatura_eV": correcao_adsorcao_temperatura.get("deltaG_correcao_temperatura_eV", np.nan),
+        "energia_adsorcao_corrigida_temperatura_eV": correcao_adsorcao_temperatura.get("energia_adsorcao_corrigida_temperatura_eV", np.nan),
+        "score_volcano_corrigido_temperatura": correcao_adsorcao_temperatura.get("score_volcano_corrigido_temperatura", np.nan),
         "score_robustez_vies_sistematico": score_vies,
         "score_cenario_pessimista": score_cenario_pessimista,
         "acao_validacao_avancada": acao,
@@ -518,6 +634,71 @@ for coluna in colunas_validacao_avancada:
 validacao_avancada_df = validacao_avancada_df[colunas_validacao_avancada + [c for c in validacao_avancada_df.columns if c not in colunas_validacao_avancada]]
 validacao_avancada_df = validacao_avancada_df.sort_values("score_validacao_avancada", ascending=False, na_position="last").reset_index(drop=True)
 
+# Monta validacao de temperatura para o Top 10 sem alterar a triagem inicial.
+top10_correcao_temperatura_base_df = melhor_por_candidato_df.head(N_CANDIDATOS_REFINADOS_FUNIL).copy() if "melhor_por_candidato_df" in globals() else pd.DataFrame()
+
+# Calcula a tabela dedicada quando ha candidatos no Top 10.
+if not top10_correcao_temperatura_base_df.empty:
+    # Aplica a correcao de temperatura para cada candidato do Top 10.
+    correcao_top10_df = top10_correcao_temperatura_base_df.apply(calcular_correcao_temperatura_adsorcao, axis=1)
+    # Junta dados originais e campos corrigidos.
+    top10_correcao_temperatura_df = pd.concat(
+        [top10_correcao_temperatura_base_df.reset_index(drop=True), correcao_top10_df.reset_index(drop=True)],
+        axis=1,
+    )
+    # Registra a posicao original no ranking.
+    top10_correcao_temperatura_df["posicao_original_temperatura"] = np.arange(1, len(top10_correcao_temperatura_df) + 1)
+    # Ordena pela pontuacao corrigida por temperatura.
+    ordem_corrigida_temperatura = top10_correcao_temperatura_df.sort_values("score_final_corrigido_temperatura", ascending=False).reset_index(drop=True)
+    # Registra a nova posicao apos correcao.
+    ordem_corrigida_temperatura["posicao_corrigida_temperatura"] = np.arange(1, len(ordem_corrigida_temperatura) + 1)
+    # Recupera posicao corrigida por formula.
+    posicao_corrigida_map = ordem_corrigida_temperatura.set_index("formula")["posicao_corrigida_temperatura"].to_dict()
+    # Aplica posicao corrigida na tabela original.
+    top10_correcao_temperatura_df["posicao_corrigida_temperatura"] = top10_correcao_temperatura_df["formula"].map(posicao_corrigida_map)
+    # Calcula deslocamento de ranking.
+    top10_correcao_temperatura_df["deslocamento_posicao_temperatura"] = (
+        top10_correcao_temperatura_df["posicao_corrigida_temperatura"]
+        - top10_correcao_temperatura_df["posicao_original_temperatura"]
+    )
+    # Mede diferenca entre score corrigido e nominal.
+    top10_correcao_temperatura_df["delta_score_final_temperatura"] = (
+        pd.to_numeric(top10_correcao_temperatura_df["score_final_corrigido_temperatura"], errors="coerce")
+        - pd.to_numeric(top10_correcao_temperatura_df.get("score_final", pd.Series(np.zeros(len(top10_correcao_temperatura_df)))), errors="coerce")
+    )
+    # Classifica o impacto da correcao para facilitar a leitura.
+    top10_correcao_temperatura_df["impacto_correcao_temperatura"] = np.select(
+        [
+            top10_correcao_temperatura_df["deslocamento_posicao_temperatura"].abs() <= 1,
+            top10_correcao_temperatura_df["deslocamento_posicao_temperatura"].abs() <= 3,
+        ],
+        [
+            "baixo",
+            "moderado",
+        ],
+        default="alto",
+    )
+    # Mantem a tabela ordenada pela posicao original para comparacao direta.
+    top10_correcao_temperatura_df = top10_correcao_temperatura_df.sort_values("posicao_original_temperatura").reset_index(drop=True)
+else:
+    # Cria tabela vazia com colunas esperadas.
+    top10_correcao_temperatura_df = pd.DataFrame(columns=[
+        "formula",
+        "posicao_original_temperatura",
+        "posicao_corrigida_temperatura",
+        "deslocamento_posicao_temperatura",
+        "descritor_correcao_temperatura",
+        "temperatura_correcao_K",
+        "energia_adsorcao_estatica_eV",
+        "deltaG_correcao_temperatura_eV",
+        "energia_adsorcao_corrigida_temperatura_eV",
+        "score_volcano",
+        "score_volcano_corrigido_temperatura",
+        "score_final",
+        "score_final_corrigido_temperatura",
+        "impacto_correcao_temperatura",
+    ])
+
 # Define colunas que serao incorporadas aos rankings.
 colunas_validacao_avancada_merge = [
     "formula",
@@ -537,6 +718,10 @@ colunas_validacao_avancada_merge = [
     "risco_coque_avancado",
     "score_anti_coque_avancado",
     "score_correcao_temperatura",
+    "temperatura_correcao_K",
+    "deltaG_correcao_temperatura_eV",
+    "energia_adsorcao_corrigida_temperatura_eV",
+    "score_volcano_corrigido_temperatura",
     "score_robustez_vies_sistematico",
     "score_cenario_pessimista",
     "acao_validacao_avancada",
@@ -571,6 +756,17 @@ adicionar_metrica("validacao_avancada", "candidatos com alto risco de sinterizac
 # Registra candidatos recomendados diretamente para sintese.
 adicionar_metrica("validacao_avancada", "prioritarios para sintese apos validacao avancada", int((validacao_avancada_df.get("recomendacao_validacao_avancada", pd.Series(dtype=str)) == "Prioritario para sintese").sum()) if not validacao_avancada_df.empty else 0, "n", "Candidatos finais que permaneceram fortes apos a checagem quimica avancada.")
 
+# Registra variacao media do score final causada pela correcao de temperatura no Top 10.
+adicionar_metrica("validacao_avancada", "delta medio score final apos correcao de temperatura Top 10", float(pd.to_numeric(top10_correcao_temperatura_df.get("delta_score_final_temperatura", pd.Series(dtype=float)), errors="coerce").mean()) if not top10_correcao_temperatura_df.empty else np.nan, "0-1", "Mudanca media do score final quando a energia de adsorcao e corrigida para a temperatura operacional.")
+
+# Registra deslocamento medio absoluto do ranking corrigido por temperatura.
+adicionar_metrica("validacao_avancada", "deslocamento medio absoluto por correcao de temperatura Top 10", float(pd.to_numeric(top10_correcao_temperatura_df.get("deslocamento_posicao_temperatura", pd.Series(dtype=float)), errors="coerce").abs().mean()) if not top10_correcao_temperatura_df.empty else np.nan, "posicoes", "Quanto menor, mais estavel e o Top 10 frente a correcao termodinamica aproximada.")
+
+# Calcula se o Top 2 nominal permanece no Top 2 apos correcao.
+top2_nominal_temperatura = set(top10_correcao_temperatura_df.sort_values("posicao_original_temperatura").head(2).get("formula", pd.Series(dtype=str)).astype(str)) if not top10_correcao_temperatura_df.empty else set()
+top2_corrigido_temperatura = set(top10_correcao_temperatura_df.sort_values("posicao_corrigida_temperatura").head(2).get("formula", pd.Series(dtype=str)).astype(str)) if not top10_correcao_temperatura_df.empty else set()
+adicionar_metrica("validacao_avancada", "candidatos Top 2 mantidos apos correcao de temperatura", int(len(top2_nominal_temperatura & top2_corrigido_temperatura)), "n", "Conta quantos candidatos do Top 2 original continuam no Top 2 apos corrigir energia de adsorcao para temperatura operacional.")
+
 # Atualiza tabela consolidada de metricas apos acrescentar validacao avancada.
 metricas_triagem_df = pd.DataFrame(linhas_metricas_triagem)
 
@@ -589,6 +785,12 @@ relatorio_validacao_metodo_df = pd.concat([
         "evidencia": f"score medio = {score_medio_validacao_avancada:.3f}; {int((validacao_avancada_df.get('recomendacao_validacao_avancada', pd.Series(dtype=str)) == 'Prioritario para sintese').sum()) if not validacao_avancada_df.empty else 0} candidatos prioritarios para sintese.",
         "risco_residual": "a validacao avancada ainda usa regras e proxies; nao substitui DFT explicito de slab/interface nem teste catalitico.",
         "acao_recomendada": "usar a recomendacao avancada para decidir entre sintese direta, DFT de superficie/interface ou teste exploratorio.",
+    }, {
+        "criterio": "correcao de temperatura no Top 10",
+        "status": "concluido" if not top10_correcao_temperatura_df.empty else "indisponivel",
+        "evidencia": f"Top 2 mantidos = {len(top2_nominal_temperatura & top2_corrigido_temperatura)}; deslocamento medio absoluto = {pd.to_numeric(top10_correcao_temperatura_df.get('deslocamento_posicao_temperatura', pd.Series(dtype=float)), errors='coerce').abs().mean():.2f}" if not top10_correcao_temperatura_df.empty else "dados insuficientes para correcao de temperatura.",
+        "risco_residual": "usa correcoes termodinamicas aproximadas por adsorbato guia; nao substitui frequencias vibracionais DFT explicitas.",
+        "acao_recomendada": "usar a tabela de correcao de temperatura para verificar se o Top 10 permanece robusto nas temperaturas reais de operacao.",
     }]),
 ], ignore_index=True)
 

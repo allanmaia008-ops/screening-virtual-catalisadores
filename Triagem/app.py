@@ -1073,6 +1073,7 @@ def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
         "pareto": output_dir / f"{prefixo}_pareto_desejabilidade.csv",
         "validacao_quimio": output_dir / f"{prefixo}_validacao_quimiometrica.csv",
         "validacao_avancada": output_dir / f"{prefixo}_validacao_avancada.csv",
+        "correcao_temperatura": output_dir / f"{prefixo}_correcao_temperatura_top10.csv",
         "excel": output_dir / f"{prefixo}_resultados.xlsx",
         "html": output_dir / f"{prefixo}_relatorio.html",
         "resumo": output_dir / f"{prefixo}_resumo.json",
@@ -1568,6 +1569,7 @@ dominio_df = ler_csv(paths["dominio"])
 pareto_df = ler_csv(paths["pareto"])
 validacao_quimio_df = ler_csv(paths["validacao_quimio"])
 validacao_avancada_df = ler_csv(paths["validacao_avancada"])
+correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
 
 st.markdown("<h3 style='text-align:center; color:#111111; margin-bottom: 0.6rem;'>Resumo dos resultados</h3>", unsafe_allow_html=True)
 mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
@@ -1629,6 +1631,7 @@ with aba_validacao:
     mostrar_tabela("Métricas de validação científica", metricas_validacao_df, linhas=30)
     mostrar_tabela("Validação quimiométrica", validacao_quimio_df, linhas=30)
     mostrar_tabela("Validação avançada dos prioritários", validacao_avancada_df, linhas=10)
+    mostrar_tabela("Correção de temperatura no Top 10", correcao_temperatura_df, linhas=10)
 
 with aba_figuras:
     mostrar_visualizacao_cientifica_plotly(prioritarios_df, classificacao_df, ranking_df, monte_carlo_df)
@@ -1662,6 +1665,7 @@ with aba_arquivos:
         ("Pareto e desejabilidade", paths["pareto"]),
         ("Validação quimiométrica", paths["validacao_quimio"]),
         ("Validação avançada", paths["validacao_avancada"]),
+        ("Correção de temperatura Top 10", paths["correcao_temperatura"]),
         ("Índice de figuras", paths["figuras"]),
     ]
     for rotulo, caminho in arquivos_disponiveis:

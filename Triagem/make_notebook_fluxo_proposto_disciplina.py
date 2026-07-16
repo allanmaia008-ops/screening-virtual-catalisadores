@@ -203,9 +203,9 @@ nb["cells"] = [
 
 13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica pre-processamento formal, padronizacao, PCA, Hotelling T2, Q residual, dominio de aplicabilidade, deteccao de outliers, correlacao/colinearidade, agrupamento KMeans, Pareto, funcao de desejabilidade, selecao de descritores, validacao de robustez do ranking, PCR/PLSR proxy, metricas da triagem virtual e planejamento experimental ampliado para os candidatos finais.
 
-14. Validacao avancada dos candidatos prioritarios: reavalia apenas os candidatos finais por nivel de evidencia, compatibilidade metal-suporte, risco de sinterizacao, risco redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma, correcao aproximada de temperatura e robustez contra vies sistematico dos proxies.
+14. Validacao avancada dos candidatos prioritarios e correcao de temperatura do Top 10: reavalia os candidatos finais por nivel de evidencia, compatibilidade metal-suporte, risco de sinterizacao, risco redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma e robustez contra vies sistematico. Em seguida, aplica ao Top 10 uma correcao termodinamica aproximada de temperatura para energia de adsorcao, recalcula o score de vulcao e compara ranking original versus ranking corrigido.
 
-15. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento, dominio de aplicabilidade, Pareto/desejabilidade e DOE.
+15. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento, dominio de aplicabilidade, Pareto/desejabilidade e DOE. Na interface Streamlit, os principais graficos de dispersao tambem sao apresentados de forma interativa com Plotly e tooltip por candidato.
 
 16. Salvar resultados: grava todos os arquivos na pasta escolhida pelo usuario e gera automaticamente um relatório HTML autocontido com resumo, tabelas principais, validacao quimiometrica, validacao avancada e figuras da triagem.
 
@@ -231,6 +231,7 @@ nb["cells"] = [
 - `disciplina_fluxo_<reacao>_pareto_desejabilidade.csv`
 - `disciplina_fluxo_<reacao>_validacao_ranking.csv`
 - `disciplina_fluxo_<reacao>_validacao_avancada.csv`
+- `disciplina_fluxo_<reacao>_correcao_temperatura_top10.csv`
 - `disciplina_fluxo_<reacao>_modelos_regressao_quimiometrica.csv`
 - `disciplina_fluxo_<reacao>_predicoes_regressao_quimiometrica.csv`
 - `disciplina_fluxo_<reacao>_relatorio_validacao_metodo.csv`
@@ -4941,7 +4942,9 @@ validacao_quimiometrica_df
         """
 ## Etapa 14 - Validacao avancada dos candidatos prioritarios
 
-Esta etapa reavalia apenas os candidatos finais para verificar se o Top 2 continua quimicamente defensavel quando se consideram fragilidades que nao aparecem completamente no score principal: qualidade da evidencia, compatibilidade metal-suporte, risco de sinterizacao, estabilidade redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma, correcao aproximada de temperatura e vies sistematico dos proxies.
+Esta etapa reavalia os candidatos finais para verificar se o Top 2 continua quimicamente defensavel quando se consideram fragilidades que nao aparecem completamente no score principal: qualidade da evidencia, compatibilidade metal-suporte, risco de sinterizacao, estabilidade redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma e vies sistematico dos proxies.
+
+Como validacao fina adicional, o Top 10 recebe uma correcao termodinamica aproximada de temperatura. O codigo parte da energia de adsorcao estatica/proxy do volcano e estima uma energia efetiva em temperatura operacional, usando termos aproximados de energia de ponto zero, contribuicao entalpica vibracional e perda entropica por adsorbato guia. Em seguida, recalcula o score de vulcao e o score final corrigido por temperatura. Essa rotina nao substitui frequencias vibracionais DFT explicitas, mas indica se o ranking permanece robusto nas temperaturas reais de operacao.
 """
     ),
     code(VALIDACAO_AVANCADA_CODE),
@@ -5919,6 +5922,20 @@ nomes_colunas_pt = {
     "risco_coque_avancado": "risco avançado de coque",
     "score_anti_coque_avancado": "score avançado anti-coque",
     "score_correcao_temperatura": "score de correção de temperatura",
+    "descritor_correcao_temperatura": "descritor usado na correção de temperatura",
+    "temperatura_correcao_K": "temperatura usada na correção (K)",
+    "energia_adsorcao_estatica_eV": "energia de adsorção estática/proxy (eV)",
+    "deltaG_correcao_temperatura_eV": "correção térmica aproximada de adsorção (eV)",
+    "energia_adsorcao_corrigida_temperatura_eV": "energia de adsorção corrigida por temperatura (eV)",
+    "distancia_otimo_corrigida_temperatura_eV": "distância ao ótimo após correção de temperatura (eV)",
+    "score_volcano_corrigido_temperatura": "score de vulcão corrigido por temperatura",
+    "taxa_relativa_corrigida_temperatura": "taxa relativa corrigida por temperatura",
+    "score_final_corrigido_temperatura": "score final corrigido por temperatura",
+    "posicao_original_temperatura": "posição original antes da correção de temperatura",
+    "posicao_corrigida_temperatura": "posição após correção de temperatura",
+    "deslocamento_posicao_temperatura": "deslocamento de posição por correção de temperatura",
+    "delta_score_final_temperatura": "delta do score final por correção de temperatura",
+    "impacto_correcao_temperatura": "impacto da correção de temperatura",
     "score_robustez_vies_sistematico": "score de robustez contra viés sistemático",
     "score_cenario_pessimista": "score em cenário pessimista",
     "acao_validacao_avancada": "ação da validação avançada",
@@ -6019,6 +6036,9 @@ traduzir_colunas(validacao_ranking_df).to_csv(OUTPUT_DIR / f"{prefixo}_validacao
 # Salva a validacao avancada dos candidatos prioritarios.
 traduzir_colunas(validacao_avancada_df).to_csv(OUTPUT_DIR / f"{prefixo}_validacao_avancada.csv", index=False, encoding="utf-8-sig")
 
+# Salva a correcao aproximada de temperatura aplicada ao Top 10.
+traduzir_colunas(top10_correcao_temperatura_df).to_csv(OUTPUT_DIR / f"{prefixo}_correcao_temperatura_top10.csv", index=False, encoding="utf-8-sig")
+
 # Salva as metricas dos modelos PCR/PLSR proxy.
 traduzir_colunas(modelos_regressao_quimiometrica_df).to_csv(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv", index=False, encoding="utf-8-sig")
 
@@ -6078,6 +6098,8 @@ with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl"
     traduzir_colunas(validacao_ranking_df.head(150)).to_excel(writer, sheet_name="Validacao_ranking", index=False)
     # Aba com validacao avancada dos prioritarios.
     traduzir_colunas(validacao_avancada_df).to_excel(writer, sheet_name="Validacao_avancada", index=False)
+    # Aba com correcao de temperatura do Top 10.
+    traduzir_colunas(top10_correcao_temperatura_df).to_excel(writer, sheet_name="Temp_Top10", index=False)
     # Aba com metricas PCR/PLSR.
     traduzir_colunas(modelos_regressao_quimiometrica_df).to_excel(writer, sheet_name="Regressao_modelos", index=False)
     # Aba com predicoes PCR/PLSR.
@@ -6278,6 +6300,8 @@ figcaption {{
 {tabela_html(validacao_ranking_df, linhas=20)}
 <h2>Valida&ccedil;&atilde;o avan&ccedil;ada dos priorit&aacute;rios</h2>
 {tabela_html(validacao_avancada_df, linhas=10)}
+<h2>Corre&ccedil;&atilde;o de temperatura no Top 10</h2>
+{tabela_html(top10_correcao_temperatura_df, linhas=10)}
 <h2>PCR/PLSR proxy</h2>
 {tabela_html(modelos_regressao_quimiometrica_df, linhas=20)}
 {tabela_html(predicoes_regressao_quimiometrica_df, linhas=20)}
@@ -6324,8 +6348,11 @@ resumo = {
     "arquivo_pareto_desejabilidade": str(OUTPUT_DIR / f"{prefixo}_pareto_desejabilidade.csv"),
     "arquivo_validacao_ranking": str(OUTPUT_DIR / f"{prefixo}_validacao_ranking.csv"),
     "arquivo_validacao_avancada": str(OUTPUT_DIR / f"{prefixo}_validacao_avancada.csv"),
+    "arquivo_correcao_temperatura_top10": str(OUTPUT_DIR / f"{prefixo}_correcao_temperatura_top10.csv"),
     "score_medio_validacao_avancada": float(pd.to_numeric(validacao_avancada_df.get("score_validacao_avancada", pd.Series(dtype=float)), errors="coerce").mean()) if not validacao_avancada_df.empty else None,
     "validacao_avancada_top": validacao_avancada_df.head(2).to_dict(orient="records") if not validacao_avancada_df.empty else [],
+    "top2_mantidos_correcao_temperatura": int(len(top2_nominal_temperatura & top2_corrigido_temperatura)) if "top2_nominal_temperatura" in globals() and "top2_corrigido_temperatura" in globals() else None,
+    "correcao_temperatura_top10": top10_correcao_temperatura_df.head(10).to_dict(orient="records") if not top10_correcao_temperatura_df.empty else [],
     "arquivo_modelos_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv"),
     "arquivo_predicoes_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_predicoes_regressao_quimiometrica.csv"),
     "arquivo_relatorio_validacao_metodo": str(OUTPUT_DIR / f"{prefixo}_relatorio_validacao_metodo.csv"),
