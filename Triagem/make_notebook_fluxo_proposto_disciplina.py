@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 
 import nbformat as nbf
@@ -14,8 +15,133 @@ NOTEBOOK = SCRIPT_DIR / "notebook_disciplina_triagem_virtual_fluxo_proposto.ipyn
 VALIDACAO_AVANCADA_CODE = (SCRIPT_DIR / "validacao_avancada_code.py").read_text(encoding="utf-8")
 
 
+def corrigir_markdown_segmento(texto):
+    substituicoes = {
+        "Preparacao": "Preparação",
+        "preparacao": "preparação",
+        "saida": "saída",
+        "usuario": "usuário",
+        "Tambem": "Também",
+        "tambem": "também",
+        "dependencias": "dependências",
+        "disponiveis": "disponíveis",
+        "disponivel": "disponível",
+        "reacao-alvo": "reação-alvo",
+        "reacao": "reação",
+        "numero": "número",
+        "quimico": "químico",
+        "quimica": "química",
+        "quimicos": "químicos",
+        "quimicas": "químicas",
+        "nao": "não",
+        "previas": "prévias",
+        "execucao": "execução",
+        "variaveis": "variáveis",
+        "metanacao": "metanação",
+        "intermediarios": "intermediários",
+        "Geracao": "Geração",
+        "geracao": "geração",
+        "automatica": "automática",
+        "bimetalicos": "bimetálicos",
+        "multimetalicos": "multimetálicos",
+        "atualizacao": "atualização",
+        "Calculo": "Cálculo",
+        "calculo": "cálculo",
+        "especificos": "específicos",
+        "resistencia": "resistência",
+        "tendencia": "tendência",
+        "desativacao": "desativação",
+        "correcao": "correção",
+        "Correcao": "Correção",
+        "atômico medio": "atômico médio",
+        "atomico": "atômico",
+        "constroi": "constrói",
+        "evidencia": "evidência",
+        "evidencias": "evidências",
+        "termodinamica": "termodinâmica",
+        "termodinamico": "termodinâmico",
+        "exploratorio": "exploratório",
+        "penalizacao": "penalização",
+        "normalizacao": "normalização",
+        "multicriterio": "multicritério",
+        "catalitica": "catalítica",
+        "catalitico": "catalítico",
+        "adsorcao": "adsorção",
+        "metaestaveis": "metaestáveis",
+        "referencia": "referência",
+        "razao": "razão",
+        "condicoes": "condições",
+        "condicao": "condição",
+        "desejaveis": "desejáveis",
+        "sintese": "síntese",
+        "pressao": "pressão",
+        "composicao": "composição",
+        "conversao": "conversão",
+        "validacoes": "validações",
+        "estatisticas": "estatísticas",
+        "analise": "análise",
+        "simulacao": "simulação",
+        "confianca": "confiança",
+        "permanencia": "permanência",
+        "Validacao": "Validação",
+        "validacao": "validação",
+        "quimiometrica": "quimiométrica",
+        "pre-processamento": "pré-processamento",
+        "padronizacao": "padronização",
+        "dominio": "domínio",
+        "deteccao": "detecção",
+        "correlacao": "correlação",
+        "funcao": "função",
+        "selecao": "seleção",
+        "metricas": "métricas",
+        "avancada": "avançada",
+        "prioritarios": "prioritários",
+        "nivel": "nível",
+        "sinterizacao": "sinterização",
+        "equilibrio": "equilíbrio",
+        "vies": "viés",
+        "Visualizacao": "Visualização",
+        "cientifica": "científica",
+        "relatorio": "relatório",
+        "historico": "histórico",
+        "obrigatorios": "obrigatórios",
+        "formula": "fórmula",
+        "formulas": "fórmulas",
+        "obrigatoria": "obrigatória",
+        "dependencia": "dependência",
+        "informacoes": "informações",
+        "repositorio": "repositório",
+        "reforcar": "reforçar",
+        "defensavel": "defensável",
+        "sistematico": "sistemático",
+        "ja": "já",
+        "media": "média",
+        "funil": "funil",
+        "princípios": "princípios",
+        "O pacote e instalado/importado": "O pacote é instalado/importado",
+        "O objetivo e ": "O objetivo é ",
+        "o objetivo e ": "o objetivo é ",
+        "esta disponivel": "está disponível",
+        "estiver disponivel": "estiver disponível",
+        "esta etapa": "esta etapa",
+    }
+    for antigo, novo in sorted(substituicoes.items(), key=lambda item: len(item[0]), reverse=True):
+        texto = texto.replace(antigo, novo)
+    texto = texto.replace("automáticamente", "automaticamente")
+    texto = texto.replace("químicamente", "quimicamente")
+    texto = texto.replace("termodinâmicamente", "termodinamicamente")
+    texto = re.sub(r"(?<![A-Za-z0-9_$])CO2(?![A-Za-z0-9_$])", r"$CO_2$", texto)
+    texto = re.sub(r"(?<![A-Za-z0-9_$])CH4(?![A-Za-z0-9_$])", r"$CH_4$", texto)
+    return texto
+
+
+def corrigir_markdown(texto):
+    partes = re.split(r"(`[^`]*`)", texto)
+    return "".join(parte if parte.startswith("`") and parte.endswith("`") else corrigir_markdown_segmento(parte) for parte in partes)
+
+
 def md(text):
-    return nbf.v4.new_markdown_cell(text.strip())
+    return nbf.v4.new_markdown_cell(corrigir_markdown(text.strip()))
 
 
 def code(text):
