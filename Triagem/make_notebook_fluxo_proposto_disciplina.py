@@ -5572,8 +5572,8 @@ if not dominio_aplicabilidade_df.empty:
         "zona_de_atencao": "Zona de atenção",
         "fora_do_dominio": "Fora do domínio",
     }
-    # Inicializa figura de dominio.
-    plt.figure(figsize=(9.0, 5.6))
+    # Inicializa figura de dominio com largura maior para acomodar rotulos e legenda.
+    plt.figure(figsize=(10.4, 6.2))
     # Plota cada classe separadamente para gerar legenda clara.
     for classe, grupo_df in dominio_plot.groupby("classe_dominio_aplicabilidade", dropna=False):
         # Desenha pontos T2 versus Q residual.
@@ -5587,16 +5587,31 @@ if not dominio_aplicabilidade_df.empty:
             linewidth=0.35,
             label=rotulos_dominio.get(str(classe), str(classe).replace("_", " ")),
         )
-    # Marca o limiar de Hotelling T2 quando finito.
+    # Marca o limiar de Hotelling T2 quando finito, usando cor e estilo proprios.
     if np.isfinite(float(dominio_plot["limiar_hotelling_t2"].iloc[0])):
-        plt.axvline(float(dominio_plot["limiar_hotelling_t2"].iloc[0]), color="#455A64", linestyle="--", linewidth=1.0, label="Limiar T²")
-    # Marca o limiar de Q residual quando finito.
+        plt.axvline(float(dominio_plot["limiar_hotelling_t2"].iloc[0]), color="#D81B60", linestyle="-.", linewidth=1.8, label="Limiar T²")
+    # Marca o limiar de Q residual quando finito, usando cor e estilo diferentes do T2.
     if np.isfinite(float(dominio_plot["limiar_q_residual"].iloc[0])):
-        plt.axhline(float(dominio_plot["limiar_q_residual"].iloc[0]), color="#78909C", linestyle="--", linewidth=1.0, label="Limiar Q")
-    # Anota os candidatos com maior alerta.
-    for _, row in dominio_plot.sort_values("score_dominio_aplicabilidade").head(6).iterrows():
-        # Rotula pontos de menor dominio.
-        plt.annotate(str(row["formula"]), (row["hotelling_t2"], row["q_residual"]), textcoords="offset points", xytext=(6, 6), fontsize=8)
+        plt.axhline(float(dominio_plot["limiar_q_residual"].iloc[0]), color="#1E88E5", linestyle=":", linewidth=2.2, label="Limiar Q")
+    # Define deslocamentos alternados para identificar todos os pontos exibidos com menor sobreposicao.
+    offsets_rotulos_dominio = [(7, 7), (7, -10), (-36, 7), (-36, -10), (10, 14), (-44, 14)]
+    # Anota todos os candidatos mostrados no grafico de dominio.
+    for indice_rotulo, (_, row) in enumerate(dominio_plot.reset_index(drop=True).iterrows()):
+        # Seleciona deslocamento ciclico para afastar o rotulo do ponto.
+        deslocamento = offsets_rotulos_dominio[indice_rotulo % len(offsets_rotulos_dominio)]
+        # Rotula cada ponto com a formula do candidato.
+        plt.annotate(
+            str(row["formula"]),
+            (row["hotelling_t2"], row["q_residual"]),
+            textcoords="offset points",
+            xytext=deslocamento,
+            ha="left" if deslocamento[0] >= 0 else "right",
+            va="bottom" if deslocamento[1] >= 0 else "top",
+            fontsize=7.6,
+            color="#263238",
+            bbox={"boxstyle": "round,pad=0.18", "fc": "white", "ec": "#CFD8DC", "alpha": 0.76, "linewidth": 0.35},
+            arrowprops={"arrowstyle": "-", "color": "#90A4AE", "lw": 0.35, "alpha": 0.65},
+        )
     # Define rotulo do eixo x.
     plt.xlabel("Hotelling T²")
     # Define rotulo do eixo y.
