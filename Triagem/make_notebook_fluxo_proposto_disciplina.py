@@ -4867,6 +4867,47 @@ def salvar_figura(nome_base):
     # Registra os caminhos gerados em uma lista estruturada.
     figuras_geradas.append({"figura": nome_base, "arquivo_png": str(caminho_png), "arquivo_pdf": str(caminho_pdf)})
 
+# Capitaliza o primeiro caractere de cada item da legenda sem alterar o restante do texto.
+def capitalizar_item_legenda(rotulo):
+    # Converte para texto para aceitar rotulos numericos ou objetos simples.
+    texto = str(rotulo)
+    # Retorna o texto original quando ele esta vazio.
+    if not texto:
+        return texto
+    # Coloca apenas a primeira letra em maiuscula, preservando formulas e siglas.
+    return texto[0].upper() + texto[1:]
+
+# Posiciona a legenda a direita do grafico e padroniza os rotulos com inicial maiuscula.
+def legenda_a_direita(fontsize=8, title=None):
+    # Recupera o eixo atual do Matplotlib.
+    ax = plt.gca()
+    # Coleta os itens de legenda criados pelos comandos de plotagem.
+    handles, labels = ax.get_legend_handles_labels()
+    # Sai sem alterar a figura quando nao existem itens de legenda.
+    if not handles:
+        return None
+    # Capitaliza todos os rotulos da legenda.
+    labels = [capitalizar_item_legenda(label) for label in labels]
+    # Capitaliza tambem o titulo da legenda quando informado.
+    titulo_legenda = capitalizar_item_legenda(title) if title else None
+    # Desenha a legenda fora do grafico, a direita, para nao cobrir dados.
+    legenda = ax.legend(
+        handles,
+        labels,
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),
+        frameon=False,
+        fontsize=fontsize,
+        title=titulo_legenda,
+    )
+    # Mantem o titulo da legenda proporcional ao restante da legenda.
+    if titulo_legenda:
+        legenda.get_title().set_fontsize(fontsize)
+    # Reserva espaco lateral para a legenda externa.
+    plt.tight_layout(rect=[0, 0, 0.80, 1])
+    # Retorna o objeto de legenda para eventuais ajustes posteriores.
+    return legenda
+
 # Cria dados do funil da triagem.
 funil_labels = ["Gerados", "Viáveis", "Refinados", "Prioritários"]
 
@@ -4995,10 +5036,10 @@ else:
     plt.margins(x=0.12, y=0.18)
 
 # Marca o limite principal de estabilidade.
-plt.axvline(perfil["limite_hull_principal"], color="#2E7D32", linestyle="--", linewidth=1.5, label="limite principal")
+plt.axvline(perfil["limite_hull_principal"], color="#2E7D32", linestyle="--", linewidth=1.5, label="Limite principal")
 
 # Marca o limite exploratório de estabilidade.
-plt.axvline(perfil["limite_hull_exploratorio"], color="#C62828", linestyle=":", linewidth=1.5, label="limite exploratório")
+plt.axvline(perfil["limite_hull_exploratorio"], color="#C62828", linestyle=":", linewidth=1.5, label="Limite exploratório")
 
 # Define rótulo do eixo x.
 plt.xlabel("Estabilidade termodinâmica (eV/átomo)")
@@ -5010,10 +5051,10 @@ plt.ylabel("Score final")
 plt.title("Estabilidade termodinâmica versus score final")
 
 # Adiciona legenda dos limites fora do gráfico para manter os rótulos legíveis.
-plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
+legenda_a_direita(fontsize=8)
 
 # Ajusta layout reservando espaço lateral para a legenda externa.
-plt.tight_layout(rect=[0, 0, 0.84, 1])
+# O layout lateral ja e ajustado por legenda_a_direita().
 
 # Salva o gráfico de estabilidade versus score.
 salvar_figura("03_estabilidade_vs_score")
@@ -5049,10 +5090,10 @@ x_volcano = np.linspace(x_min, x_max, 250)
 y_volcano = np.exp(-np.abs(x_volcano - energia_otima_plot) / max(largura_volcano_plot, 0.05))
 
 # Desenha a curva de vulcão.
-plt.plot(x_volcano, y_volcano, color="#424242", linewidth=2.0, label="curva de vulcão")
+plt.plot(x_volcano, y_volcano, color="#424242", linewidth=2.0, label="Curva de vulcão")
 
 # Marca o ponto ótimo do descritor.
-plt.axvline(energia_otima_plot, color="#2E7D32", linestyle="--", linewidth=1.6, label="ótimo")
+plt.axvline(energia_otima_plot, color="#2E7D32", linestyle="--", linewidth=1.6, label="Ótimo")
 
 # Define cores por fonte do volcano.
 cores_fonte_volcano = {
@@ -5120,7 +5161,7 @@ plt.ylim(0, 1.18)
 plt.tight_layout()
 
 # Adiciona legenda.
-plt.legend()
+legenda_a_direita(fontsize=8)
 
 # Salva o gráfico de vulcão.
 salvar_figura("04_volcano_plot")
@@ -5195,7 +5236,7 @@ plt.ylabel("Valor médio previsto (%)")
 plt.title("Desempenho médio por faixa de condição - Top 10")
 
 # Adiciona legenda.
-plt.legend()
+legenda_a_direita(fontsize=8)
 
 # Salva o gráfico de desempenho por condição.
 salvar_figura("06_desempenho_faixa_condicoes")
@@ -5250,10 +5291,9 @@ if not pca_quimiometrica_df.empty:
     plt.ylabel(f"PC2 ({100 * float(pca_quimiometrica_df['variancia_PC2'].iloc[0]):.1f}% da variância)")
     # Define titulo do mapa PCA.
     plt.title("PCA dos descritores catalíticos")
-    # Adiciona legenda dos grupos.
-    plt.legend()
-    # Ajusta layout para evitar cortes.
-    plt.tight_layout()
+    # Adiciona legenda dos grupos fora do grafico.
+    legenda_a_direita(fontsize=8)
+    # O layout lateral ja e ajustado por legenda_a_direita().
     # Salva a figura de PCA.
     salvar_figura("08_pca_quimiometrica")
     # Exibe a figura de PCA.
@@ -5303,9 +5343,9 @@ if not doe_sintese_df.empty:
     # Define titulo do DOE.
     plt.title("Planejamento DOE sugerido em duas dimensões")
     # Posiciona a legenda fora do gráfico, à direita, para não cobrir os pontos do planejamento.
-    plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False, fontsize=8, title="Candidatos")
+    legenda_a_direita(fontsize=8, title="Candidatos")
     # Ajusta layout reservando espaço lateral para a legenda externa.
-    plt.tight_layout(rect=[0, 0, 0.80, 1])
+    # O layout lateral ja e ajustado por legenda_a_direita().
     # Salva figura do DOE.
     salvar_figura("10_doe_sintese")
     # Exibe figura do DOE.
@@ -5351,11 +5391,11 @@ if not pca_quimiometrica_df.empty and not outliers_quimiometricos_df.empty:
     # Desenha candidatos outliers em vermelho.
     dados_outliers = pca_outlier_plot[pca_outlier_plot["outlier_quimiometrico"]]
     # Plota candidatos dentro do dominio multivariado.
-    plt.scatter(dados_normais["PC1"], dados_normais["PC2"], s=80, alpha=0.78, color="#1976D2", edgecolor="black", linewidth=0.35, label="dentro do domínio")
+    plt.scatter(dados_normais["PC1"], dados_normais["PC2"], s=80, alpha=0.78, color="#1976D2", edgecolor="black", linewidth=0.35, label="Dentro do domínio")
     # Plota candidatos marcados como outliers.
     if not dados_outliers.empty:
         # Usa marcador destacado para facilitar identificacao visual.
-        plt.scatter(dados_outliers["PC1"], dados_outliers["PC2"], s=115, alpha=0.90, color="#C62828", edgecolor="black", linewidth=0.50, label="outlier")
+        plt.scatter(dados_outliers["PC1"], dados_outliers["PC2"], s=115, alpha=0.90, color="#C62828", edgecolor="black", linewidth=0.50, label="Outlier")
         # Anota as formulas dos outliers.
         for _, row in dados_outliers.head(10).iterrows():
             # Posiciona rotulo proximo ao ponto.
@@ -5366,10 +5406,9 @@ if not pca_quimiometrica_df.empty and not outliers_quimiometricos_df.empty:
     plt.ylabel("PC2")
     # Define titulo da figura de outliers.
     plt.title("Detecção de outliers no espaço PCA")
-    # Adiciona legenda.
-    plt.legend()
-    # Ajusta layout.
-    plt.tight_layout()
+    # Adiciona legenda fora do grafico.
+    legenda_a_direita(fontsize=8)
+    # O layout lateral ja e ajustado por legenda_a_direita().
     # Salva figura de outliers.
     salvar_figura("12_outliers_quimiometricos")
     # Exibe figura no notebook.
@@ -5389,9 +5428,9 @@ if not dominio_aplicabilidade_df.empty:
     }
     # Define rótulos em português para a legenda das classes de domínio.
     rotulos_dominio = {
-        "dentro_do_dominio": "dentro do domínio",
-        "zona_de_atencao": "zona de atenção",
-        "fora_do_dominio": "fora do domínio",
+        "dentro_do_dominio": "Dentro do domínio",
+        "zona_de_atencao": "Zona de atenção",
+        "fora_do_dominio": "Fora do domínio",
     }
     # Inicializa figura de dominio.
     plt.figure(figsize=(9.0, 5.6))
@@ -5410,10 +5449,10 @@ if not dominio_aplicabilidade_df.empty:
         )
     # Marca o limiar de Hotelling T2 quando finito.
     if np.isfinite(float(dominio_plot["limiar_hotelling_t2"].iloc[0])):
-        plt.axvline(float(dominio_plot["limiar_hotelling_t2"].iloc[0]), color="#455A64", linestyle="--", linewidth=1.0, label="limiar T²")
+        plt.axvline(float(dominio_plot["limiar_hotelling_t2"].iloc[0]), color="#455A64", linestyle="--", linewidth=1.0, label="Limiar T²")
     # Marca o limiar de Q residual quando finito.
     if np.isfinite(float(dominio_plot["limiar_q_residual"].iloc[0])):
-        plt.axhline(float(dominio_plot["limiar_q_residual"].iloc[0]), color="#78909C", linestyle="--", linewidth=1.0, label="limiar Q")
+        plt.axhline(float(dominio_plot["limiar_q_residual"].iloc[0]), color="#78909C", linestyle="--", linewidth=1.0, label="Limiar Q")
     # Anota os candidatos com maior alerta.
     for _, row in dominio_plot.sort_values("score_dominio_aplicabilidade").head(6).iterrows():
         # Rotula pontos de menor dominio.
@@ -5424,10 +5463,9 @@ if not dominio_aplicabilidade_df.empty:
     plt.ylabel("Q residual")
     # Define titulo.
     plt.title("Domínio de aplicabilidade quimiométrico")
-    # Adiciona legenda.
-    plt.legend(fontsize=8)
-    # Ajusta layout.
-    plt.tight_layout()
+    # Adiciona legenda fora do grafico.
+    legenda_a_direita(fontsize=8)
+    # O layout lateral ja e ajustado por legenda_a_direita().
     # Salva figura de dominio de aplicabilidade.
     salvar_figura("13_dominio_aplicabilidade")
     # Exibe figura no notebook.
@@ -5444,11 +5482,11 @@ if not pareto_desejabilidade_df.empty:
     # Plota candidatos dominados.
     dominados_plot = pareto_plot[~pareto_plot["fronteira_pareto"]]
     if not dominados_plot.empty:
-        plt.scatter(dominados_plot["score_dominio_aplicabilidade"], dominados_plot["desejabilidade_global"], s=70, alpha=0.65, color="#90A4AE", edgecolor="black", linewidth=0.30, label="dominado")
+        plt.scatter(dominados_plot["score_dominio_aplicabilidade"], dominados_plot["desejabilidade_global"], s=70, alpha=0.65, color="#90A4AE", edgecolor="black", linewidth=0.30, label="Dominado")
     # Plota candidatos Pareto-eficientes.
     pareto_front_plot = pareto_plot[pareto_plot["fronteira_pareto"]]
     if not pareto_front_plot.empty:
-        plt.scatter(pareto_front_plot["score_dominio_aplicabilidade"], pareto_front_plot["desejabilidade_global"], s=115, alpha=0.88, color="#D81B60", edgecolor="black", linewidth=0.45, label="fronteira de Pareto")
+        plt.scatter(pareto_front_plot["score_dominio_aplicabilidade"], pareto_front_plot["desejabilidade_global"], s=115, alpha=0.88, color="#D81B60", edgecolor="black", linewidth=0.45, label="Fronteira de Pareto")
         # Anota principais candidatos Pareto.
         for _, row in pareto_front_plot.sort_values("desejabilidade_global", ascending=False).head(8).iterrows():
             plt.annotate(str(row["formula"]), (row["score_dominio_aplicabilidade"], row["desejabilidade_global"]), textcoords="offset points", xytext=(6, 6), fontsize=8)
@@ -5461,10 +5499,9 @@ if not pareto_desejabilidade_df.empty:
     plt.ylabel("Desejabilidade global")
     # Define titulo.
     plt.title("Pareto e desejabilidade multicritério")
-    # Adiciona legenda.
-    plt.legend(fontsize=8)
-    # Ajusta layout.
-    plt.tight_layout()
+    # Adiciona legenda fora do grafico.
+    legenda_a_direita(fontsize=8)
+    # O layout lateral ja e ajustado por legenda_a_direita().
     # Salva figura de Pareto.
     salvar_figura("14_pareto_desejabilidade")
     # Exibe figura no notebook.
