@@ -14,6 +14,7 @@ from pathlib import Path
 
 import nbformat
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 from nbclient import NotebookClient
 
@@ -697,6 +698,209 @@ def mostrar_resumo_top(prioritarios_df: pd.DataFrame) -> None:
         )
 
 
+def formatar_numero_linha(row: pd.Series, termos: list[str], unidade: str = "", casas: int | None = None) -> str:
+    """Extrai e formata um valor numerico de uma linha."""
+    coluna = encontrar_coluna(pd.DataFrame(columns=row.index), termos)
+    if coluna is None:
+        return "-"
+    valor = row.get(coluna)
+    if valor is None or pd.isna(valor):
+        return "-"
+    try:
+        numero = float(valor)
+    except (TypeError, ValueError):
+        texto = str(valor).strip()
+        return f"{texto} {unidade}".strip() if texto else "-"
+    if casas is None:
+        texto = formatar_valor(numero)
+    else:
+        texto = f"{numero:.{casas}f}".rstrip("0").rstrip(".")
+    return f"{texto} {unidade}".strip()
+
+
+def montar_condicao_operacional(row: pd.Series) -> str:
+    """Monta texto curto com as condicoes operacionais sugeridas."""
+    temperatura = formatar_numero_linha(row, ["temperatura"], "°C", casas=0)
+    pressao = formatar_numero_linha(row, ["press"], "bar", casas=1)
+    razao_nome = valor_linha(row, ["nome", "raz"], "")
+    if razao_nome == "-":
+        razao_nome = valor_linha(row, ["razao_nome"], "")
+    razao_valor = valor_linha(row, ["valor", "raz"], "")
+    if razao_valor == "-":
+        razao_valor = valor_linha(row, ["razao"], "")
+    partes = [parte for parte in [temperatura, pressao] if parte != "-"]
+    if razao_nome and razao_nome != "-":
+        razao_limpa = razao_nome.replace("CH4", "CH₄").replace("CO2", "CO₂").replace("H2", "H₂")
+        partes.append(f"{razao_limpa} = {formatar_valor(razao_valor)}" if razao_valor and razao_valor != "-" else razao_limpa)
+    return " · ".join(partes) if partes else "-"
+
+
+def texto_curto(valor: str, limite: int = 150) -> str:
+    """Limita texto longo para manter os cards legiveis."""
+    texto = " ".join(str(valor or "-").split())
+    if len(texto) <= limite:
+        return texto
+    return texto[: limite - 1].rstrip() + "…"
+
+
+def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
+    """Mostra os dois recomendados principais em cards amigaveis, sem tabela extensa."""
+    st.markdown("<h3 style='text-align:center;'>Top 2 recomendados para síntese</h3>", unsafe_allow_html=True)
+    if prioritarios_df.empty:
+        st.info("Execute a triagem para visualizar os candidatos recomendados.")
+        return
+
+    cards_html = []
+    for posicao, (_, row) in enumerate(prioritarios_df.head(2).iterrows(), start=1):
+        formula = valor_linha(row, ["formula"], valor_linha(row, ["f"], "-"))
+        suporte = texto_curto(valor_linha(row, ["suporte"], "-"), limite=135)
+        condicao = montar_condicao_operacional(row)
+        score_final = formatar_numero_linha(row, ["score", "final"], casas=3)
+        confiabilidade = extrair_confiabilidade(row)
+        estabilidade = formatar_numero_linha(row, ["estabilidade"], "eV/átomo", casas=3)
+        rendimento = formatar_numero_linha(row, ["rendimento"], "%", casas=1)
+        justificativa = texto_curto(
+            valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e robustez.")),
+            limite=155,
+        )
+        cor_posicao = "#C62828" if posicao == 1 else "#0B6FA4"
+        cards_html.append(
+            f"""
+            <article class="top2-card">
+                <div class="top2-card-head">
+                    <span class="top2-badge" style="background:{cor_posicao};">#{posicao}</span>
+                    <div>
+                        <div class="top2-label">Candidato</div>
+                        <div class="top2-formula">{html.escape(formula)}</div>
+                    </div>
+                </div>
+                <div class="top2-metrics">
+                    <div><span>Score final</span><strong>{html.escape(score_final)}</strong></div>
+                    <div><span>Confiabilidade</span><strong>{html.escape(confiabilidade)}</strong></div>
+                    <div><span>Rendimento previsto</span><strong>{html.escape(rendimento)}</strong></div>
+                </div>
+                <div class="top2-info"><span>Suporte</span><strong>{html.escape(suporte)}</strong></div>
+                <div class="top2-info"><span>Condição sugerida</span><strong>{html.escape(condicao)}</strong></div>
+                <div class="top2-info"><span>Estabilidade termodinâmica</span><strong>{html.escape(estabilidade)}</strong></div>
+                <p class="top2-why">{html.escape(justificativa)}</p>
+            </article>
+            """
+        )
+
+    st.html(
+        f"""
+        <style>
+            .top2-grid {{
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 16px;
+                margin: 6px 0 18px 0;
+            }}
+            .top2-card {{
+                border: 1px solid #D8EEF8;
+                border-radius: 14px;
+                background: linear-gradient(180deg, #FFFFFF 0%, #F6FBFE 100%);
+                box-shadow: 0 10px 24px rgba(11, 79, 122, 0.08);
+                padding: 16px 16px 14px 16px;
+                min-height: 250px;
+                font-family: Arial, Helvetica, sans-serif;
+                color: #17384C;
+            }}
+            .top2-card-head {{
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                margin-bottom: 14px;
+            }}
+            .top2-badge {{
+                width: 44px;
+                height: 44px;
+                border-radius: 50%;
+                color: #FFFFFF;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.02rem;
+                font-weight: 850;
+                flex: 0 0 auto;
+            }}
+            .top2-label {{
+                color: #60798A;
+                font-size: 0.78rem;
+                font-weight: 750;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }}
+            .top2-formula {{
+                color: #C62828;
+                font-size: clamp(1.35rem, 2vw, 1.9rem);
+                font-weight: 900;
+                line-height: 1.1;
+                overflow-wrap: anywhere;
+            }}
+            .top2-metrics {{
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 8px;
+                margin-bottom: 12px;
+            }}
+            .top2-metrics div {{
+                border: 1px solid #E3EFF5;
+                border-radius: 10px;
+                background: #FFFFFF;
+                padding: 9px 8px;
+                text-align: center;
+            }}
+            .top2-metrics span,
+            .top2-info span {{
+                display: block;
+                color: #60798A;
+                font-size: 0.74rem;
+                font-weight: 750;
+                line-height: 1.12;
+                margin-bottom: 3px;
+            }}
+            .top2-metrics strong {{
+                color: #0B4F7A;
+                font-size: 0.98rem;
+                font-weight: 850;
+                line-height: 1.12;
+                overflow-wrap: anywhere;
+            }}
+            .top2-info {{
+                margin: 8px 0;
+            }}
+            .top2-info strong {{
+                color: #17384C;
+                font-size: 0.92rem;
+                font-weight: 750;
+                line-height: 1.22;
+                overflow-wrap: anywhere;
+            }}
+            .top2-why {{
+                margin: 12px 0 0 0;
+                padding-top: 10px;
+                border-top: 1px solid #E3EFF5;
+                color: #526F82;
+                font-size: 0.9rem;
+                line-height: 1.28;
+            }}
+            @media (max-width: 860px) {{
+                .top2-grid {{
+                    grid-template-columns: 1fr;
+                }}
+                .top2-metrics {{
+                    grid-template-columns: 1fr;
+                }}
+            }}
+        </style>
+        <div class="top2-grid">
+            {''.join(cards_html)}
+        </div>
+        """
+    )
+
+
 def montar_celula_configuracao(reacao: str, metais: list[str], promotor: str, output_dir: Path) -> str:
     """Monta a célula que substitui as perguntas interativas do notebook."""
     metais_repr = repr(metais)
@@ -963,6 +1167,159 @@ def mostrar_classificacao_centralizada(titulo: str, dataframe: pd.DataFrame) -> 
     )
 
 
+def encontrar_coluna_por_opcoes(dataframe: pd.DataFrame, opcoes: list[list[str]]) -> str | None:
+    """Encontra coluna testando varias combinacoes de termos."""
+    for termos in opcoes:
+        coluna = encontrar_coluna(dataframe, termos)
+        if coluna:
+            return coluna
+    return None
+
+
+def preparar_dados_plotly(dataframe: pd.DataFrame, limite: int = 300) -> pd.DataFrame:
+    """Prepara colunas auxiliares para tooltips interativos."""
+    if dataframe.empty:
+        return dataframe
+    df = dataframe.head(limite).copy()
+    linhas = []
+    for _, row in df.iterrows():
+        linhas.append(
+            {
+                "_formula": valor_linha(row, ["formula"], valor_linha(row, ["f"], "-")),
+                "_score_final": formatar_numero_linha(row, ["score", "final"], casas=3),
+                "_suporte": texto_curto(valor_linha(row, ["suporte"], "-"), limite=120),
+                "_rota": texto_curto(valor_linha(row, ["rota"], "-"), limite=120),
+                "_condicao": montar_condicao_operacional(row),
+                "_confiabilidade": extrair_confiabilidade(row),
+                "_estabilidade": formatar_numero_linha(row, ["estabilidade"], "eV/átomo", casas=3),
+                "_rendimento": formatar_numero_linha(row, ["rendimento"], "%", casas=1),
+                "_energia_adsorcao": formatar_numero_linha(row, ["energia", "adsor"], "eV", casas=3),
+                "_score_volcano": formatar_numero_linha(row, ["score", "vulc"], casas=3),
+            }
+        )
+    auxiliares = pd.DataFrame(linhas, index=df.index)
+    for coluna in auxiliares.columns:
+        df[coluna] = auxiliares[coluna]
+    return df
+
+
+def renderizar_scatter_plotly(
+    titulo: str,
+    dataframe: pd.DataFrame,
+    opcoes_x: list[list[str]],
+    opcoes_y: list[list[str]],
+    limite: int = 300,
+) -> bool:
+    """Renderiza um grafico de dispersao interativo quando as colunas existem."""
+    if dataframe.empty:
+        return False
+    x_col = encontrar_coluna_por_opcoes(dataframe, opcoes_x)
+    y_col = encontrar_coluna_por_opcoes(dataframe, opcoes_y)
+    if x_col is None or y_col is None:
+        return False
+    df = preparar_dados_plotly(dataframe, limite=limite)
+    df[x_col] = pd.to_numeric(df[x_col], errors="coerce")
+    df[y_col] = pd.to_numeric(df[y_col], errors="coerce")
+    df = df.dropna(subset=[x_col, y_col]).copy()
+    if df.empty:
+        return False
+
+    fig = px.scatter(
+        df,
+        x=x_col,
+        y=y_col,
+        color="_confiabilidade",
+        color_discrete_map={"alta": "#2E7D32", "média": "#F9A825", "baixa": "#C62828", "-": "#78909C"},
+        custom_data=[
+            "_formula",
+            "_score_final",
+            "_suporte",
+            "_rota",
+            "_condicao",
+            "_confiabilidade",
+            "_estabilidade",
+            "_rendimento",
+            "_energia_adsorcao",
+            "_score_volcano",
+        ],
+        title=titulo,
+    )
+    fig.update_traces(
+        marker={"size": 10, "opacity": 0.78, "line": {"width": 0.7, "color": "#263238"}},
+        hovertemplate=(
+            "<b>%{customdata[0]}</b><br>"
+            "Score final: %{customdata[1]}<br>"
+            "Confiabilidade: %{customdata[5]}<br>"
+            "Suporte: %{customdata[2]}<br>"
+            "Rota de síntese: %{customdata[3]}<br>"
+            "Condição: %{customdata[4]}<br>"
+            "Estabilidade: %{customdata[6]}<br>"
+            "Rendimento previsto: %{customdata[7]}<br>"
+            "Energia de adsorção: %{customdata[8]}<br>"
+            "Score volcano: %{customdata[9]}<extra></extra>"
+        ),
+    )
+    fig.update_layout(
+        title={"x": 0.5, "xanchor": "center"},
+        legend_title_text="Confiabilidade",
+        margin={"l": 20, "r": 20, "t": 62, "b": 20},
+        height=520,
+        hovermode="closest",
+    )
+    fig.update_xaxes(title_text=x_col, showgrid=True, gridcolor="#E8F1F6")
+    fig.update_yaxes(title_text=y_col, showgrid=True, gridcolor="#E8F1F6")
+    st.plotly_chart(fig, width="stretch")
+    return True
+
+
+def escolher_fonte_plotly(fontes: list[pd.DataFrame], opcoes_x: list[list[str]], opcoes_y: list[list[str]]) -> pd.DataFrame:
+    """Escolhe a primeira fonte que possui as colunas necessarias para Plotly."""
+    for dataframe in fontes:
+        if dataframe.empty:
+            continue
+        if encontrar_coluna_por_opcoes(dataframe, opcoes_x) and encontrar_coluna_por_opcoes(dataframe, opcoes_y):
+            return dataframe
+    return pd.DataFrame()
+
+
+def mostrar_visualizacao_cientifica_plotly(
+    prioritarios_df: pd.DataFrame,
+    classificacao_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+    monte_carlo_df: pd.DataFrame,
+) -> None:
+    """Mostra graficos interativos para exploracao cientifica sem poluir os pontos."""
+    st.markdown("<h3 style='text-align:center;'>Visualização científica interativa</h3>", unsafe_allow_html=True)
+    fontes = [classificacao_df, ranking_df, prioritarios_df, monte_carlo_df]
+
+    fonte_volcano = escolher_fonte_plotly(
+        fontes,
+        [["energia", "adsor"], ["adsorcao"], ["adsorção"]],
+        [["score", "vulc"], ["score", "volcano"], ["taxa", "relativa"]],
+    )
+    gerou_volcano = renderizar_scatter_plotly(
+        "Volcano plot interativo",
+        fonte_volcano,
+        [["energia", "adsor"], ["adsorcao"], ["adsorção"]],
+        [["score", "vulc"], ["score", "volcano"], ["taxa", "relativa"]],
+    )
+
+    fonte_dispersao = escolher_fonte_plotly(
+        fontes,
+        [["estabilidade"]],
+        [["score", "final"], ["desejabilidade", "global"]],
+    )
+    gerou_dispersao = renderizar_scatter_plotly(
+        "Estabilidade termodinâmica vs score final",
+        fonte_dispersao,
+        [["estabilidade"]],
+        [["score", "final"], ["desejabilidade", "global"]],
+    )
+
+    if not gerou_volcano and not gerou_dispersao:
+        st.info("Ainda não há colunas numéricas suficientes para gerar gráficos Plotly interativos.")
+
+
 def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
     """Renderiza as figuras geradas pelo notebook."""
     st.markdown("<h3 style='text-align:center;'>Figuras</h3>", unsafe_allow_html=True)
@@ -1206,14 +1563,13 @@ aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_quimica, aba_validaca
     "Incerteza",
     "Química",
     "Validação",
-    "Figuras",
+    "Visualização científica",
     "Arquivos",
 ])
 
 with aba_geral:
-    mostrar_tabela("Top 2 recomendados", prioritarios_df, linhas=2)
+    mostrar_top2_recomendados_amigavel(prioritarios_df)
     mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
-    mostrar_tabela("Resumo tecnico dos recomendados", selecionar_colunas_tecnicas(prioritarios_df), linhas=10)
 
 with aba_candidatos:
     mostrar_tabela("Candidatos prioritários para síntese", prioritarios_df, linhas=20)
@@ -1259,6 +1615,8 @@ with aba_validacao:
     mostrar_tabela("Validação avançada dos prioritários", validacao_avancada_df, linhas=10)
 
 with aba_figuras:
+    mostrar_visualizacao_cientifica_plotly(prioritarios_df, classificacao_df, ranking_df, monte_carlo_df)
+    st.divider()
     mostrar_figuras(figuras_df)
 
 with aba_arquivos:

@@ -4,6 +4,7 @@ nbformat
 nbclient
 ipykernel
 pandas>=2.2,<3
+plotly
 openpyxl
 matplotlib
 seaborn
