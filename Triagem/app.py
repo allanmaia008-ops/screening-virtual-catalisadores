@@ -782,7 +782,10 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 <div class="top2-info"><span>Suporte</span><strong>{html.escape(suporte)}</strong></div>
                 <div class="top2-info"><span>Condição sugerida</span><strong>{html.escape(condicao)}</strong></div>
                 <div class="top2-info"><span>Estabilidade termodinâmica</span><strong>{html.escape(estabilidade)}</strong></div>
-                <p class="top2-why">{html.escape(justificativa)}</p>
+                <div class="top2-why">
+                    <span>Justificativa do suporte</span>
+                    <p>{html.escape(justificativa)}</p>
+                </div>
             </article>
             """
         )
@@ -881,6 +884,19 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 margin: 12px 0 0 0;
                 padding-top: 10px;
                 border-top: 1px solid #E3EFF5;
+            }}
+            .top2-why span {{
+                display: block;
+                color: #60798A;
+                font-size: 0.76rem;
+                font-weight: 800;
+                line-height: 1.12;
+                margin-bottom: 4px;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }}
+            .top2-why p {{
+                margin: 0;
                 color: #526F82;
                 font-size: 0.9rem;
                 line-height: 1.28;
