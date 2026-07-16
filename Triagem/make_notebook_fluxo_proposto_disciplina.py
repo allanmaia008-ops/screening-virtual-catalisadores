@@ -4757,15 +4757,19 @@ if not pca_quimiometrica_df.empty:
 # Cria figura de distribuicao dos grupos quimiometricos.
 if not agrupamento_quimiometrico_df.empty:
     # Inicializa figura de barras dos grupos.
-    plt.figure(figsize=(8.2, 4.8))
+    plt.figure(figsize=(9.4, 5.6))
     # Define rotulos dos grupos.
     labels_grupos = agrupamento_quimiometrico_df["grupo_quimiometrico"].astype(str)
     # Desenha barras com numero de candidatos por grupo.
     plt.bar(labels_grupos, agrupamento_quimiometrico_df["n_candidatos"], color="#00897B")
+    # Calcula a altura maxima para criar folga visual acima dos rotulos.
+    altura_maxima_grupos = max(agrupamento_quimiometrico_df["n_candidatos"])
+    # Aumenta o limite superior do eixo para impedir que formulas encostem na borda do grafico.
+    plt.ylim(0, altura_maxima_grupos * 1.28)
     # Escreve representante de cada grupo sobre a barra.
     for indice, row in agrupamento_quimiometrico_df.reset_index(drop=True).iterrows():
         # Posiciona rotulo acima da barra.
-        plt.text(indice, row["n_candidatos"] + max(agrupamento_quimiometrico_df["n_candidatos"]) * 0.03, str(row["formula_representante"]), ha="center", va="bottom", fontsize=8)
+        plt.text(indice, row["n_candidatos"] + altura_maxima_grupos * 0.06, str(row["formula_representante"]), ha="center", va="bottom", fontsize=8)
     # Define rotulo do eixo x.
     plt.xlabel("Grupo quimiometrico")
     # Define rotulo do eixo y.
@@ -4782,7 +4786,7 @@ if not agrupamento_quimiometrico_df.empty:
 # Cria figura do planejamento DOE sugerido.
 if not doe_sintese_df.empty:
     # Inicializa figura do DOE.
-    plt.figure(figsize=(8.5, 5.5))
+    plt.figure(figsize=(9.4, 6.4))
     # Percorre cada candidato para diferenciar pontos experimentais.
     for formula, dados_formula in doe_sintese_df.groupby("formula"):
         # Desenha temperatura versus razao reacional como mapa de condicoes.
@@ -4792,11 +4796,13 @@ if not doe_sintese_df.empty:
     # Define rotulo do eixo y.
     plt.ylabel("Razao reacional")
     # Define titulo do DOE.
-    plt.title("Planejamento DOE sugerido para confirmacao")
-    # Adiciona legenda dos candidatos.
-    plt.legend()
-    # Ajusta layout.
-    plt.tight_layout()
+    plt.title("Planejamento DOE sugerido para confirmacao", pad=42)
+    # Define quantidade de colunas da legenda para manter as formulas legiveis.
+    n_colunas_legenda_doe = min(4, max(1, doe_sintese_df["formula"].nunique()))
+    # Posiciona a legenda acima do grafico para nao cobrir os pontos do planejamento.
+    plt.legend(loc="lower center", bbox_to_anchor=(0.5, 1.03), ncol=n_colunas_legenda_doe, frameon=False, fontsize=8, title="Candidatos")
+    # Ajusta layout reservando espaco no topo para a legenda externa.
+    plt.tight_layout(rect=[0, 0, 1, 0.86])
     # Salva figura do DOE.
     salvar_figura("10_doe_sintese")
     # Exibe figura do DOE.

@@ -92,7 +92,7 @@ def normalizar_texto(valor: str) -> str:
     """Remove acentos e padroniza texto para buscas internas."""
     texto = unicodedata.normalize("NFKD", str(valor))
     texto = "".join(ch for ch in texto if not unicodedata.combining(ch))
-    return texto.lower().replace("�", "").strip()
+    return texto.lower().replace("�", "").replace("ï¿½", "").strip()
 
 
 def encontrar_coluna(dataframe: pd.DataFrame, termos: list[str]) -> str | None:
@@ -103,6 +103,16 @@ def encontrar_coluna(dataframe: pd.DataFrame, termos: list[str]) -> str | None:
         if all(termo in coluna_norm for termo in termos_norm):
             return coluna
     return None
+
+
+def filtrar_metricas_por_termos(metricas_df: pd.DataFrame, termos: list[str]) -> pd.DataFrame:
+    """Filtra linhas de métricas procurando os termos em todas as colunas."""
+    if metricas_df.empty:
+        return metricas_df
+    termos_norm = [normalizar_texto(termo) for termo in termos]
+    texto_linha = metricas_df.astype(str).agg(" ".join, axis=1).map(normalizar_texto)
+    filtro = texto_linha.apply(lambda texto: any(termo in texto for termo in termos_norm))
+    return metricas_df.loc[filtro].copy()
 
 
 def extrair_metrica(metricas_df: pd.DataFrame, nome_parcial: str):
@@ -1144,14 +1154,22 @@ with aba_incerteza:
     with col1:
         mostrar_tabela("Incerteza Monte Carlo", monte_carlo_df, linhas=30)
     with col2:
-        mostrar_tabela("Métricas de confiança", metricas_df[metricas_df.iloc[:, 0].astype(str).map(normalizar_texto).str.contains("confianca", na=False)] if not metricas_df.empty else metricas_df, linhas=20)
+        metricas_confianca_df = filtrar_metricas_por_termos(
+            metricas_df,
+            ["confianca", "confiabilidade", "incerteza", "monte carlo", "ic95", "robustez"],
+        )
+        mostrar_tabela("Métricas de confiança", metricas_confianca_df, linhas=30)
 
 with aba_quimica:
     col1, col2 = st.columns([1.1, 1.0])
     with col1:
         mostrar_tabela("Descritores essenciais dos recomendados", selecionar_colunas_tecnicas(prioritarios_df), linhas=10)
     with col2:
-        mostrar_tabela("Métricas químicas e DFT", metricas_df[metricas_df.iloc[:, 0].astype(str).map(normalizar_texto).str.contains("dft|volcano|descritores", na=False)] if not metricas_df.empty else metricas_df, linhas=30)
+        metricas_quimicas_df = filtrar_metricas_por_termos(
+            metricas_df,
+            ["dft", "volcano", "descritores", "quimica", "quimiometria", "adsorcao"],
+        )
+        mostrar_tabela("Métricas químicas e DFT", metricas_quimicas_df, linhas=30)
 
 with aba_figuras:
     mostrar_figuras(figuras_df)
