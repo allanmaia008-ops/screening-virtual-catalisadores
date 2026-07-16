@@ -851,6 +851,7 @@ def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
         "dominio": output_dir / f"{prefixo}_dominio_aplicabilidade.csv",
         "pareto": output_dir / f"{prefixo}_pareto_desejabilidade.csv",
         "validacao_quimio": output_dir / f"{prefixo}_validacao_quimiometrica.csv",
+        "validacao_avancada": output_dir / f"{prefixo}_validacao_avancada.csv",
         "excel": output_dir / f"{prefixo}_resultados.xlsx",
         "html": output_dir / f"{prefixo}_relatorio.html",
         "resumo": output_dir / f"{prefixo}_resumo.json",
@@ -1134,7 +1135,7 @@ if executar:
         st.error("Informe o promotor.")
     else:
         try:
-            with st.spinner("Executando consultas, descritores, ranking, incerteza e figuras. Esta etapa pode demorar."):
+            with st.spinner("Executando consultas, descritores, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
                 notebook_executado = executar_triagem(reacao, metais, promotor, output_dir)
         except Exception as erro_execucao:
             st.error("A triagem nao foi concluida. Verifique os detalhes tecnicos abaixo.")
@@ -1163,6 +1164,7 @@ figuras_df = ler_csv(paths["figuras"])
 dominio_df = ler_csv(paths["dominio"])
 pareto_df = ler_csv(paths["pareto"])
 validacao_quimio_df = ler_csv(paths["validacao_quimio"])
+validacao_avancada_df = ler_csv(paths["validacao_avancada"])
 
 st.markdown("<h3 style='text-align:center; color:#111111; margin-bottom: 0.6rem;'>Resumo dos resultados</h3>", unsafe_allow_html=True)
 mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
@@ -1224,6 +1226,7 @@ with aba_validacao:
     )
     mostrar_tabela("Métricas de validação científica", metricas_validacao_df, linhas=30)
     mostrar_tabela("Validação quimiométrica", validacao_quimio_df, linhas=30)
+    mostrar_tabela("Validação avançada dos prioritários", validacao_avancada_df, linhas=10)
 
 with aba_figuras:
     mostrar_figuras(figuras_df)
@@ -1254,6 +1257,7 @@ with aba_arquivos:
         ("Domínio de aplicabilidade", paths["dominio"]),
         ("Pareto e desejabilidade", paths["pareto"]),
         ("Validação quimiométrica", paths["validacao_quimio"]),
+        ("Validação avançada", paths["validacao_avancada"]),
         ("Índice de figuras", paths["figuras"]),
     ]
     for rotulo, caminho in arquivos_disponiveis:

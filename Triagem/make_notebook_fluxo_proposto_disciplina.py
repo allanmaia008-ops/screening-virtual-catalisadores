@@ -10,6 +10,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # Define o notebook de saída dentro da mesma pasta do gerador.
 NOTEBOOK = SCRIPT_DIR / "notebook_disciplina_triagem_virtual_fluxo_proposto.ipynb"
 
+# Carrega o codigo da etapa de validacao avancada para embutir no notebook final.
+VALIDACAO_AVANCADA_CODE = (SCRIPT_DIR / "validacao_avancada_code.py").read_text(encoding="utf-8")
+
 
 def md(text):
     return nbf.v4.new_markdown_cell(text.strip())
@@ -74,9 +77,11 @@ nb["cells"] = [
 
 13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica pre-processamento formal, padronizacao, PCA, Hotelling T2, Q residual, dominio de aplicabilidade, deteccao de outliers, correlacao/colinearidade, agrupamento KMeans, Pareto, funcao de desejabilidade, selecao de descritores, validacao de robustez do ranking, PCR/PLSR proxy, metricas da triagem virtual e planejamento experimental ampliado para os candidatos finais.
 
-14. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento, dominio de aplicabilidade, Pareto/desejabilidade e DOE.
+14. Validacao avancada dos candidatos prioritarios: reavalia apenas os candidatos finais por nivel de evidencia, compatibilidade metal-suporte, risco de sinterizacao, risco redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma, correcao aproximada de temperatura e robustez contra vies sistematico dos proxies.
 
-15. Salvar resultados: grava todos os arquivos na pasta escolhida pelo usuario e gera automaticamente um relatório HTML autocontido com resumo, tabelas principais, validacao quimiometrica e figuras da triagem.
+15. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento, dominio de aplicabilidade, Pareto/desejabilidade e DOE.
+
+16. Salvar resultados: grava todos os arquivos na pasta escolhida pelo usuario e gera automaticamente um relatório HTML autocontido com resumo, tabelas principais, validacao quimiometrica, validacao avancada e figuras da triagem.
 
 - `disciplina_fluxo_<reacao>_resultados.xlsx`
 - `disciplina_fluxo_<reacao>_relatorio.html`
@@ -99,6 +104,7 @@ nb["cells"] = [
 - `disciplina_fluxo_<reacao>_dominio_aplicabilidade.csv`
 - `disciplina_fluxo_<reacao>_pareto_desejabilidade.csv`
 - `disciplina_fluxo_<reacao>_validacao_ranking.csv`
+- `disciplina_fluxo_<reacao>_validacao_avancada.csv`
 - `disciplina_fluxo_<reacao>_modelos_regressao_quimiometrica.csv`
 - `disciplina_fluxo_<reacao>_predicoes_regressao_quimiometrica.csv`
 - `disciplina_fluxo_<reacao>_relatorio_validacao_metodo.csv`
@@ -4807,7 +4813,15 @@ validacao_quimiometrica_df
     ),
     md(
         """
-## Etapa 14 - Visualização científica dos resultados
+## Etapa 14 - Validacao avancada dos candidatos prioritarios
+
+Esta etapa reavalia apenas os candidatos finais para verificar se o Top 2 continua quimicamente defensavel quando se consideram fragilidades que nao aparecem completamente no score principal: qualidade da evidencia, compatibilidade metal-suporte, risco de sinterizacao, estabilidade redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma, correcao aproximada de temperatura e vies sistematico dos proxies.
+"""
+    ),
+    code(VALIDACAO_AVANCADA_CODE),
+    md(
+        """
+## Etapa 15 - Visualização científica dos resultados
 
 Esta etapa aplica os princípios da aula de gráficos científicos com Matplotlib para transformar as tabelas finais em figuras interpretáveis. As imagens são salvas em PNG e PDF para uso no relatório ou apresentação.
 """
@@ -5566,9 +5580,9 @@ figuras_geradas_df
     ),
     md(
         """
-## Etapa 15 - Salvar resultados
+## Etapa 16 - Salvar resultados
 
-As tabelas finais são salvas em CSV e Excel para uso no relatório ou apresentação da disciplina. Esta etapa também exporta as métricas de triagem, a validação quimiométrica e o planejamento DOE sugerido.
+As tabelas finais são salvas em CSV e Excel para uso no relatório ou apresentação da disciplina. Esta etapa também exporta as métricas de triagem, a validação quimiométrica, a validação avançada dos prioritários e o planejamento DOE sugerido.
 """
     ),
     code(
@@ -5748,6 +5762,26 @@ nomes_colunas_pt = {
     "margem_score_para_proximo": "margem de score para o proximo",
     "posicao_media_monte_carlo": "posição média por Monte Carlo",
     "deslocamento_posicao_mc": "deslocamento de posição por Monte Carlo",
+    "score_validacao_avancada": "score de validação avançada",
+    "recomendacao_validacao_avancada": "recomendação da validação avançada",
+    "nivel_evidencia": "nível de evidência",
+    "score_evidencia_dados": "score de evidência dos dados",
+    "score_compatibilidade_suporte": "score de compatibilidade do suporte",
+    "score_interface_metal_suporte": "score de interface metal-suporte",
+    "risco_sinterizacao": "risco de sinterização",
+    "score_estabilidade_termica_operando": "score de estabilidade térmica operando",
+    "temperatura_tammann_min_C": "temperatura de Tammann mínima (°C)",
+    "risco_redox_operando": "risco redox operando",
+    "score_redox_operando": "score redox operando",
+    "risco_adsorcao_extrema": "risco de adsorção extrema",
+    "score_equilibrio_adsorcao": "score de equilíbrio de adsorção",
+    "risco_coque_avancado": "risco avançado de coque",
+    "score_anti_coque_avancado": "score avançado anti-coque",
+    "score_correcao_temperatura": "score de correção de temperatura",
+    "score_robustez_vies_sistematico": "score de robustez contra viés sistemático",
+    "score_cenario_pessimista": "score em cenário pessimista",
+    "acao_validacao_avancada": "ação da validação avançada",
+    "justificativa_validacao_avancada": "justificativa da validação avançada",
     "objetivo": "objetivo",
     "modelo": "modelo",
     "n_componentes": "número de componentes",
@@ -5841,6 +5875,9 @@ traduzir_colunas(pareto_desejabilidade_df).to_csv(OUTPUT_DIR / f"{prefixo}_paret
 # Salva a validacao de robustez do ranking.
 traduzir_colunas(validacao_ranking_df).to_csv(OUTPUT_DIR / f"{prefixo}_validacao_ranking.csv", index=False, encoding="utf-8-sig")
 
+# Salva a validacao avancada dos candidatos prioritarios.
+traduzir_colunas(validacao_avancada_df).to_csv(OUTPUT_DIR / f"{prefixo}_validacao_avancada.csv", index=False, encoding="utf-8-sig")
+
 # Salva as metricas dos modelos PCR/PLSR proxy.
 traduzir_colunas(modelos_regressao_quimiometrica_df).to_csv(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv", index=False, encoding="utf-8-sig")
 
@@ -5898,6 +5935,8 @@ with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl"
     traduzir_colunas(pareto_desejabilidade_df).to_excel(writer, sheet_name="Pareto_desej", index=False)
     # Aba com robustez do ranking.
     traduzir_colunas(validacao_ranking_df.head(150)).to_excel(writer, sheet_name="Validacao_ranking", index=False)
+    # Aba com validacao avancada dos prioritarios.
+    traduzir_colunas(validacao_avancada_df).to_excel(writer, sheet_name="Validacao_avancada", index=False)
     # Aba com metricas PCR/PLSR.
     traduzir_colunas(modelos_regressao_quimiometrica_df).to_excel(writer, sheet_name="Regressao_modelos", index=False)
     # Aba com predicoes PCR/PLSR.
@@ -6096,6 +6135,8 @@ figcaption {{
 {tabela_html(selecao_descritores_df, linhas=20)}
 <h2>Valida&ccedil;&atilde;o do ranking</h2>
 {tabela_html(validacao_ranking_df, linhas=20)}
+<h2>Valida&ccedil;&atilde;o avan&ccedil;ada dos priorit&aacute;rios</h2>
+{tabela_html(validacao_avancada_df, linhas=10)}
 <h2>PCR/PLSR proxy</h2>
 {tabela_html(modelos_regressao_quimiometrica_df, linhas=20)}
 {tabela_html(predicoes_regressao_quimiometrica_df, linhas=20)}
@@ -6141,6 +6182,9 @@ resumo = {
     "arquivo_dominio_aplicabilidade": str(OUTPUT_DIR / f"{prefixo}_dominio_aplicabilidade.csv"),
     "arquivo_pareto_desejabilidade": str(OUTPUT_DIR / f"{prefixo}_pareto_desejabilidade.csv"),
     "arquivo_validacao_ranking": str(OUTPUT_DIR / f"{prefixo}_validacao_ranking.csv"),
+    "arquivo_validacao_avancada": str(OUTPUT_DIR / f"{prefixo}_validacao_avancada.csv"),
+    "score_medio_validacao_avancada": float(pd.to_numeric(validacao_avancada_df.get("score_validacao_avancada", pd.Series(dtype=float)), errors="coerce").mean()) if not validacao_avancada_df.empty else None,
+    "validacao_avancada_top": validacao_avancada_df.head(2).to_dict(orient="records") if not validacao_avancada_df.empty else [],
     "arquivo_modelos_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv"),
     "arquivo_predicoes_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_predicoes_regressao_quimiometrica.csv"),
     "arquivo_relatorio_validacao_metodo": str(OUTPUT_DIR / f"{prefixo}_relatorio_validacao_metodo.csv"),
