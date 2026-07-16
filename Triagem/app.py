@@ -814,6 +814,9 @@ def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
         "monte_carlo": output_dir / f"{prefixo}_monte_carlo_ranking.csv",
         "desempenho": output_dir / f"{prefixo}_desempenho_faixa_condicoes.csv",
         "figuras": output_dir / f"{prefixo}_figuras_geradas.csv",
+        "dominio": output_dir / f"{prefixo}_dominio_aplicabilidade.csv",
+        "pareto": output_dir / f"{prefixo}_pareto_desejabilidade.csv",
+        "validacao_quimio": output_dir / f"{prefixo}_validacao_quimiometrica.csv",
         "excel": output_dir / f"{prefixo}_resultados.xlsx",
         "html": output_dir / f"{prefixo}_relatorio.html",
         "resumo": output_dir / f"{prefixo}_resumo.json",
@@ -1123,16 +1126,20 @@ metricas_df = ler_csv(paths["metricas"])
 monte_carlo_df = ler_csv(paths["monte_carlo"])
 desempenho_df = ler_csv(paths["desempenho"])
 figuras_df = ler_csv(paths["figuras"])
+dominio_df = ler_csv(paths["dominio"])
+pareto_df = ler_csv(paths["pareto"])
+validacao_quimio_df = ler_csv(paths["validacao_quimio"])
 
 st.markdown("<h3 style='text-align:center; color:#111111; margin-bottom: 0.6rem;'>Resumo dos resultados</h3>", unsafe_allow_html=True)
 mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
 
-aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_quimica, aba_figuras, aba_arquivos = st.tabs([
+aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
     "Visão geral",
     "Candidatos",
     "Classifica\u00e7\u00e3o",
     "Incerteza",
     "Química",
+    "Validação",
     "Figuras",
     "Arquivos",
 ])
@@ -1171,6 +1178,19 @@ with aba_quimica:
         )
         mostrar_tabela("Métricas químicas e DFT", metricas_quimicas_df, linhas=30)
 
+with aba_validacao:
+    col1, col2 = st.columns([1.0, 1.0])
+    with col1:
+        mostrar_tabela("Domínio de aplicabilidade", dominio_df, linhas=20)
+    with col2:
+        mostrar_tabela("Pareto e desejabilidade", pareto_df, linhas=20)
+    metricas_validacao_df = filtrar_metricas_por_termos(
+        metricas_df,
+        ["dominio", "pareto", "desejabilidade", "hotelling", "q residual", "quimiometria"],
+    )
+    mostrar_tabela("Métricas de validação científica", metricas_validacao_df, linhas=30)
+    mostrar_tabela("Validação quimiométrica", validacao_quimio_df, linhas=30)
+
 with aba_figuras:
     mostrar_figuras(figuras_df)
 
@@ -1197,6 +1217,9 @@ with aba_arquivos:
         ("Ranking completo", paths["ranking"]),
         ("Métricas", paths["metricas"]),
         ("Monte Carlo", paths["monte_carlo"]),
+        ("Domínio de aplicabilidade", paths["dominio"]),
+        ("Pareto e desejabilidade", paths["pareto"]),
+        ("Validação quimiométrica", paths["validacao_quimio"]),
         ("Índice de figuras", paths["figuras"]),
     ]
     for rotulo, caminho in arquivos_disponiveis:

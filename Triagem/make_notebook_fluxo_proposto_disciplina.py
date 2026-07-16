@@ -72,9 +72,9 @@ nb["cells"] = [
 - Calcula intervalo de confianca de 95% da probabilidade de permanencia no top 5 usando `scipy`.
 - Projeta desempenho em diferentes condicoes operacionais.
 
-13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica pre-processamento formal, padronizacao, PCA, deteccao de outliers, correlacao/colinearidade, agrupamento KMeans, selecao de descritores, validacao de robustez do ranking, PCR/PLSR proxy, metricas da triagem virtual e planejamento experimental ampliado para os candidatos finais.
+13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica pre-processamento formal, padronizacao, PCA, Hotelling T2, Q residual, dominio de aplicabilidade, deteccao de outliers, correlacao/colinearidade, agrupamento KMeans, Pareto, funcao de desejabilidade, selecao de descritores, validacao de robustez do ranking, PCR/PLSR proxy, metricas da triagem virtual e planejamento experimental ampliado para os candidatos finais.
 
-14. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento e DOE.
+14. Visualizacao cientifica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condicao, sensibilidade dos descritores, PCA, agrupamento, dominio de aplicabilidade, Pareto/desejabilidade e DOE.
 
 15. Salvar resultados: grava todos os arquivos na pasta escolhida pelo usuario e gera automaticamente um relatório HTML autocontido com resumo, tabelas principais, validacao quimiometrica e figuras da triagem.
 
@@ -96,6 +96,8 @@ nb["cells"] = [
 - `disciplina_fluxo_<reacao>_correlacao_descritores.csv`
 - `disciplina_fluxo_<reacao>_colinearidade_descritores.csv`
 - `disciplina_fluxo_<reacao>_outliers_quimiometricos.csv`
+- `disciplina_fluxo_<reacao>_dominio_aplicabilidade.csv`
+- `disciplina_fluxo_<reacao>_pareto_desejabilidade.csv`
 - `disciplina_fluxo_<reacao>_validacao_ranking.csv`
 - `disciplina_fluxo_<reacao>_modelos_regressao_quimiometrica.csv`
 - `disciplina_fluxo_<reacao>_predicoes_regressao_quimiometrica.csv`
@@ -3309,9 +3311,9 @@ prioritarios_df[[
     ),
     md(
         """
-## Etapa 13 - Validação quimiométrica, PCA, agrupamento e DOE
+## Etapa 13 - Validação quimiométrica, domínio, Pareto e DOE
 
-Esta etapa aplica conceitos do livro de quimiometria com Python: pré-processamento formal, padronização dos descritores, PCA para visualizar padrões, detecção de outliers, correlação/colinearidade, agrupamento, seleção de variáveis, validação do ranking, PCR/PLSR proxy e planejamento experimental ampliado. O objetivo é transformar o ranking em evidência mais apresentável e mais auditável.
+Esta etapa aplica conceitos do livro de quimiometria com Python: pré-processamento formal, padronização dos descritores, PCA para visualizar padrões, Hotelling T2, Q residual, domínio de aplicabilidade, detecção de outliers, correlação/colinearidade, agrupamento, fronteira de Pareto, função de desejabilidade, seleção de variáveis, validação do ranking, PCR/PLSR proxy e planejamento experimental ampliado. O objetivo é transformar o ranking em evidência mais apresentável, mais explicável e mais auditável.
 """
     ),
     code(
@@ -3551,13 +3553,65 @@ limiar_pca_outlier = limiar_outlier_robusto(distancia_pca)
 # Calcula limiar de outlier pela distancia de Mahalanobis.
 limiar_mahalanobis_outlier = limiar_outlier_robusto(distancia_mahalanobis)
 
+# Calcula Hotelling T2 e Q residual para avaliar dominio de aplicabilidade.
+if n_componentes_pca >= 1:
+    # Recupera autovalores da PCA e evita divisao por zero.
+    autovalores_pca = np.nan_to_num(modelo_pca.explained_variance_, nan=1.0, posinf=1.0, neginf=1.0)
+    autovalores_pca = np.where(autovalores_pca <= 1e-12, 1e-12, autovalores_pca)
+    # Hotelling T2 mede distancia dentro do subespaco explicado pela PCA.
+    hotelling_t2 = np.sum((matriz_pca[:, :len(autovalores_pca)] ** 2) / autovalores_pca, axis=1)
+    # Reconstrucao pela PCA para medir o erro que ficou fora dos componentes principais.
+    matriz_reconstruida_pca = modelo_pca.inverse_transform(matriz_pca)
+    # Q residual mede a parte da amostra nao explicada pelo modelo PCA.
+    q_residual = np.sum(np.square(matriz_quimiometrica_padronizada - matriz_reconstruida_pca), axis=1)
+else:
+    # Usa valores nulos quando a PCA nao foi ajustada.
+    hotelling_t2 = np.zeros(len(base_quimiometrica_df))
+    q_residual = np.zeros(len(base_quimiometrica_df))
+
+# Calcula limiar robusto de Hotelling T2.
+limiar_hotelling_t2 = limiar_outlier_robusto(hotelling_t2)
+
+# Calcula limiar robusto de Q residual.
+limiar_q_residual = limiar_outlier_robusto(q_residual)
+
+# Define funcao para transformar distancia em score de dominio.
+def score_por_limiar(valores, limiar):
+    # Converte os valores para array numerico.
+    valores = np.asarray(valores, dtype=float)
+    # Retorna score maximo quando o limiar nao e informativo.
+    if not np.isfinite(limiar) or limiar <= 0:
+        return np.ones(len(valores))
+    # Penaliza progressivamente quanto mais perto ou acima do limiar.
+    return np.clip(1.0 - valores / limiar, 0, 1)
+
+# Calcula subscore de dominio pelo Hotelling T2.
+score_hotelling_t2 = score_por_limiar(hotelling_t2, limiar_hotelling_t2)
+
+# Calcula subscore de dominio pelo Q residual.
+score_q_residual = score_por_limiar(q_residual, limiar_q_residual)
+
+# Calcula subscore de dominio pela distancia de Mahalanobis.
+score_mahalanobis_dominio = score_por_limiar(distancia_mahalanobis, limiar_mahalanobis_outlier)
+
 # Cria tabela de outliers quimiometricos.
 outliers_quimiometricos_df = pd.DataFrame({
     "formula": base_quimiometrica_df["formula"].astype(str).values,
     "distancia_pca": distancia_pca,
     "distancia_mahalanobis": distancia_mahalanobis,
+    "hotelling_t2": hotelling_t2,
+    "q_residual": q_residual,
     "limiar_pca": limiar_pca_outlier,
     "limiar_mahalanobis": limiar_mahalanobis_outlier,
+    "limiar_hotelling_t2": limiar_hotelling_t2,
+    "limiar_q_residual": limiar_q_residual,
+    "score_dominio_aplicabilidade": np.clip(
+        0.40 * score_hotelling_t2
+        + 0.40 * score_q_residual
+        + 0.20 * score_mahalanobis_dominio,
+        0,
+        1,
+    ),
 })
 
 # Marca outliers por PCA.
@@ -3566,13 +3620,37 @@ outliers_quimiometricos_df["outlier_pca"] = outliers_quimiometricos_df["distanci
 # Marca outliers por Mahalanobis.
 outliers_quimiometricos_df["outlier_mahalanobis"] = outliers_quimiometricos_df["distancia_mahalanobis"] > outliers_quimiometricos_df["limiar_mahalanobis"]
 
+# Marca outliers pelo Hotelling T2.
+outliers_quimiometricos_df["outlier_hotelling_t2"] = outliers_quimiometricos_df["hotelling_t2"] > outliers_quimiometricos_df["limiar_hotelling_t2"]
+
+# Marca outliers pelo Q residual.
+outliers_quimiometricos_df["outlier_q_residual"] = outliers_quimiometricos_df["q_residual"] > outliers_quimiometricos_df["limiar_q_residual"]
+
 # Consolida as duas regras em uma unica bandeira de outlier.
-outliers_quimiometricos_df["outlier_quimiometrico"] = outliers_quimiometricos_df["outlier_pca"] | outliers_quimiometricos_df["outlier_mahalanobis"]
+outliers_quimiometricos_df["outlier_quimiometrico"] = (
+    outliers_quimiometricos_df["outlier_pca"]
+    | outliers_quimiometricos_df["outlier_mahalanobis"]
+    | outliers_quimiometricos_df["outlier_hotelling_t2"]
+    | outliers_quimiometricos_df["outlier_q_residual"]
+)
+
+# Classifica dominio de aplicabilidade da triagem.
+outliers_quimiometricos_df["classe_dominio_aplicabilidade"] = np.select(
+    [
+        outliers_quimiometricos_df["outlier_quimiometrico"],
+        outliers_quimiometricos_df["score_dominio_aplicabilidade"] >= 0.60,
+    ],
+    [
+        "fora_do_dominio",
+        "dentro_do_dominio",
+    ],
+    default="zona_de_atencao",
+)
 
 # Explica o motivo do alerta de outlier.
 outliers_quimiometricos_df["motivo_outlier"] = np.where(
     outliers_quimiometricos_df["outlier_quimiometrico"],
-    "distancia multivariada acima do limite robusto",
+    "T2, Q residual ou distancia multivariada acima do limite robusto",
     "dentro do dominio multivariado observado",
 )
 
@@ -3607,10 +3685,149 @@ quimiometria_candidatos_df = melhor_por_candidato_df.merge(pca_quimiometrica_df,
 
 # Incorpora marcadores de outlier a tabela quimiometrica por candidato.
 quimiometria_candidatos_df = quimiometria_candidatos_df.merge(
-    outliers_quimiometricos_df[["formula", "distancia_pca", "distancia_mahalanobis", "outlier_quimiometrico", "motivo_outlier"]],
+    outliers_quimiometricos_df[[
+        "formula",
+        "distancia_pca",
+        "distancia_mahalanobis",
+        "hotelling_t2",
+        "q_residual",
+        "score_dominio_aplicabilidade",
+        "classe_dominio_aplicabilidade",
+        "outlier_quimiometrico",
+        "motivo_outlier",
+    ]],
     on="formula",
     how="left",
 )
+
+# Define funcao para criar desejabilidade 0-1 de cada criterio.
+def desejabilidade_coluna(df, coluna, sentido="max", neutro=0.5):
+    # Retorna valor neutro quando a coluna nao existe.
+    if coluna not in df.columns:
+        return pd.Series(np.full(len(df), neutro), index=df.index)
+    # Converte a coluna para numerica.
+    valores = pd.to_numeric(df[coluna], errors="coerce")
+    # Usa mediana quando ha valores ausentes.
+    mediana = valores.median()
+    if pd.isna(mediana):
+        mediana = neutro
+    # Preenche ausencias antes da normalizacao.
+    valores = valores.fillna(mediana)
+    # Normaliza para escala 0-1.
+    desejabilidade = normalizar_minmax_global(valores, neutro=neutro)
+    # Inverte quando o objetivo e minimizar a propriedade.
+    if sentido == "min":
+        desejabilidade = 1.0 - desejabilidade
+    # Garante limites de 0 a 1.
+    return pd.Series(np.clip(desejabilidade, 0, 1), index=df.index)
+
+# Calcula desejabilidade de estabilidade termodinamica.
+quimiometria_candidatos_df["desejabilidade_estabilidade"] = desejabilidade_coluna(quimiometria_candidatos_df, "energy_above_hull_eV_atom", "min")
+
+# Calcula desejabilidade de atividade catalitica.
+quimiometria_candidatos_df["desejabilidade_atividade"] = desejabilidade_coluna(quimiometria_candidatos_df, "score_atividade", "max")
+
+# Calcula desejabilidade de seletividade.
+quimiometria_candidatos_df["desejabilidade_seletividade"] = desejabilidade_coluna(quimiometria_candidatos_df, "score_seletividade", "max")
+
+# Calcula desejabilidade DFT ou proxy DFT.
+quimiometria_candidatos_df["desejabilidade_dft"] = desejabilidade_coluna(quimiometria_candidatos_df, "score_DFT", "max")
+
+# Calcula desejabilidade de robustez Monte Carlo.
+quimiometria_candidatos_df["desejabilidade_robustez"] = desejabilidade_coluna(quimiometria_candidatos_df, "probabilidade_top5_mc", "max")
+
+# Calcula desejabilidade de baixa tendencia a coque.
+quimiometria_candidatos_df["desejabilidade_coque"] = desejabilidade_coluna(quimiometria_candidatos_df, "penalidade_tendencia_coque", "min")
+
+# Calcula desejabilidade de dominio de aplicabilidade.
+quimiometria_candidatos_df["desejabilidade_dominio"] = pd.to_numeric(
+    quimiometria_candidatos_df.get("score_dominio_aplicabilidade", pd.Series(np.ones(len(quimiometria_candidatos_df)))),
+    errors="coerce",
+).fillna(0.5).clip(0, 1)
+
+# Combina os criterios em desejabilidade global com pesos quimicamente interpretaveis.
+quimiometria_candidatos_df["desejabilidade_global"] = np.clip(
+    0.20 * quimiometria_candidatos_df["desejabilidade_estabilidade"]
+    + 0.18 * quimiometria_candidatos_df["desejabilidade_atividade"]
+    + 0.15 * quimiometria_candidatos_df["desejabilidade_seletividade"]
+    + 0.18 * quimiometria_candidatos_df["desejabilidade_dft"]
+    + 0.14 * quimiometria_candidatos_df["desejabilidade_robustez"]
+    + 0.08 * quimiometria_candidatos_df["desejabilidade_coque"]
+    + 0.07 * quimiometria_candidatos_df["desejabilidade_dominio"],
+    0,
+    1,
+)
+
+# Define funcao para calcular a fronteira de Pareto em criterios maximizados.
+def calcular_fronteira_pareto(matriz_objetivos):
+    # Converte matriz para array numerico.
+    matriz_objetivos = np.asarray(matriz_objetivos, dtype=float)
+    # Inicializa todos os candidatos como Pareto-eficientes.
+    eficiente = np.ones(matriz_objetivos.shape[0], dtype=bool)
+    # Compara cada candidato contra todos os demais.
+    for i in range(matriz_objetivos.shape[0]):
+        # Verifica se existe outro candidato pelo menos igual em tudo e melhor em algo.
+        dominado = np.any(
+            np.all(matriz_objetivos >= matriz_objetivos[i], axis=1)
+            & np.any(matriz_objetivos > matriz_objetivos[i], axis=1)
+        )
+        # Remove o candidato dominado da fronteira.
+        eficiente[i] = not dominado
+    # Retorna mascara booleana.
+    return eficiente
+
+# Define os criterios usados na analise de Pareto.
+criterios_pareto = [
+    "desejabilidade_estabilidade",
+    "desejabilidade_atividade",
+    "desejabilidade_seletividade",
+    "desejabilidade_dft",
+    "desejabilidade_robustez",
+    "desejabilidade_coque",
+    "desejabilidade_dominio",
+]
+
+# Calcula matriz dos objetivos de Pareto.
+matriz_pareto = quimiometria_candidatos_df[criterios_pareto].fillna(0.0).to_numpy(dtype=float)
+
+# Marca candidatos nao dominados.
+quimiometria_candidatos_df["fronteira_pareto"] = calcular_fronteira_pareto(matriz_pareto) if len(quimiometria_candidatos_df) else []
+
+# Calcula distancia ao ponto ideal de Pareto.
+quimiometria_candidatos_df["distancia_pareto_ideal"] = np.sqrt(np.mean(np.square(1.0 - matriz_pareto), axis=1)) if len(quimiometria_candidatos_df) else []
+
+# Calcula posicao por desejabilidade global.
+quimiometria_candidatos_df["rank_desejabilidade"] = pd.to_numeric(quimiometria_candidatos_df["desejabilidade_global"], errors="coerce").rank(ascending=False, method="min")
+
+# Cria tabela especifica para Pareto e desejabilidade.
+pareto_desejabilidade_df = quimiometria_candidatos_df[[
+    "formula",
+    "score_final",
+    "desejabilidade_global",
+    "rank_desejabilidade",
+    "fronteira_pareto",
+    "distancia_pareto_ideal",
+    "classe_dominio_aplicabilidade",
+    "score_dominio_aplicabilidade",
+] + criterios_pareto].sort_values(["fronteira_pareto", "desejabilidade_global"], ascending=[False, False]).reset_index(drop=True)
+
+# Cria tabela especifica de dominio de aplicabilidade para auditoria.
+dominio_aplicabilidade_df = outliers_quimiometricos_df[[
+    "formula",
+    "hotelling_t2",
+    "q_residual",
+    "distancia_mahalanobis",
+    "limiar_hotelling_t2",
+    "limiar_q_residual",
+    "limiar_mahalanobis",
+    "score_dominio_aplicabilidade",
+    "classe_dominio_aplicabilidade",
+    "outlier_hotelling_t2",
+    "outlier_q_residual",
+    "outlier_mahalanobis",
+    "outlier_quimiometrico",
+    "motivo_outlier",
+]].copy()
 
 # Define formulas dos candidatos finais para classificar prioridade.
 formulas_prioritarias = set(prioritarios_df["formula"].astype(str)) if "formula" in prioritarios_df.columns else set()
@@ -3637,11 +3854,17 @@ def classificar_prioridade_quimiometrica(row):
     score = float(row.get("score_final", 0.0)) if pd.notna(row.get("score_final", np.nan)) else 0.0
     # Lê a probabilidade Monte Carlo com fallback nulo.
     prob_mc = float(row.get("probabilidade_top5_mc", 0.0)) if pd.notna(row.get("probabilidade_top5_mc", np.nan)) else 0.0
+    # Lê a desejabilidade global com fallback neutro.
+    desejabilidade = float(row.get("desejabilidade_global", 0.5)) if pd.notna(row.get("desejabilidade_global", np.nan)) else 0.5
+    # Lê o score de domínio de aplicabilidade.
+    dominio = float(row.get("score_dominio_aplicabilidade", 0.5)) if pd.notna(row.get("score_dominio_aplicabilidade", np.nan)) else 0.5
+    # Lê se o candidato está na fronteira de Pareto.
+    pareto = bool(row.get("fronteira_pareto", False))
     # Marca como prioritario quando ja esta no top final ou combina score alto e robustez.
-    if formula in formulas_prioritarias or (score >= limiar_score_alto and prob_mc >= limiar_prob_mc):
+    if formula in formulas_prioritarias or (score >= limiar_score_alto and prob_mc >= limiar_prob_mc and dominio >= 0.40) or (pareto and desejabilidade >= 0.65 and dominio >= 0.40):
         return "prioritario_para_sintese"
     # Marca como confirmacao quando o candidato esta acima da mediana do ranking.
-    if score >= limiar_score_medio:
+    if score >= limiar_score_medio or desejabilidade >= 0.55:
         return "confirmar_em_bancada"
     # Mantem os demais como exploratorios.
     return "exploratorio"
@@ -3664,6 +3887,9 @@ for grupo, grupo_df in quimiometria_candidatos_df.groupby("grupo_quimiometrico",
         "score_final_maximo": float(pd.to_numeric(grupo_df["score_final"], errors="coerce").max()) if "score_final" in grupo_df else np.nan,
         "estabilidade_media_eV_atom": float(pd.to_numeric(grupo_df.get("energy_above_hull_eV_atom", pd.Series(dtype=float)), errors="coerce").mean()),
         "probabilidade_mc_media": float(pd.to_numeric(grupo_df.get("probabilidade_top5_mc", pd.Series(dtype=float)), errors="coerce").mean()),
+        "desejabilidade_media": float(pd.to_numeric(grupo_df.get("desejabilidade_global", pd.Series(dtype=float)), errors="coerce").mean()),
+        "fracao_pareto": float(pd.to_numeric(grupo_df.get("fronteira_pareto", pd.Series(dtype=float)), errors="coerce").mean()),
+        "score_dominio_medio": float(pd.to_numeric(grupo_df.get("score_dominio_aplicabilidade", pd.Series(dtype=float)), errors="coerce").mean()),
         "formula_representante": str(grupo_ordenado.iloc[0]["formula"]) if len(grupo_ordenado) else "",
     })
 
@@ -3814,12 +4040,16 @@ prob_mc_ranking = pd.to_numeric(validacao_ranking_df.get("probabilidade_top5_mc"
 # Penaliza candidatos marcados como outliers multivariados.
 penalidade_outlier = validacao_ranking_df.get("outlier_quimiometrico", pd.Series([False] * len(validacao_ranking_df))).fillna(False).astype(bool).astype(float)
 
+# Lê score de dominio de aplicabilidade para penalizar extrapolacoes quimiometricas.
+score_dominio_ranking = pd.to_numeric(validacao_ranking_df.get("score_dominio_aplicabilidade", pd.Series(np.ones(len(validacao_ranking_df)))), errors="coerce").fillna(0.5).clip(0, 1)
+
 # Calcula score de robustez do ranking combinando Monte Carlo, intervalo e outlier.
 validacao_ranking_df["score_robustez_ranking"] = np.clip(
-    0.50 * prob_mc_ranking
-    + 0.25 * (1.0 - desvio_mc_ranking / escala_desvio_mc)
+    0.45 * prob_mc_ranking
+    + 0.20 * (1.0 - desvio_mc_ranking / escala_desvio_mc)
     + 0.15 * (1.0 - largura_ic_ranking / escala_largura_ic)
-    + 0.10 * (1.0 - penalidade_outlier),
+    + 0.10 * (1.0 - penalidade_outlier)
+    + 0.10 * score_dominio_ranking,
     0,
     1,
 )
@@ -4216,6 +4446,18 @@ adicionar_metrica("DOE", "pontos axiais DOE", int((doe_sintese_df.get("tipo_pont
 # Registra quantidade de outliers multivariados.
 adicionar_metrica("quimiometria", "outliers quimiometricos", int(outliers_quimiometricos_df["outlier_quimiometrico"].sum()) if not outliers_quimiometricos_df.empty else 0, "n", "Numero de candidatos com distancia multivariada elevada na matriz de descritores.")
 
+# Registra candidatos fora do dominio de aplicabilidade.
+adicionar_metrica("quimiometria", "candidatos fora do dominio de aplicabilidade", int((dominio_aplicabilidade_df.get("classe_dominio_aplicabilidade", pd.Series(dtype=str)) == "fora_do_dominio").sum()) if not dominio_aplicabilidade_df.empty else 0, "n", "Numero de candidatos com Hotelling T2, Q residual ou Mahalanobis acima do limite robusto.")
+
+# Registra score medio de dominio de aplicabilidade no Top 10.
+adicionar_metrica("quimiometria", "score medio de dominio Top 10", float(pd.to_numeric(quimiometria_candidatos_df.head(10).get("score_dominio_aplicabilidade", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Quanto mais proximo de 1, mais os candidatos permanecem dentro do espaco quimiometrico observado.")
+
+# Registra quantidade de candidatos na fronteira de Pareto.
+adicionar_metrica("quimiometria", "candidatos na fronteira de Pareto", int(pareto_desejabilidade_df.get("fronteira_pareto", pd.Series(dtype=bool)).fillna(False).astype(bool).sum()) if not pareto_desejabilidade_df.empty else 0, "n", "Candidatos nao dominados quando estabilidade, atividade, seletividade, DFT, robustez, coque e dominio sao avaliados simultaneamente.")
+
+# Registra desejabilidade media do Top 10.
+adicionar_metrica("quimiometria", "desejabilidade media Top 10", float(pd.to_numeric(quimiometria_candidatos_df.head(10).get("desejabilidade_global", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Media da funcao de desejabilidade multicriterio entre os dez melhores candidatos.")
+
 # Registra pares de descritores com colinearidade forte.
 adicionar_metrica("quimiometria", "pares de descritores colineares", int(len(colinearidade_descritores_df)), "n", "Numero de pares com correlacao absoluta acima de 0,90.")
 
@@ -4223,7 +4465,7 @@ adicionar_metrica("quimiometria", "pares de descritores colineares", int(len(col
 adicionar_metrica("quimiometria", "descritores apos filtro de colinearidade", int(len(descritores_filtrados_colinearidade)), "n", "Quantidade de descritores mantidos para PCR/PLSR apos remover redundancias fortes.")
 
 # Registra robustez media do ranking no Top 10.
-adicionar_metrica("ranking", "robustez media do ranking Top 10", float(pd.to_numeric(validacao_ranking_df.head(10).get("score_robustez_ranking", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Media da robustez combinando Monte Carlo, intervalo de confianca e penalidade por outlier.")
+adicionar_metrica("ranking", "robustez media do ranking Top 10", float(pd.to_numeric(validacao_ranking_df.head(10).get("score_robustez_ranking", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Media da robustez combinando Monte Carlo, intervalo de confianca, dominio de aplicabilidade e penalidade por outlier.")
 
 # Registra correlacao entre ranking nominal e ranking medio por Monte Carlo.
 adicionar_metrica("ranking", "correlacao Spearman ranking vs Monte Carlo", float(correlacao_rank_mc) if not pd.isna(correlacao_rank_mc) else np.nan, "indice", "Valores proximos de 1 indicam que o ranking nominal permanece estavel sob perturbacoes.")
@@ -4261,6 +4503,20 @@ relatorio_validacao_metodo_df = pd.DataFrame([
         "evidencia": f"{int(outliers_quimiometricos_df['outlier_quimiometrico'].sum()) if not outliers_quimiometricos_df.empty else 0} candidatos marcados como outliers multivariados.",
         "risco_residual": "outlier pode indicar candidato interessante ou extrapolacao fora do dominio do modelo.",
         "acao_recomendada": "avaliar manualmente candidatos outliers antes de descartar ou priorizar.",
+    },
+    {
+        "criterio": "dominio de aplicabilidade",
+        "status": "alerta" if (not dominio_aplicabilidade_df.empty and bool((dominio_aplicabilidade_df["classe_dominio_aplicabilidade"] == "fora_do_dominio").any())) else "ok",
+        "evidencia": f"{int((dominio_aplicabilidade_df['classe_dominio_aplicabilidade'] == 'fora_do_dominio').sum()) if not dominio_aplicabilidade_df.empty else 0} candidatos fora do dominio por Hotelling T2, Q residual ou Mahalanobis.",
+        "risco_residual": "candidato fora do dominio indica extrapolacao quimiometrica e menor confianca da triagem.",
+        "acao_recomendada": "tratar candidatos fora do dominio como exploratorios ate obter dado experimental ou DFT adicional.",
+    },
+    {
+        "criterio": "Pareto e desejabilidade",
+        "status": "concluido" if not pareto_desejabilidade_df.empty else "indisponivel",
+        "evidencia": f"{int(pareto_desejabilidade_df['fronteira_pareto'].sum()) if not pareto_desejabilidade_df.empty else 0} candidatos nao dominados; desejabilidade media Top 10 = {pd.to_numeric(quimiometria_candidatos_df.head(10).get('desejabilidade_global', pd.Series(dtype=float)), errors='coerce').mean():.3f}" if not quimiometria_candidatos_df.empty else "dados insuficientes para Pareto e desejabilidade.",
+        "risco_residual": "a desejabilidade resume varios objetivos e nao substitui a leitura separada de estabilidade, DFT, atividade e incerteza.",
+        "acao_recomendada": "usar candidatos Pareto-eficientes e com alta desejabilidade como melhores compromissos para sintese.",
     },
     {
         "criterio": "colinearidade",
@@ -4319,10 +4575,25 @@ colunas_quimio_merge = [
     "variancia_PC2",
     "distancia_pca",
     "distancia_mahalanobis",
+    "hotelling_t2",
+    "q_residual",
+    "score_dominio_aplicabilidade",
+    "classe_dominio_aplicabilidade",
     "outlier_quimiometrico",
     "motivo_outlier",
     "grupo_quimiometrico",
     "classe_prioridade_quimiometrica",
+    "desejabilidade_estabilidade",
+    "desejabilidade_atividade",
+    "desejabilidade_seletividade",
+    "desejabilidade_dft",
+    "desejabilidade_robustez",
+    "desejabilidade_coque",
+    "desejabilidade_dominio",
+    "desejabilidade_global",
+    "fronteira_pareto",
+    "distancia_pareto_ideal",
+    "rank_desejabilidade",
     "posicao_ranking",
     "score_robustez_ranking",
     "classe_robustez_ranking",
@@ -4872,6 +5143,95 @@ if not pca_quimiometrica_df.empty and not outliers_quimiometricos_df.empty:
     # Exibe figura no notebook.
     plt.show()
 
+# Cria figura de dominio de aplicabilidade por Hotelling T2 e Q residual.
+if not dominio_aplicabilidade_df.empty:
+    # Copia dados para plotagem.
+    dominio_plot = dominio_aplicabilidade_df.copy()
+    # Converte classe de dominio para texto.
+    dominio_plot["classe_dominio_aplicabilidade"] = dominio_plot["classe_dominio_aplicabilidade"].astype(str)
+    # Define cores por classe de dominio.
+    cores_dominio = {
+        "dentro_do_dominio": "#2E7D32",
+        "zona_de_atencao": "#F9A825",
+        "fora_do_dominio": "#C62828",
+    }
+    # Inicializa figura de dominio.
+    plt.figure(figsize=(9.0, 5.6))
+    # Plota cada classe separadamente para gerar legenda clara.
+    for classe, grupo_df in dominio_plot.groupby("classe_dominio_aplicabilidade", dropna=False):
+        # Desenha pontos T2 versus Q residual.
+        plt.scatter(
+            grupo_df["hotelling_t2"],
+            grupo_df["q_residual"],
+            s=85,
+            alpha=0.82,
+            color=cores_dominio.get(str(classe), "#616161"),
+            edgecolor="black",
+            linewidth=0.35,
+            label=str(classe),
+        )
+    # Marca o limiar de Hotelling T2 quando finito.
+    if np.isfinite(float(dominio_plot["limiar_hotelling_t2"].iloc[0])):
+        plt.axvline(float(dominio_plot["limiar_hotelling_t2"].iloc[0]), color="#455A64", linestyle="--", linewidth=1.0, label="limiar T2")
+    # Marca o limiar de Q residual quando finito.
+    if np.isfinite(float(dominio_plot["limiar_q_residual"].iloc[0])):
+        plt.axhline(float(dominio_plot["limiar_q_residual"].iloc[0]), color="#78909C", linestyle="--", linewidth=1.0, label="limiar Q")
+    # Anota os candidatos com maior alerta.
+    for _, row in dominio_plot.sort_values("score_dominio_aplicabilidade").head(6).iterrows():
+        # Rotula pontos de menor dominio.
+        plt.annotate(str(row["formula"]), (row["hotelling_t2"], row["q_residual"]), textcoords="offset points", xytext=(6, 6), fontsize=8)
+    # Define rotulo do eixo x.
+    plt.xlabel("Hotelling T2")
+    # Define rotulo do eixo y.
+    plt.ylabel("Q residual")
+    # Define titulo.
+    plt.title("Dominio de aplicabilidade quimiometrico")
+    # Adiciona legenda.
+    plt.legend(fontsize=8)
+    # Ajusta layout.
+    plt.tight_layout()
+    # Salva figura de dominio de aplicabilidade.
+    salvar_figura("13_dominio_aplicabilidade")
+    # Exibe figura no notebook.
+    plt.show()
+
+# Cria figura de Pareto e desejabilidade.
+if not pareto_desejabilidade_df.empty:
+    # Copia dados para plotagem.
+    pareto_plot = pareto_desejabilidade_df.copy()
+    # Converte coluna de fronteira para booleano.
+    pareto_plot["fronteira_pareto"] = pareto_plot["fronteira_pareto"].fillna(False).astype(bool)
+    # Inicializa figura de Pareto.
+    plt.figure(figsize=(9.0, 5.6))
+    # Plota candidatos dominados.
+    dominados_plot = pareto_plot[~pareto_plot["fronteira_pareto"]]
+    if not dominados_plot.empty:
+        plt.scatter(dominados_plot["score_dominio_aplicabilidade"], dominados_plot["desejabilidade_global"], s=70, alpha=0.65, color="#90A4AE", edgecolor="black", linewidth=0.30, label="dominado")
+    # Plota candidatos Pareto-eficientes.
+    pareto_front_plot = pareto_plot[pareto_plot["fronteira_pareto"]]
+    if not pareto_front_plot.empty:
+        plt.scatter(pareto_front_plot["score_dominio_aplicabilidade"], pareto_front_plot["desejabilidade_global"], s=115, alpha=0.88, color="#D81B60", edgecolor="black", linewidth=0.45, label="fronteira de Pareto")
+        # Anota principais candidatos Pareto.
+        for _, row in pareto_front_plot.sort_values("desejabilidade_global", ascending=False).head(8).iterrows():
+            plt.annotate(str(row["formula"]), (row["score_dominio_aplicabilidade"], row["desejabilidade_global"]), textcoords="offset points", xytext=(6, 6), fontsize=8)
+    # Define limites dos scores.
+    plt.xlim(-0.03, 1.03)
+    plt.ylim(-0.03, 1.03)
+    # Define rotulo do eixo x.
+    plt.xlabel("Score de dominio de aplicabilidade")
+    # Define rotulo do eixo y.
+    plt.ylabel("Desejabilidade global")
+    # Define titulo.
+    plt.title("Pareto e desejabilidade multicriterio")
+    # Adiciona legenda.
+    plt.legend(fontsize=8)
+    # Ajusta layout.
+    plt.tight_layout()
+    # Salva figura de Pareto.
+    salvar_figura("14_pareto_desejabilidade")
+    # Exibe figura no notebook.
+    plt.show()
+
 # Cria figura de robustez do ranking.
 if not validacao_ranking_df.empty and "score_robustez_ranking" in validacao_ranking_df.columns:
     # Seleciona os dez primeiros candidatos para visualizacao.
@@ -4891,7 +5251,7 @@ if not validacao_ranking_df.empty and "score_robustez_ranking" in validacao_rank
     # Ajusta layout.
     plt.tight_layout()
     # Salva figura de robustez.
-    salvar_figura("13_validacao_robustez_ranking")
+    salvar_figura("15_validacao_robustez_ranking")
     # Exibe figura no notebook.
     plt.show()
 
@@ -4918,7 +5278,7 @@ if not modelos_regressao_quimiometrica_df.empty:
         # Ajusta layout.
         plt.tight_layout()
         # Salva figura de regressao proxy.
-        salvar_figura("14_regressao_quimiometrica_proxy")
+        salvar_figura("16_regressao_quimiometrica_proxy")
         # Exibe figura no notebook.
         plt.show()
 
@@ -5079,12 +5439,34 @@ nomes_colunas_pt = {
     "descritor_redundante": "descritor redundante",
     "distancia_pca": "distancia no espaco PCA",
     "distancia_mahalanobis": "distancia de Mahalanobis",
+    "hotelling_t2": "Hotelling T2",
+    "q_residual": "Q residual",
     "limiar_pca": "limiar PCA",
     "limiar_mahalanobis": "limiar Mahalanobis",
+    "limiar_hotelling_t2": "limiar Hotelling T2",
+    "limiar_q_residual": "limiar Q residual",
+    "score_dominio_aplicabilidade": "score de dominio de aplicabilidade",
+    "classe_dominio_aplicabilidade": "classe de dominio de aplicabilidade",
     "outlier_pca": "outlier por PCA",
     "outlier_mahalanobis": "outlier por Mahalanobis",
+    "outlier_hotelling_t2": "outlier por Hotelling T2",
+    "outlier_q_residual": "outlier por Q residual",
     "outlier_quimiometrico": "outlier quimiometrico",
     "motivo_outlier": "motivo do outlier",
+    "desejabilidade_estabilidade": "desejabilidade de estabilidade",
+    "desejabilidade_atividade": "desejabilidade de atividade",
+    "desejabilidade_seletividade": "desejabilidade de seletividade",
+    "desejabilidade_dft": "desejabilidade DFT/proxy DFT",
+    "desejabilidade_robustez": "desejabilidade de robustez",
+    "desejabilidade_coque": "desejabilidade contra coque",
+    "desejabilidade_dominio": "desejabilidade de dominio",
+    "desejabilidade_global": "desejabilidade global",
+    "fronteira_pareto": "fronteira de Pareto",
+    "distancia_pareto_ideal": "distancia ao ideal de Pareto",
+    "rank_desejabilidade": "rank por desejabilidade",
+    "desejabilidade_media": "desejabilidade media",
+    "fracao_pareto": "fracao na fronteira de Pareto",
+    "score_dominio_medio": "score medio de dominio",
     "posicao_ranking": "posicao no ranking",
     "score_robustez_ranking": "score de robustez do ranking",
     "classe_robustez_ranking": "classe de robustez do ranking",
@@ -5175,6 +5557,12 @@ traduzir_colunas(colinearidade_descritores_df).to_csv(OUTPUT_DIR / f"{prefixo}_c
 # Salva a deteccao de outliers quimiometricos.
 traduzir_colunas(outliers_quimiometricos_df).to_csv(OUTPUT_DIR / f"{prefixo}_outliers_quimiometricos.csv", index=False, encoding="utf-8-sig")
 
+# Salva o dominio de aplicabilidade por candidato.
+traduzir_colunas(dominio_aplicabilidade_df).to_csv(OUTPUT_DIR / f"{prefixo}_dominio_aplicabilidade.csv", index=False, encoding="utf-8-sig")
+
+# Salva a analise de Pareto e desejabilidade.
+traduzir_colunas(pareto_desejabilidade_df).to_csv(OUTPUT_DIR / f"{prefixo}_pareto_desejabilidade.csv", index=False, encoding="utf-8-sig")
+
 # Salva a validacao de robustez do ranking.
 traduzir_colunas(validacao_ranking_df).to_csv(OUTPUT_DIR / f"{prefixo}_validacao_ranking.csv", index=False, encoding="utf-8-sig")
 
@@ -5229,6 +5617,10 @@ with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl"
     traduzir_colunas(colinearidade_descritores_df).to_excel(writer, sheet_name="Colinearidade", index=False)
     # Aba com outliers quimiometricos.
     traduzir_colunas(outliers_quimiometricos_df).to_excel(writer, sheet_name="Outliers", index=False)
+    # Aba com dominio de aplicabilidade.
+    traduzir_colunas(dominio_aplicabilidade_df).to_excel(writer, sheet_name="Dominio_aplic", index=False)
+    # Aba com Pareto e desejabilidade.
+    traduzir_colunas(pareto_desejabilidade_df).to_excel(writer, sheet_name="Pareto_desej", index=False)
     # Aba com robustez do ranking.
     traduzir_colunas(validacao_ranking_df.head(150)).to_excel(writer, sheet_name="Validacao_ranking", index=False)
     # Aba com metricas PCR/PLSR.
@@ -5412,6 +5804,10 @@ figcaption {{
 {tabela_html(metricas_triagem_df, linhas=40)}
 <h2>Valida&ccedil;&atilde;o quimiom&eacute;trica</h2>
 {tabela_html(validacao_quimiometrica_df, linhas=20)}
+<h2>Dom&iacute;nio de aplicabilidade</h2>
+{tabela_html(dominio_aplicabilidade_df, linhas=20)}
+<h2>Pareto e desejabilidade</h2>
+{tabela_html(pareto_desejabilidade_df, linhas=20)}
 <h2>Relat&oacute;rio de valida&ccedil;&atilde;o do m&eacute;todo</h2>
 {tabela_html(relatorio_validacao_metodo_df, linhas=20)}
 <h2>Pre-processamento dos descritores</h2>
@@ -5467,6 +5863,8 @@ resumo = {
     "arquivo_correlacao_descritores": str(OUTPUT_DIR / f"{prefixo}_correlacao_descritores.csv"),
     "arquivo_colinearidade_descritores": str(OUTPUT_DIR / f"{prefixo}_colinearidade_descritores.csv"),
     "arquivo_outliers_quimiometricos": str(OUTPUT_DIR / f"{prefixo}_outliers_quimiometricos.csv"),
+    "arquivo_dominio_aplicabilidade": str(OUTPUT_DIR / f"{prefixo}_dominio_aplicabilidade.csv"),
+    "arquivo_pareto_desejabilidade": str(OUTPUT_DIR / f"{prefixo}_pareto_desejabilidade.csv"),
     "arquivo_validacao_ranking": str(OUTPUT_DIR / f"{prefixo}_validacao_ranking.csv"),
     "arquivo_modelos_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv"),
     "arquivo_predicoes_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_predicoes_regressao_quimiometrica.csv"),
@@ -5481,6 +5879,9 @@ resumo = {
     "n_descritores_quimiometricos": int(len(descritores_quimiometricos_cols)),
     "n_descritores_apos_filtro_colinearidade": int(len(descritores_filtrados_colinearidade)),
     "n_outliers_quimiometricos": int(outliers_quimiometricos_df["outlier_quimiometrico"].sum()) if not outliers_quimiometricos_df.empty else 0,
+    "n_fora_dominio_aplicabilidade": int((dominio_aplicabilidade_df["classe_dominio_aplicabilidade"] == "fora_do_dominio").sum()) if not dominio_aplicabilidade_df.empty else 0,
+    "n_candidatos_fronteira_pareto": int(pareto_desejabilidade_df["fronteira_pareto"].fillna(False).astype(bool).sum()) if not pareto_desejabilidade_df.empty else 0,
+    "desejabilidade_media_top10": float(pd.to_numeric(quimiometria_candidatos_df.head(10).get("desejabilidade_global", pd.Series(dtype=float)), errors="coerce").mean()) if not quimiometria_candidatos_df.empty else None,
     "n_pares_descritores_colineares": int(len(colinearidade_descritores_df)),
     "n_grupos_quimiometricos": int(n_grupos_quimiometricos),
     "silhouette_quimiometrico": None if pd.isna(silhouette_quimiometrico) else float(silhouette_quimiometrico),
