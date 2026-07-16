@@ -1,3 +1,6 @@
+# Importa math para calcular exponenciais nas correcoes de volcano e temperatura.
+import math
+
 # Define colunas geradas pela validacao avancada.
 colunas_validacao_avancada = [
     "formula",
