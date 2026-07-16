@@ -4735,7 +4735,7 @@ plt.gca().invert_yaxis()
 plt.xlabel("Score final")
 
 # Define título do gráfico.
-plt.title("Top candidatos por score final")
+plt.title("Top 10 candidatos por score final")
 
 # Limita o eixo x para a escala de score.
 plt.xlim(0, max(1.0, float(top_plot["score_final"].max()) * 1.10))
@@ -4746,22 +4746,73 @@ salvar_figura("02_ranking_score_final")
 # Exibe o gráfico no notebook.
 plt.show()
 
-# Cria figura para estabilidade versus score.
-plt.figure(figsize=(7.5, 5.5))
+# Seleciona apenas candidatos com estabilidade e score final numéricos para o gráfico rotulado.
+estabilidade_plot = melhor_por_candidato_df.dropna(subset=["energy_above_hull_eV_atom", "score_final"]).copy()
+
+# Cria figura maior para estabilidade versus score e abre espaço para os rótulos das fórmulas.
+plt.figure(figsize=(10.5, 6.4))
 
 # Define cores dos pontos conforme a confiabilidade.
-scatter_colors = melhor_por_candidato_df["confiabilidade"].map(cores_confiabilidade).fillna("#616161")
+scatter_colors = estabilidade_plot["confiabilidade"].map(cores_confiabilidade).fillna("#616161")
 
 # Desenha dispersão entre estabilidade termodinâmica e score final.
 plt.scatter(
-    melhor_por_candidato_df["energy_above_hull_eV_atom"],
-    melhor_por_candidato_df["score_final"],
+    estabilidade_plot["energy_above_hull_eV_atom"],
+    estabilidade_plot["score_final"],
     c=scatter_colors,
     s=80,
     alpha=0.85,
     edgecolor="black",
     linewidth=0.4,
 )
+
+# Posiciona os rótulos em colunas laterais para evitar sobreposição entre fórmulas próximas.
+if not estabilidade_plot.empty:
+    # Ordena os pontos por score para distribuir os rótulos verticalmente.
+    estabilidade_rotulos = estabilidade_plot.sort_values("score_final", ascending=False).reset_index(drop=True)
+    # Calcula limites de referência do eixo x incluindo os limites de estabilidade.
+    x_min_estabilidade = min(0.0, float(estabilidade_rotulos["energy_above_hull_eV_atom"].min()))
+    # Calcula limite máximo considerando o limite exploratório e os valores dos candidatos.
+    x_max_estabilidade = max(float(perfil["limite_hull_exploratorio"]), float(estabilidade_rotulos["energy_above_hull_eV_atom"].max()))
+    # Define amplitude mínima para criar espaço lateral mesmo quando os pontos têm x muito parecido.
+    amplitude_x_estabilidade = max(x_max_estabilidade - x_min_estabilidade, 0.12)
+    # Calcula limites de referência do eixo y.
+    y_min_estabilidade = float(estabilidade_rotulos["score_final"].min())
+    # Calcula limite superior do eixo y.
+    y_max_estabilidade = float(estabilidade_rotulos["score_final"].max())
+    # Define amplitude mínima para espaçar rótulos quando os scores são muito próximos.
+    amplitude_y_estabilidade = max(y_max_estabilidade - y_min_estabilidade, 0.007)
+    # Cria posições verticais igualmente espaçadas para impedir colisão dos textos.
+    y_rotulos_estabilidade = np.linspace(
+        y_max_estabilidade + 0.06 * amplitude_y_estabilidade,
+        y_min_estabilidade - 0.06 * amplitude_y_estabilidade,
+        len(estabilidade_rotulos),
+    )
+    # Define uma coluna de rótulos à direita dos pontos, usando a área vazia do gráfico.
+    x_rotulo_direita = x_min_estabilidade + 0.065 * amplitude_x_estabilidade
+    # Ajusta limites do gráfico para incluir os rótulos e manter a escala de estabilidade.
+    plt.xlim(x_min_estabilidade - 0.03 * amplitude_x_estabilidade, x_max_estabilidade + 0.08 * amplitude_x_estabilidade)
+    # Ajusta limites verticais para incluir o primeiro e o último rótulo.
+    plt.ylim(y_min_estabilidade - 0.18 * amplitude_y_estabilidade, y_max_estabilidade + 0.18 * amplitude_y_estabilidade)
+    # Percorre cada ponto do gráfico para escrever a fórmula química correspondente.
+    for indice_rotulo, (_, row_rotulo) in enumerate(estabilidade_rotulos.iterrows()):
+        # Define a posição horizontal do rótulo atual.
+        x_rotulo = x_rotulo_direita
+        # Anota o ponto com a fórmula do candidato e uma linha-guia discreta.
+        plt.annotate(
+            str(row_rotulo["formula"]),
+            (float(row_rotulo["energy_above_hull_eV_atom"]), float(row_rotulo["score_final"])),
+            xytext=(x_rotulo, float(y_rotulos_estabilidade[indice_rotulo])),
+            textcoords="data",
+            ha="left",
+            va="center",
+            fontsize=8,
+            color="#263238",
+            arrowprops=dict(arrowstyle="-", color="#78909C", lw=0.55, alpha=0.75),
+        )
+else:
+    # Mantém margens padrão caso não exista ponto válido para rotular.
+    plt.margins(x=0.12, y=0.18)
 
 # Marca o limite principal de estabilidade.
 plt.axvline(perfil["limite_hull_principal"], color="#2E7D32", linestyle="--", linewidth=1.5, label="limite principal")
@@ -4778,8 +4829,11 @@ plt.ylabel("Score final")
 # Define título do gráfico.
 plt.title("Estabilidade termodinâmica versus score final")
 
-# Adiciona legenda dos limites.
-plt.legend()
+# Adiciona legenda dos limites fora do gráfico para manter os rótulos legíveis.
+plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False)
+
+# Ajusta layout reservando espaço lateral para a legenda externa.
+plt.tight_layout(rect=[0, 0, 0.84, 1])
 
 # Salva o gráfico de estabilidade versus score.
 salvar_figura("03_estabilidade_vs_score")
@@ -4815,7 +4869,7 @@ x_volcano = np.linspace(x_min, x_max, 250)
 y_volcano = np.exp(-np.abs(x_volcano - energia_otima_plot) / max(largura_volcano_plot, 0.05))
 
 # Desenha a curva de vulcão.
-plt.plot(x_volcano, y_volcano, color="#424242", linewidth=2.0, label="curva volcano")
+plt.plot(x_volcano, y_volcano, color="#424242", linewidth=2.0, label="curva de vulcão")
 
 # Marca o ponto ótimo do descritor.
 plt.axvline(energia_otima_plot, color="#2E7D32", linestyle="--", linewidth=1.6, label="ótimo")
@@ -4871,10 +4925,10 @@ if len(volcano_plot):
 plt.xlabel(f"Energia de adsorção proxy de {volcano_cfg['descritor']} (eV)")
 
 # Define rótulo do eixo y.
-plt.ylabel("Score volcano")
+plt.ylabel("Score de vulcão")
 
 # Define título do gráfico.
-plt.title("Gráfico de Vulcão simplificado")
+plt.title("Gráfico de vulcão simplificado")
 
 # Expande o eixo x para dar espaço aos rótulos laterais.
 plt.xlim(x_min - 0.25 * largura_volcano_plot, x_max + 0.25 * largura_volcano_plot)
@@ -4958,7 +5012,7 @@ plt.xticks(rotation=25, ha="right")
 plt.ylabel("Valor médio previsto (%)")
 
 # Define título do gráfico.
-plt.title("Desempenho médio em faixa de condição - Top 10")
+plt.title("Desempenho médio por faixa de condição - Top 10")
 
 # Adiciona legenda.
 plt.legend()
@@ -5011,11 +5065,11 @@ if not pca_quimiometrica_df.empty:
         # Posiciona rotulo perto do ponto.
         plt.annotate(str(row["formula"]), (row["PC1"], row["PC2"]), textcoords="offset points", xytext=(6, 6), fontsize=8)
     # Define rotulo do eixo PC1 com variancia explicada.
-    plt.xlabel(f"PC1 ({100 * float(pca_quimiometrica_df['variancia_PC1'].iloc[0]):.1f}% da variancia)")
+    plt.xlabel(f"PC1 ({100 * float(pca_quimiometrica_df['variancia_PC1'].iloc[0]):.1f}% da variância)")
     # Define rotulo do eixo PC2 com variancia explicada.
-    plt.ylabel(f"PC2 ({100 * float(pca_quimiometrica_df['variancia_PC2'].iloc[0]):.1f}% da variancia)")
+    plt.ylabel(f"PC2 ({100 * float(pca_quimiometrica_df['variancia_PC2'].iloc[0]):.1f}% da variância)")
     # Define titulo do mapa PCA.
-    plt.title("PCA dos descritores cataliticos")
+    plt.title("PCA dos descritores catalíticos")
     # Adiciona legenda dos grupos.
     plt.legend()
     # Ajusta layout para evitar cortes.
@@ -5042,11 +5096,11 @@ if not agrupamento_quimiometrico_df.empty:
         # Posiciona rotulo acima da barra.
         plt.text(indice, row["n_candidatos"] + altura_maxima_grupos * 0.06, str(row["formula_representante"]), ha="center", va="bottom", fontsize=8)
     # Define rotulo do eixo x.
-    plt.xlabel("Grupo quimiometrico")
+    plt.xlabel("Grupo quimiométrico")
     # Define rotulo do eixo y.
-    plt.ylabel("Numero de candidatos")
+    plt.ylabel("Número de candidatos")
     # Define titulo da figura.
-    plt.title("Diversidade quimiometrica dos candidatos")
+    plt.title("Diversidade quimiométrica dos candidatos")
     # Ajusta layout da figura.
     plt.tight_layout()
     # Salva a figura dos grupos.
@@ -5057,23 +5111,21 @@ if not agrupamento_quimiometrico_df.empty:
 # Cria figura do planejamento DOE sugerido.
 if not doe_sintese_df.empty:
     # Inicializa figura do DOE.
-    plt.figure(figsize=(9.4, 6.4))
+    plt.figure(figsize=(11.2, 6.4))
     # Percorre cada candidato para diferenciar pontos experimentais.
     for formula, dados_formula in doe_sintese_df.groupby("formula"):
         # Desenha temperatura versus razao reacional como mapa de condicoes.
         plt.scatter(dados_formula["temperatura_C"], dados_formula["razao"], s=72, alpha=0.78, edgecolor="black", linewidth=0.35, label=str(formula))
     # Define rotulo do eixo x.
-    plt.xlabel("Temperatura (C)")
+    plt.xlabel("Temperatura (°C)")
     # Define rotulo do eixo y.
-    plt.ylabel("Razao reacional")
+    plt.ylabel("Razão reacional")
     # Define titulo do DOE.
-    plt.title("Planejamento DOE sugerido para confirmacao", pad=42)
-    # Define quantidade de colunas da legenda para manter as formulas legiveis.
-    n_colunas_legenda_doe = min(4, max(1, doe_sintese_df["formula"].nunique()))
-    # Posiciona a legenda acima do grafico para nao cobrir os pontos do planejamento.
-    plt.legend(loc="lower center", bbox_to_anchor=(0.5, 1.03), ncol=n_colunas_legenda_doe, frameon=False, fontsize=8, title="Candidatos")
-    # Ajusta layout reservando espaco no topo para a legenda externa.
-    plt.tight_layout(rect=[0, 0, 1, 0.86])
+    plt.title("Planejamento DOE sugerido em duas dimensões")
+    # Posiciona a legenda fora do gráfico, à direita, para não cobrir os pontos do planejamento.
+    plt.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False, fontsize=8, title="Candidatos")
+    # Ajusta layout reservando espaço lateral para a legenda externa.
+    plt.tight_layout(rect=[0, 0, 0.80, 1])
     # Salva figura do DOE.
     salvar_figura("10_doe_sintese")
     # Exibe figura do DOE.
@@ -5088,13 +5140,13 @@ if not correlacao_descritores_df.empty:
     # Desenha a matriz de correlacao em escala divergente.
     imagem_corr = plt.imshow(correlacao_descritores_df.values, vmin=-1, vmax=1, cmap="coolwarm")
     # Adiciona barra de cores para interpretar correlacoes positivas e negativas.
-    plt.colorbar(imagem_corr, fraction=0.046, pad=0.04, label="Correlacao de Pearson")
+    plt.colorbar(imagem_corr, fraction=0.046, pad=0.04, label="Correlação de Pearson")
     # Define posicoes dos descritores no eixo x.
     plt.xticks(range(len(correlacao_descritores_df.columns)), correlacao_descritores_df.columns, rotation=45, ha="right", fontsize=8)
     # Define posicoes dos descritores no eixo y.
     plt.yticks(range(len(correlacao_descritores_df.index)), correlacao_descritores_df.index, fontsize=8)
     # Define titulo do mapa de calor.
-    plt.title("Correlacao entre descritores quimiometricos")
+    plt.title("Correlação entre descritores quimiométricos")
     # Ajusta layout para manter os nomes visiveis.
     plt.tight_layout()
     # Salva figura de correlacao.
@@ -5119,7 +5171,7 @@ if not pca_quimiometrica_df.empty and not outliers_quimiometricos_df.empty:
     # Desenha candidatos outliers em vermelho.
     dados_outliers = pca_outlier_plot[pca_outlier_plot["outlier_quimiometrico"]]
     # Plota candidatos dentro do dominio multivariado.
-    plt.scatter(dados_normais["PC1"], dados_normais["PC2"], s=80, alpha=0.78, color="#1976D2", edgecolor="black", linewidth=0.35, label="dentro do dominio")
+    plt.scatter(dados_normais["PC1"], dados_normais["PC2"], s=80, alpha=0.78, color="#1976D2", edgecolor="black", linewidth=0.35, label="dentro do domínio")
     # Plota candidatos marcados como outliers.
     if not dados_outliers.empty:
         # Usa marcador destacado para facilitar identificacao visual.
@@ -5133,7 +5185,7 @@ if not pca_quimiometrica_df.empty and not outliers_quimiometricos_df.empty:
     # Define rotulo do eixo PC2.
     plt.ylabel("PC2")
     # Define titulo da figura de outliers.
-    plt.title("Deteccao de outliers no espaco PCA")
+    plt.title("Detecção de outliers no espaço PCA")
     # Adiciona legenda.
     plt.legend()
     # Ajusta layout.
@@ -5155,6 +5207,12 @@ if not dominio_aplicabilidade_df.empty:
         "zona_de_atencao": "#F9A825",
         "fora_do_dominio": "#C62828",
     }
+    # Define rótulos em português para a legenda das classes de domínio.
+    rotulos_dominio = {
+        "dentro_do_dominio": "dentro do domínio",
+        "zona_de_atencao": "zona de atenção",
+        "fora_do_dominio": "fora do domínio",
+    }
     # Inicializa figura de dominio.
     plt.figure(figsize=(9.0, 5.6))
     # Plota cada classe separadamente para gerar legenda clara.
@@ -5168,11 +5226,11 @@ if not dominio_aplicabilidade_df.empty:
             color=cores_dominio.get(str(classe), "#616161"),
             edgecolor="black",
             linewidth=0.35,
-            label=str(classe),
+            label=rotulos_dominio.get(str(classe), str(classe).replace("_", " ")),
         )
     # Marca o limiar de Hotelling T2 quando finito.
     if np.isfinite(float(dominio_plot["limiar_hotelling_t2"].iloc[0])):
-        plt.axvline(float(dominio_plot["limiar_hotelling_t2"].iloc[0]), color="#455A64", linestyle="--", linewidth=1.0, label="limiar T2")
+        plt.axvline(float(dominio_plot["limiar_hotelling_t2"].iloc[0]), color="#455A64", linestyle="--", linewidth=1.0, label="limiar T²")
     # Marca o limiar de Q residual quando finito.
     if np.isfinite(float(dominio_plot["limiar_q_residual"].iloc[0])):
         plt.axhline(float(dominio_plot["limiar_q_residual"].iloc[0]), color="#78909C", linestyle="--", linewidth=1.0, label="limiar Q")
@@ -5181,11 +5239,11 @@ if not dominio_aplicabilidade_df.empty:
         # Rotula pontos de menor dominio.
         plt.annotate(str(row["formula"]), (row["hotelling_t2"], row["q_residual"]), textcoords="offset points", xytext=(6, 6), fontsize=8)
     # Define rotulo do eixo x.
-    plt.xlabel("Hotelling T2")
+    plt.xlabel("Hotelling T²")
     # Define rotulo do eixo y.
     plt.ylabel("Q residual")
     # Define titulo.
-    plt.title("Dominio de aplicabilidade quimiometrico")
+    plt.title("Domínio de aplicabilidade quimiométrico")
     # Adiciona legenda.
     plt.legend(fontsize=8)
     # Ajusta layout.
@@ -5218,11 +5276,11 @@ if not pareto_desejabilidade_df.empty:
     plt.xlim(-0.03, 1.03)
     plt.ylim(-0.03, 1.03)
     # Define rotulo do eixo x.
-    plt.xlabel("Score de dominio de aplicabilidade")
+    plt.xlabel("Score de domínio de aplicabilidade")
     # Define rotulo do eixo y.
     plt.ylabel("Desejabilidade global")
     # Define titulo.
-    plt.title("Pareto e desejabilidade multicriterio")
+    plt.title("Pareto e desejabilidade multicritério")
     # Adiciona legenda.
     plt.legend(fontsize=8)
     # Ajusta layout.
@@ -5272,9 +5330,9 @@ if not modelos_regressao_quimiometrica_df.empty:
         # Rotaciona rotulos do eixo x.
         plt.xticks(rotation=25, ha="right")
         # Define rotulo do eixo y.
-        plt.ylabel("R2 em validacao cruzada")
+        plt.ylabel("R² em validação cruzada")
         # Define titulo da figura.
-        plt.title("PCR/PLSR como validacao quimiometrica proxy")
+        plt.title("PCR/PLSR como validação quimiométrica proxy")
         # Ajusta layout.
         plt.tight_layout()
         # Salva figura de regressao proxy.
@@ -5307,10 +5365,10 @@ nomes_colunas_pt = {
     "formula": "fórmula",
     "tipo": "tipo de candidato",
     "suporte_sugerido": "suporte sugerido",
-    "rota_sintese_sugerida": "rota de sintese sugerida",
+    "rota_sintese_sugerida": "rota de síntese sugerida",
     "pretratamento_sugerido": "pre-tratamento sugerido",
-    "justificativa_suporte_sintese": "justificativa quimica do suporte e sintese",
-    "observacao_sintese": "observacao de sintese",
+    "justificativa_suporte_sintese": "justificativa química do suporte e síntese",
+    "observacao_sintese": "observação de síntese",
     "energy_above_hull_eV_atom": "Estabilidade termodinâmica (eV/átomo)",
     "score_estabilidade": "score de estabilidade",
     "score_atividade": "score de atividade",
@@ -5347,13 +5405,13 @@ nomes_colunas_pt = {
     "n_sites_proxy_gnn": "número de sítios proxy GNN",
     "peso_boltzmann_estabilidade": "peso de Boltzmann da estabilidade",
     "score_DFT_boltzmann": "score DFT ajustado por Boltzmann",
-    "descritor_volcano": "descritor volcano",
-    "energia_adsorcao_volcano_eV": "energia de adsorção volcano (eV)",
-    "fonte_volcano": "fonte do volcano",
-    "distancia_otimo_volcano_eV": "distância ao ótimo volcano (eV)",
-    "barreira_aparente_volcano_eV": "barreira aparente volcano (eV)",
-    "taxa_relativa_volcano": "taxa relativa volcano",
-    "score_volcano": "score volcano",
+    "descritor_volcano": "descritor de vulcão",
+    "energia_adsorcao_volcano_eV": "energia de adsorção do vulcão (eV)",
+    "fonte_volcano": "fonte do vulcão",
+    "distancia_otimo_volcano_eV": "distância ao ótimo do vulcão (eV)",
+    "barreira_aparente_volcano_eV": "barreira aparente do vulcão (eV)",
+    "taxa_relativa_volcano": "taxa relativa do vulcão",
+    "score_volcano": "score de vulcão",
     "score_final_material": "score final do material",
     "temperatura_C": "temperatura (°C)",
     "pressao_bar": "pressão (bar)",
@@ -5394,64 +5452,64 @@ nomes_colunas_pt = {
     "pymatgen_raio_atomico_medio": "raio atômico médio calculado pelo pymatgen",
     "PC1": "componente principal 1",
     "PC2": "componente principal 2",
-    "variancia_PC1": "variancia explicada pelo PC1",
-    "variancia_PC2": "variancia explicada pelo PC2",
-    "grupo_quimiometrico": "grupo quimiometrico",
-    "classe_prioridade_quimiometrica": "classe de prioridade quimiometrica",
-    "correlacao_score_final_abs": "correlacao absoluta com o score final",
-    "variancia_padronizada": "variancia do descritor",
-    "sensibilidade_media_abs": "sensibilidade media absoluta",
-    "prioridade_quimiometrica": "prioridade quimiometrica do descritor",
-    "n_candidatos": "numero de candidatos",
-    "score_final_medio": "score final medio",
-    "score_final_maximo": "score final maximo",
-    "estabilidade_media_eV_atom": "estabilidade termodinamica media (eV/atomo)",
-    "probabilidade_mc_media": "probabilidade Monte Carlo media",
-    "formula_representante": "formula representante",
+    "variancia_PC1": "variância explicada pelo PC1",
+    "variancia_PC2": "variância explicada pelo PC2",
+    "grupo_quimiometrico": "grupo quimiométrico",
+    "classe_prioridade_quimiometrica": "classe de prioridade quimiométrica",
+    "correlacao_score_final_abs": "correlação absoluta com o score final",
+    "variancia_padronizada": "variância do descritor",
+    "sensibilidade_media_abs": "sensibilidade média absoluta",
+    "prioridade_quimiometrica": "prioridade quimiométrica do descritor",
+    "n_candidatos": "número de candidatos",
+    "score_final_medio": "score final médio",
+    "score_final_maximo": "score final máximo",
+    "estabilidade_media_eV_atom": "estabilidade termodinâmica média (eV/átomo)",
+    "probabilidade_mc_media": "probabilidade Monte Carlo média",
+    "formula_representante": "fórmula representante",
     "unidade": "unidade",
     "ensaio_doe": "ensaio DOE",
     "tipo_ponto": "tipo de ponto",
     "etapa_planejamento": "etapa do planejamento",
-    "fracao_promotor_planejada": "fracao de promotor planejada",
+    "fracao_promotor_planejada": "fração de promotor planejada",
     "percentual_promotor_planejado": "percentual de promotor planejado (%)",
-    "nivel_codificado_temperatura": "nivel codificado da temperatura",
-    "nivel_codificado_pressao": "nivel codificado da pressao",
-    "nivel_codificado_razao": "nivel codificado da razao",
-    "nivel_codificado_ghsv": "nivel codificado do GHSV",
-    "nivel_codificado_promotor": "nivel codificado do promotor",
-    "objetivo_quimiometrico": "objetivo quimiometrico",
+    "nivel_codificado_temperatura": "nível codificado da temperatura",
+    "nivel_codificado_pressao": "nível codificado da pressão",
+    "nivel_codificado_razao": "nível codificado da razão",
+    "nivel_codificado_ghsv": "nível codificado do GHSV",
+    "nivel_codificado_promotor": "nível codificado do promotor",
+    "objetivo_quimiometrico": "objetivo quimiométrico",
     "justificativa_doe": "justificativa DOE",
-    "n_valores": "numero de valores",
+    "n_valores": "número de valores",
     "n_ausentes_antes": "valores ausentes antes",
-    "fracao_ausente_antes": "fracao ausente antes",
-    "mediana_imputacao": "mediana usada na imputacao",
-    "media_apos_imputacao": "media apos imputacao",
-    "desvio_apos_imputacao": "desvio apos imputacao",
-    "metodo_imputacao": "metodo de imputacao",
+    "fracao_ausente_antes": "fração ausente antes",
+    "mediana_imputacao": "mediana usada na imputação",
+    "media_apos_imputacao": "média após imputação",
+    "desvio_apos_imputacao": "desvio após imputação",
+    "metodo_imputacao": "método de imputação",
     "metodo_escalonamento": "metodo de escalonamento",
     "descritor_a": "descritor A",
     "descritor_b": "descritor B",
-    "correlacao_abs": "correlacao absoluta",
+    "correlacao_abs": "correlação absoluta",
     "limiar_colinearidade": "limiar de colinearidade",
     "prioridade_a": "prioridade do descritor A",
     "prioridade_b": "prioridade do descritor B",
     "descritor_recomendado": "descritor recomendado",
     "descritor_redundante": "descritor redundante",
-    "distancia_pca": "distancia no espaco PCA",
-    "distancia_mahalanobis": "distancia de Mahalanobis",
-    "hotelling_t2": "Hotelling T2",
+    "distancia_pca": "distância no espaço PCA",
+    "distancia_mahalanobis": "distância de Mahalanobis",
+    "hotelling_t2": "Hotelling T²",
     "q_residual": "Q residual",
     "limiar_pca": "limiar PCA",
     "limiar_mahalanobis": "limiar Mahalanobis",
-    "limiar_hotelling_t2": "limiar Hotelling T2",
+    "limiar_hotelling_t2": "limiar Hotelling T²",
     "limiar_q_residual": "limiar Q residual",
-    "score_dominio_aplicabilidade": "score de dominio de aplicabilidade",
-    "classe_dominio_aplicabilidade": "classe de dominio de aplicabilidade",
+    "score_dominio_aplicabilidade": "score de domínio de aplicabilidade",
+    "classe_dominio_aplicabilidade": "classe de domínio de aplicabilidade",
     "outlier_pca": "outlier por PCA",
     "outlier_mahalanobis": "outlier por Mahalanobis",
-    "outlier_hotelling_t2": "outlier por Hotelling T2",
+    "outlier_hotelling_t2": "outlier por Hotelling T²",
     "outlier_q_residual": "outlier por Q residual",
-    "outlier_quimiometrico": "outlier quimiometrico",
+    "outlier_quimiometrico": "outlier quimiométrico",
     "motivo_outlier": "motivo do outlier",
     "desejabilidade_estabilidade": "desejabilidade de estabilidade",
     "desejabilidade_atividade": "desejabilidade de atividade",
@@ -5459,37 +5517,37 @@ nomes_colunas_pt = {
     "desejabilidade_dft": "desejabilidade DFT/proxy DFT",
     "desejabilidade_robustez": "desejabilidade de robustez",
     "desejabilidade_coque": "desejabilidade contra coque",
-    "desejabilidade_dominio": "desejabilidade de dominio",
+    "desejabilidade_dominio": "desejabilidade de domínio",
     "desejabilidade_global": "desejabilidade global",
     "fronteira_pareto": "fronteira de Pareto",
-    "distancia_pareto_ideal": "distancia ao ideal de Pareto",
+    "distancia_pareto_ideal": "distância ao ideal de Pareto",
     "rank_desejabilidade": "rank por desejabilidade",
-    "desejabilidade_media": "desejabilidade media",
-    "fracao_pareto": "fracao na fronteira de Pareto",
-    "score_dominio_medio": "score medio de dominio",
-    "posicao_ranking": "posicao no ranking",
+    "desejabilidade_media": "desejabilidade média",
+    "fracao_pareto": "fração na fronteira de Pareto",
+    "score_dominio_medio": "score médio de domínio",
+    "posicao_ranking": "posição no ranking",
     "score_robustez_ranking": "score de robustez do ranking",
     "classe_robustez_ranking": "classe de robustez do ranking",
     "margem_score_para_proximo": "margem de score para o proximo",
-    "posicao_media_monte_carlo": "posicao media por Monte Carlo",
-    "deslocamento_posicao_mc": "deslocamento de posicao por Monte Carlo",
+    "posicao_media_monte_carlo": "posição média por Monte Carlo",
+    "deslocamento_posicao_mc": "deslocamento de posição por Monte Carlo",
     "objetivo": "objetivo",
     "modelo": "modelo",
-    "n_componentes": "numero de componentes",
-    "r2_cv": "R2 em validacao cruzada",
-    "rmse_cv": "RMSE em validacao cruzada",
-    "r2_treino": "R2 no treino",
+    "n_componentes": "número de componentes",
+    "r2_cv": "R² em validação cruzada",
+    "rmse_cv": "RMSE em validação cruzada",
+    "r2_treino": "R² no treino",
     "rmse_treino": "RMSE no treino",
-    "observacao": "observacao",
+    "observacao": "observação",
     "valor_observado_proxy": "valor observado proxy",
-    "valor_predito_cv": "valor predito em validacao cruzada",
+    "valor_predito_cv": "valor predito em validação cruzada",
     "valor_predito_treino": "valor predito no treino",
-    "residuo_cv": "residuo em validacao cruzada",
-    "criterio": "criterio",
+    "residuo_cv": "resíduo em validação cruzada",
+    "criterio": "critério",
     "status": "status",
-    "evidencia": "evidencia",
+    "evidencia": "evidência",
     "risco_residual": "risco residual",
-    "acao_recomendada": "acao recomendada",
+    "acao_recomendada": "ação recomendada",
 }
 
 # Define função auxiliar para traduzir apenas os nomes das colunas exportadas.
