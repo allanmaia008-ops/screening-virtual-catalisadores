@@ -50,7 +50,7 @@ def corrigir_markdown_segmento(texto):
         "especificos": "específicos",
         "resistencia": "resistência",
         "tendencia": "tendência",
-        "desativacao": "desativaçãooo",
+        "desativacao": "desativação",
         "correcao": "correção",
         "Correcao": "Correçãoo",
         "atômico medio": "atômico médio",
@@ -66,21 +66,21 @@ def corrigir_markdown_segmento(texto):
         "multicriterio": "multicritério",
         "catalitica": "catalítica",
         "catalitico": "catalítico",
-        "adsorcao": "adsorçãoo",
+        "adsorcao": "adsorção",
         "metaestaveis": "metaestáveis",
         "referencia": "referência",
-        "razao": "razãoo",
+        "razao": "razão",
         "condicoes": "condições",
-        "condicao": "condiçãoo",
+        "condicao": "condição",
         "desejaveis": "desejáveis",
         "sintese": "síntese",
         "pressao": "pressão",
         "composicao": "composição",
-        "conversao": "conversãoo",
+        "conversao": "conversão",
         "validacoes": "validações",
         "estatisticas": "estatísticas",
         "analise": "análise",
-        "simulacao": "simulaçãoo",
+        "simulacao": "simulação",
         "confianca": "confiança",
         "permanencia": "permanência",
         "Validacao": "Validação",
@@ -186,7 +186,7 @@ nb["cells"] = [
 
 9.1. Peso termodinamico de Boltzmann: penaliza candidatos mais metaestaveis usando estabilidade termodinâmica e temperatura de referência.
 
-9.2. Volcano e modelo cinético simplificado: transforma energia de adsorção real ou proxy em taxa relativa tipo Sabatier e estima uma energia de ativação proxy por Arrhenius, favorecendo adsorção moderada, barreira baixa e condição operacional compatível.
+9.2. Vulc?o e modelo cinético simplificado: transforma energia de adsorção real ou proxy em taxa relativa tipo Sabatier e estima uma energia de ativação proxy por Arrhenius, favorecendo adsorção moderada, barreira baixa e condição operacional compatível.
 
 9.3. Correção de desativação por coque para reforma: usa energia/proxy de adsorção de C, score redox, resistência composicional a coque, razão $CH_4$/$CO_2$ e taxa cinética corrigida para penalizar candidatos com maior tendência a formar carbono superficial.
 
@@ -203,7 +203,7 @@ nb["cells"] = [
 
 13. Validacao quimiometrica, PCA, agrupamento e DOE: aplica pre-processamento formal, padronizacao, PCA, Hotelling T2, Q residual, dominio de aplicabilidade, deteccao de outliers, correlacao/colinearidade, agrupamento KMeans, Pareto, funcao de desejabilidade, selecao de descritores, validacao de robustez do ranking, PCR/PLSR proxy, metricas da triagem virtual e planejamento experimental ampliado para os candidatos finais.
 
-14. Validacao avancada dos candidatos prioritarios e correcao de temperatura do Top 10: reavalia os candidatos finais por nivel de evidencia, compatibilidade metal-suporte, risco de sinterizacao, risco redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma e robustez contra vies sistematico. Em seguida, aplica ao Top 10 uma correcao termodinamica aproximada de temperatura para energia de adsorcao, recalcula o score de vulcao e compara ranking original versus ranking corrigido.
+14. Validacao avancada dos candidatos prioritarios e correcao de temperatura do Top 10: reavalia os candidatos finais por nivel de evidencia, compatibilidade metal-suporte, risco de sinterizacao, risco redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma e robustez contra vies sistematico. Em seguida, aplica ao Top 10 uma correcao termodinamica aproximada de temperatura para energia de adsorcao, recalcula o score de vulcão e compara ranking original versus ranking corrigido.
 
 15. Visualização científica dos resultados: salva figuras do funil de triagem, ranking, estabilidade versus score, Monte Carlo, desempenho por condição, sensibilidade dos descritores, PCA, agrupamento, domínio de aplicabilidade, Pareto/desejabilidade e DOE. Na interface Streamlit, os principais gráficos de dispersão também são apresentados de forma interativa com Plotly e tooltip por candidato.
 
@@ -302,7 +302,7 @@ import time
 # Importa getpass para solicitar chave do Materials Project sem exibi-la.
 from getpass import getpass
 
-# Importa math para funções matemáticas usadas nos fatores de condiçãoo reacional.
+# Importa math para funções matemáticas usadas nos fatores de condição reacional.
 import math
 
 # Importa re para extrair símbolos químicos das fórmulas.
@@ -854,7 +854,7 @@ if len(metais_usuario) > 1 and promotor_usuario not in metais_usuario:
         if funil_inicial_completo():
             # Sai do laço de frações de promotor.
             break
-        # Varia a razãoo interna entre os dois metais ativos.
+        # Varia a razão interna entre os dois metais ativos.
         for fracao_a_relativa in PROPORCOES_LIGA_ATIVA:
             # Interrompe a camada se o funil inicial já estiver completo.
             if funil_inicial_completo():
@@ -1117,7 +1117,7 @@ def enviar_csv_incremental_github(caminho_repo, origem_local, mensagem):
         print(f"Nao foi possivel enviar {caminho_repo} ao GitHub: {erro_github}")
         return False
 
-# Baixa a vers?o mais recente do banco principal antes de carregar os dados.
+# Baixa a versão mais recente do banco principal antes de carregar os dados.
 baixar_csv_incremental_github(GITHUB_RANKING_PATH, RANKING_FILE)
 
 # Carrega a base local de triagem se ela existir.
@@ -1483,7 +1483,7 @@ def calcular_descritores(row):
     ativo = float(obter(row, "cat_active_metal_proxy", media_elementar(formula, "ativo")))
     # Calcula score redox associado a vacâncias/mobilidade de oxigênio.
     redox = float(obter(row, "cat_redox_proxy", media_elementar(formula, "redox")))
-    # Calcula score de basicidade para ativaçãoo de CO2.
+    # Calcula score de basicidade para ativação de CO2.
     basicidade = float(obter(row, "cat_basicity_proxy", media_elementar(formula, "basicidade")))
     # Calcula fração nobre aproximada.
     nobre = float(obter(row, "cat_noble_fraction", media_elementar(formula, "nobre")))
@@ -2386,7 +2386,7 @@ preliminar_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_pr
         """
 ## Etapa 9 - Busca catalítica incremental no Catalysis-Hub e refinamento DFT
 
-A busca catalítica é aplicada apenas aos melhores candidatos preliminares. O notebook consulta primeiro o cache local do Catalysis-Hub; quando não há dados para a fórmula e a reação, tenta buscar dados externos de reação/adsorçãoo para os intermediários relevantes. Os dados obtidos são salvos em cache local para reutilização e entram no score DFT refinado. Quando não há resposta externa, o notebook usa o proxy químico calculado pelos descritores da reação.
+A busca catalítica é aplicada apenas aos melhores candidatos preliminares. O notebook consulta primeiro o cache local do Catalysis-Hub; quando não há dados para a fórmula e a reação, tenta buscar dados externos de reação/adsorção para os intermediários relevantes. Os dados obtidos são salvos em cache local para reutilização e entram no score DFT refinado. Quando não há resposta externa, o notebook usa o proxy químico calculado pelos descritores da reação.
 """
     ),
     code(
@@ -2424,19 +2424,19 @@ ALVOS_ADSORCAO_EV = {
 
 # Define função para remover marcações de superfície dos intermediários DFT.
 def normalizar_adsorbato(intermediario):
-    # Remove o símbolo de adsorçãoo para consultar a base de reações.
+    # Remove o símbolo de adsorção para consultar a base de reações.
     return str(intermediario).replace("*", "").strip()
 
-# Define função para calcular score catalítico a partir de energia de reação/adsorçãoo.
+# Define função para calcular score catalítico a partir de energia de reação/adsorção.
 def score_cathub_por_energia(adsorbato, energia):
     # Retorna vazio se a energia não estiver disponível.
     if pd.isna(energia):
         return np.nan
     # Seleciona o alvo químico da reação ou usa alvo moderado quando não há valor específico.
     alvo = ALVOS_ADSORCAO_EV.get(reacao, {}).get(str(adsorbato), 0.75)
-    # Usa o módulo da energia porque a API pode representar adsorçãoo como energia negativa.
+    # Usa o módulo da energia porque a API pode representar adsorção como energia negativa.
     modulo = abs(float(energia))
-    # Aplica uma penalização suave quando a adsorçãoo fica fraca ou forte demais.
+    # Aplica uma penalização suave quando a adsorção fica fraca ou forte demais.
     return float(np.clip(np.exp(-abs(modulo - alvo) / max(alvo, 0.15)), 0, 1))
 
 # Define função para verificar se já há consulta bem-sucedida do Catalysis-Hub para a fórmula.
@@ -2625,7 +2625,7 @@ def agregar_cathub_formula(formula):
         }
     # Calcula score médio dos intermediários disponíveis.
     score = dados["score_adsorcao_cathub"].dropna().mean()
-    # Calcula energia média de reação/adsorçãoo.
+    # Calcula energia média de reação/adsorção.
     energia = pd.to_numeric(dados["energia_reacao_eV"], errors="coerce").dropna().mean()
     # Lista adsorbatos encontrados.
     ads = ", ".join(sorted(dados["adsorbato"].dropna().astype(str).unique()))
@@ -2739,9 +2739,9 @@ refinado_df.sort_values("score_final_material", ascending=False)[[
     ),
     md(
         """
-### Subetapa 9.2 - Volcano simplificado por descritor catalítico
+### Subetapa 9.2 - Vulc?o simplificado por descritor catalítico
 
-Esta subetapa aplica uma forma simplificada do princípio de Sabatier: adsorçãoo fraca demais reduz ativaçãoo, e adsorçãoo forte demais dificulta dessorção/turnover. O score volcano usa energia real do Catalysis-Hub quando disponível; quando não há, usa um descritor proxy derivado de GNN local, DFT proxy e estabilidade. O resultado é uma taxa relativa adimensional, não uma microcinética completa.
+Esta subetapa aplica uma forma simplificada do princípio de Sabatier: adsorção fraca demais reduz ativação, e adsorção forte demais dificulta dessorção/turnover. O score vulcão usa energia real do Catalysis-Hub quando disponível; quando não há, usa um descritor proxy derivado de GNN local, DFT proxy e estabilidade. O resultado é uma taxa relativa adimensional, não uma microcinética completa.
 """
     ),
     code(
@@ -2756,11 +2756,11 @@ VOLCANO_CONFIG = {
 # Seleciona configuração da reação atual.
 volcano_cfg = VOLCANO_CONFIG[reacao]
 
-# Define função para estimar energia de adsorçãoo proxy quando não há Catalysis-Hub.
+# Define função para estimar energia de adsorção proxy quando não há Catalysis-Hub.
 def energia_adsorcao_proxy_volcano(row):
     # Usa energia média Catalysis-Hub quando disponível.
     energia_cathub = row.get("energia_cathub_media_eV", np.nan)
-    # Retorna módulo da energia real/proxy DFT de adsorçãoo quando existe.
+    # Retorna módulo da energia real/proxy DFT de adsorção quando existe.
     if pd.notna(energia_cathub):
         return abs(float(energia_cathub)), "Catalysis-Hub"
     # Usa score GNN local como proxy de força de ligação quando disponível.
@@ -2776,14 +2776,14 @@ def energia_adsorcao_proxy_volcano(row):
         return float(volcano_cfg["energia_otima_eV"]), "proxy_neutro"
     # Calcula score médio das evidências.
     score_medio = float(np.clip(np.mean(evidencias), 0, 1))
-    # Converte score em energia de adsorçãoo ao redor do ótimo.
+    # Converte score em energia de adsorção ao redor do ótimo.
     energia = volcano_cfg["energia_otima_eV"] + (0.5 - score_medio) * 2.0 * volcano_cfg["largura_eV"]
     # Limita energia proxy a faixa fisicamente moderada para triagem.
     return float(np.clip(energia, 0.05, 2.50)), "proxy_GNN_DFT_estabilidade"
 
-# Define função para calcular score volcano.
+# Define função para calcular score vulcão.
 def calcular_volcano(row):
-    # Obtém energia de adsorçãoo ou proxy.
+    # Obtém energia de adsorção ou proxy.
     energia_ads, fonte = energia_adsorcao_proxy_volcano(row)
     # Substitui energia ausente ou inválida pelo ótimo da reação.
     if pd.isna(energia_ads) or not np.isfinite(float(energia_ads)):
@@ -2810,18 +2810,18 @@ def calcular_volcano(row):
         "score_volcano": float(np.clip(score_volcano, 0, 1)),
     "score_final_material_sem_cinetica": "score final do material sem cinética",
     "temperatura_cinetica_C": "temperatura usada na cinética (°C)",
-    "Ea_proxy_cinetica_eV": "energia de ativaçãoo proxy cinética (eV)",
+    "Ea_proxy_cinetica_eV": "energia de ativação proxy cinética (eV)",
     "k_cinetico_proxy": "constante cinética proxy",
     "fator_pressao_cinetico": "fator cinético de pressão",
-    "fator_razao_cinetico": "fator cinético da razãoo reacional",
+    "fator_razao_cinetico": "fator cinético da razão reacional",
     "fator_cobertura_cinetico": "fator cinético de cobertura",
     "taxa_relativa_cinetica": "taxa relativa cinética",
     "taxa_corrigida_coque_cinetica": "taxa cinética corrigida por coque",
     "score_cinetico": "score cinético",
-    "Ea_proxy_cinetica_condicao_eV": "energia de ativaçãoo proxy na condiçãoo (eV)",
-    "taxa_relativa_cinetica_condicao": "taxa relativa cinética na condiçãoo",
-    "taxa_corrigida_coque_cinetica_condicao": "taxa cinética corrigida por coque na condiçãoo",
-    "score_cinetico_condicao": "score cinético na condiçãoo",
+    "Ea_proxy_cinetica_condicao_eV": "energia de ativação proxy na condição (eV)",
+    "taxa_relativa_cinetica_condicao": "taxa relativa cinética na condição",
+    "taxa_corrigida_coque_cinetica_condicao": "taxa cinética corrigida por coque na condição",
+    "score_cinetico_condicao": "score cinético na condição",
     })
 
 # Calcula volcano simplificado para cada candidato refinado.
@@ -2839,25 +2839,25 @@ def calcular_penalidade_coque_reforma(row, razao_ch4_co2=1.0):
             "taxa_desativacao_coque_proxy": 0.0,
             "score_atividade_corrigida_coque": float(row.get("score_atividade", 0.5)),
         })
-    # Usa a energia de adsorçãoo de C do volcano como proxy de carbono superficial.
+    # Usa a energia de adsorção de C do volcano como proxy de carbono superficial.
     energia_c = row.get("energia_adsorcao_volcano_eV", np.nan)
     # Converte ausência de energia em valor ótimo para evitar penalização artificial.
     if pd.isna(energia_c):
         energia_c = volcano_cfg["energia_otima_eV"]
-    # Penaliza principalmente adsorçãoo de C mais forte que o ótimo do volcano.
+    # Penaliza principalmente adsorção de C mais forte que o ótimo do volcano.
     excesso_adsorcao_c = max(float(energia_c) - volcano_cfg["energia_otima_eV"], 0.0)
-    # Normaliza o excesso de adsorçãoo de C pela largura do volcano.
+    # Normaliza o excesso de adsorção de C pela largura do volcano.
     tendencia_c_superficial = np.clip(excesso_adsorcao_c / max(volcano_cfg["largura_eV"], 0.05), 0, 1)
-    # Usa atividade alta de reforma/ativaçãoo de CH4 como fator de formação de carbono.
+    # Usa atividade alta de reforma/ativação de CH4 como fator de formação de carbono.
     fator_ativacao_ch4 = float(np.clip(row.get("score_atividade", 0.5), 0, 1))
     # Usa redox, mobilidade de oxigênio e resistência composicional como capacidade de remoção de carbono.
     capacidade_remocao_c = float(np.clip(np.mean([
         row.get("score_redox", 0.5),
         row.get("score_resistencia_coque", 0.5),
     ]), 0, 1))
-    # Penaliza excesso relativo de CH4 quando a razãoo CH4/CO2 passa de 1.
+    # Penaliza excesso relativo de CH4 quando a razão CH4/CO2 passa de 1.
     excesso_ch4 = np.clip(max(float(razao_ch4_co2) - 1.0, 0.0), 0, 1)
-    # Combina formação de carbono, adsorçãoo forte e baixa remoção oxidativa.
+    # Combina formação de carbono, adsorção forte e baixa remoção oxidativa.
     penalidade = (
         0.34 * fator_ativacao_ch4
         + 0.32 * tendencia_c_superficial
@@ -2866,18 +2866,18 @@ def calcular_penalidade_coque_reforma(row, razao_ch4_co2=1.0):
     )
     # Limita a penalidade para manter o termo como correção, não como filtro absoluto.
     penalidade = float(np.clip(penalidade, 0, 1))
-    # Estima uma constante adimensional de desativaçãooo por coque.
+    # Estima uma constante adimensional de desativação por coque.
     taxa_desativacao = float(np.clip(0.03 + 0.32 * penalidade, 0, 0.40))
     # Corrige a atividade inicial por uma queda exponencial simples.
     atividade_corrigida = float(np.clip(fator_ativacao_ch4 * math.exp(-taxa_desativacao), 0, 1))
-    # Retorna os novos descritores de desativaçãooo.
+    # Retorna os novos descritores de desativação.
     return pd.Series({
         "penalidade_tendencia_coque": penalidade,
         "taxa_desativacao_coque_proxy": taxa_desativacao,
         "score_atividade_corrigida_coque": atividade_corrigida,
     })
 
-# Calcula descritores de desativaçãooo por coque para os candidatos refinados.
+# Calcula descritores de desativação por coque para os candidatos refinados.
 coque_reforma_df = refinado_df.apply(calcular_penalidade_coque_reforma, axis=1)
 
 # Junta os descritores de coque ao dataframe refinado.
@@ -2929,7 +2929,7 @@ def calcular_cinetica_simplificada(row, condicao=None):
     score_confianca = float(np.clip(valor_float_cinetico(row, "score_incerteza", 0.5), 0, 1))
     # Le estabilidade termodinamica para penalizar materiais mais metaestaveis.
     estabilidade = max(valor_float_cinetico(row, "energy_above_hull_eV_atom", 0.08), 0.0)
-    # Le score volcano para representar qualidade da adsorcao no sitio ativo.
+    # Le score vulcão para representar qualidade da adsorcao no sitio ativo.
     score_volcano_local = float(np.clip(valor_float_cinetico(row, "score_volcano", 0.5), 0, 1))
     # Le atividade composicional ja corrigida por coque quando a reacao e reforma.
     score_atividade_local = float(np.clip(valor_float_cinetico(row, "score_atividade_corrigida_coque", valor_float_cinetico(row, "score_atividade", 0.5)), 0, 1))
@@ -2962,7 +2962,7 @@ def calcular_cinetica_simplificada(row, condicao=None):
     fator_pressao = float(np.clip(1.0 + cinetica_cfg["ordem_pressao"] * math.log(max(pressao_bar, 1.0)) / 5.0, 0.65, 1.20))
     # Calcula penalizacao quando a razao reacional se afasta da razao otima do perfil quimico.
     fator_razao = float(np.clip(1.0 - cinetica_cfg["penalidade_razao"] * abs(razao_operacional - cinetica_cfg["razao_otima"]), 0.55, 1.05))
-    # Calcula fator de cobertura superficial a partir do score volcano.
+    # Calcula fator de cobertura superficial a partir do score vulcão.
     fator_cobertura = float(np.clip(0.55 + 0.45 * score_volcano_local, 0, 1))
     # Combina atividade e seletividade em um potencial catalitico util.
     potencial_catalitico = float(np.clip(0.60 * score_atividade_local + 0.40 * score_seletividade_local, 0, 1))
@@ -3037,7 +3037,7 @@ def recomendar_sintese(formula):
     nobres = elems & {"Ru", "Rh", "Pt", "Pd"}
     # Identifica modificadores redox importantes.
     redox_mod = elems & {"Ce", "Zr", "Mo", "Fe"}
-    # Identifica modificadores básicos úteis para ativaçãoo de CO2 e mitigação de coque.
+    # Identifica modificadores básicos úteis para ativação de CO2 e mitigação de coque.
     basicos = elems & {"Mg", "La", "Ca", "Ba"}
     # Define valores padrão para composição sem regra específica.
     suporte = "Al2O3-ZrO2"
@@ -3072,7 +3072,7 @@ def recomendar_sintese(formula):
         elif redox_mod & {"Ce", "Zr"}:
             suporte = "CeO2-ZrO2 ou Al2O3-CeO2-ZrO2"
             rota = "sol-gel ou coprecipitação do suporte Ce-Zr, seguida de impregnação da fase ativa"
-            justificativa = "suporte redox melhora transferência de oxigênio e reduz desativaçãooo por coque"
+            justificativa = "suporte redox melhora transferência de oxigênio e reduz desativação por coque"
         elif basicos:
             suporte = "MgAlOx, La2O3-Al2O3 ou espinelio MgAl2O4"
             rota = "coprecipitacao ou metodo hidrotalcita-like para alta estabilidade termica"
@@ -3096,11 +3096,11 @@ def recomendar_sintese(formula):
         if "Cu" in elems and redox_mod & {"Ce", "Zr"}:
             suporte = "CeO2-ZrO2 com Cu altamente disperso"
             rota = "deposicao-precipitacao ou impregnacao de Cu sobre suporte Ce-Zr"
-            justificativa = "Cu favorece seletividade a CO e Ce/Zr auxilia ativaçãoo de CO2"
+            justificativa = "Cu favorece seletividade a CO e Ce/Zr auxilia ativação de CO2"
         elif redox_mod & {"Ce", "Zr"}:
             suporte = "CeO2-ZrO2 ou ZrO2"
             rota = "coprecipitacao/sol-gel do suporte redox seguida de impregnacao metalica"
-            justificativa = "suporte redox favorece RWGS por ativaçãoo de CO2 e adsorçãoo moderada de CO"
+            justificativa = "suporte redox favorece RWGS por ativação de CO2 e adsorção moderada de CO"
         elif nobres:
             suporte = "ZrO2 ou Al2O3-ZrO2"
             rota = "impregnacao sequencial com controle de baixa carga metalica"
@@ -3139,9 +3139,9 @@ refinado_df.sort_values("score_final_material", ascending=False)[[
     ),
     md(
         """
-## Etapa 11 - Ranking catalisador-condiçãoo
+## Etapa 11 - Ranking catalisador-condição
 
-Cada candidato é avaliado nas condições desejáveis da reação. O score final combina qualidade do material e adequação da condiçãoo.
+Cada candidato é avaliado nas condições desejáveis da reação. O score final combina qualidade do material e adequação da condição.
 """
     ),
     code(
@@ -3151,13 +3151,13 @@ def limitar_0_100(valor):
     # Usa numpy.clip para restringir o valor.
     return float(np.clip(valor, 0, 100))
 
-# Define fatores de condiçãoo para cada reação.
+# Define fatores de condição para cada reação.
 def fator_condicao(condicao, reacao_alvo):
-    # Lê temperatura da condiçãoo.
+    # Lê temperatura da condição.
     temp = condicao["temperatura_C"]
-    # Lê pressão da condiçãoo.
+    # Lê pressão da condição.
     pressao = condicao["pressao_bar"]
-    # Lê razãoo reacional da condiçãoo.
+    # Lê razão reacional da condição.
     razao = condicao["razao"]
     # Define fatores para metanação.
     if reacao_alvo == "metanacao":
@@ -3176,23 +3176,23 @@ def fator_condicao(condicao, reacao_alvo):
         razao_fator = 1.0 - 0.035 * abs(razao - 2.0)
     # Calcula efeito de pressão.
     pressao_fator = 1.0 + 0.03 * math.log(max(pressao, 1.0))
-    # Retorna fatores de conversãoo e seletividade.
+    # Retorna fatores de conversão e seletividade.
     return conv * pressao_fator * razao_fator, sel * razao_fator
 
-# Cria lista para armazenar combinações catalisador-condiçãoo.
+# Cria lista para armazenar combinações catalisador-condição.
 linhas = []
 
 # Percorre cada candidato refinado.
 for _, row in refinado_df.iterrows():
-    # Percorre cada condiçãoo definida no perfil da reação.
+    # Percorre cada condição definida no perfil da reação.
     for condicao in perfil["condicoes"]:
-        # Calcula fatores de condiçãoo.
+        # Calcula fatores de condição.
         fator_conv, fator_sel = fator_condicao(condicao, reacao)
-        # Calcula penalização de coque específica da condiçãoo operacional.
+        # Calcula penalização de coque específica da condição operacional.
         coque_condicao = calcular_penalidade_coque_reforma(row, condicao.get("razao", 1.0))
-        # Extrai a penalidade de coque dependente da condiçãoo.
+        # Extrai a penalidade de coque dependente da condição.
         penalidade_coque_condicao = float(coque_condicao["penalidade_tendencia_coque"])
-        # Extrai a taxa proxy de desativaçãooo dependente da condiçãoo.
+        # Extrai a taxa proxy de desativação dependente da condição.
         taxa_desativacao_coque_condicao = float(coque_condicao["taxa_desativacao_coque_proxy"])
         # Usa atividade corrigida por coque para reforma e atividade original para as demais reações.
         atividade_operacional = float(coque_condicao["score_atividade_corrigida_coque"]) if reacao == "reforma" else float(row["score_atividade"])
@@ -3206,7 +3206,7 @@ for _, row in refinado_df.iterrows():
         taxa_relativa_cinetica_condicao = float(cinetica_condicao["taxa_relativa_cinetica"])
         # Extrai a taxa cinetica corrigida por coque na condicao.
         taxa_corrigida_coque_cinetica_condicao = float(cinetica_condicao["taxa_corrigida_coque_cinetica"])
-        # Estima conversãoo a partir do score de atividade operacional.
+        # Estima conversão a partir do score de atividade operacional.
         conversao = limitar_0_100((35 + 45 * atividade_operacional) * fator_conv)
         # Estima seletividade a partir do score de seletividade.
         seletividade = limitar_0_100((45 + 50 * row["score_seletividade"]) * fator_sel)
@@ -3278,8 +3278,8 @@ for _, row in refinado_df.iterrows():
             "conversao_prevista_pct": conversao,
             "seletividade_produto_prevista_pct": seletividade,
             "rendimento_ou_produtividade_prevista_pct": rendimento,
-    "score_condicao_sem_cinetica": "score da condiçãoo sem cinética",
-    "score_condicao_com_cinetica": "score da condiçãoo com cinética",
+    "score_condicao_sem_cinetica": "score da condição sem cinética",
+    "score_condicao_com_cinetica": "score da condição com cinética",
     "score_final_sem_cinetica": "score final sem cinética",
     "score_final_com_cinetica": "score final com cinética",
             "score_final": score_final,
@@ -3291,32 +3291,32 @@ ranking_final_df = pd.DataFrame(linhas)
 # Ordena a tabela pelo score final.
 ranking_final_df = ranking_final_df.sort_values("score_final", ascending=False).reset_index(drop=True)
 
-# Cria lista para armazenar o desempenho médio nas vizinhanças de condiçãoo.
+# Cria lista para armazenar o desempenho médio nas vizinhanças de condição.
 linhas_faixa = []
 
-# Percorre cada candidato para avaliar robustez em uma faixa de temperatura, pressão e razãoo.
+# Percorre cada candidato para avaliar robustez em uma faixa de temperatura, pressão e razão.
 for _, row in refinado_df.iterrows():
-    # Percorre cada condiçãoo nominal definida no perfil da reação.
+    # Percorre cada condição nominal definida no perfil da reação.
     for condicao in perfil["condicoes"]:
-        # Cria lista temporária para guardar simulações locais ao redor da condiçãoo nominal.
+        # Cria lista temporária para guardar simulações locais ao redor da condição nominal.
         simulacoes = []
         # Varia temperatura em uma faixa curta para estimar desempenho médio.
         for temperatura_C in np.linspace(condicao["temperatura_C"] - 25, condicao["temperatura_C"] + 25, 5):
-            # Varia pressão em torno da condiçãoo nominal.
+            # Varia pressão em torno da condição nominal.
             for pressao_bar in [condicao["pressao_bar"] * 0.8, condicao["pressao_bar"], condicao["pressao_bar"] * 1.2]:
-                # Varia razãoo molar em torno da condiçãoo nominal.
+                # Varia razão molar em torno da condição nominal.
                 for razao in [condicao["razao"] * 0.9, condicao["razao"], condicao["razao"] * 1.1]:
-                    # Copia a condiçãoo nominal para preservar o dicionário original.
+                    # Copia a condição nominal para preservar o dicionário original.
                     condicao_variada = dict(condicao)
-                    # Atualiza a temperatura da condiçãoo variada.
+                    # Atualiza a temperatura da condição variada.
                     condicao_variada["temperatura_C"] = float(temperatura_C)
-                    # Atualiza a pressão da condiçãoo variada.
+                    # Atualiza a pressão da condição variada.
                     condicao_variada["pressao_bar"] = float(pressao_bar)
-                    # Atualiza a razãoo gasosa da condiçãoo variada.
+                    # Atualiza a razão gasosa da condição variada.
                     condicao_variada["razao"] = float(razao)
-                    # Calcula fatores de conversãoo e seletividade para a condiçãoo variada.
+                    # Calcula fatores de conversão e seletividade para a condição variada.
                     fator_conv, fator_sel = fator_condicao(condicao_variada, reacao)
-                    # Calcula penalização de coque para a condiçãoo variada.
+                    # Calcula penalização de coque para a condição variada.
                     coque_condicao_variada = calcular_penalidade_coque_reforma(row, condicao_variada.get("razao", 1.0))
                     # Calcula descritores cineticos para a condicao variada.
                     cinetica_variada = calcular_cinetica_simplificada(row, condicao_variada)
@@ -3326,13 +3326,13 @@ for _, row in refinado_df.iterrows():
                     taxa_cinetica_variada = float(cinetica_variada["taxa_relativa_cinetica"])
                     # Usa atividade corrigida por coque em reforma também na análise de robustez por faixa.
                     atividade_operacional_faixa = float(coque_condicao_variada["score_atividade_corrigida_coque"]) if reacao == "reforma" else float(row["score_atividade"])
-                    # Estima conversãoo para a condiçãoo variada.
+                    # Estima conversão para a condição variada.
                     conversao = limitar_0_100((35 + 45 * atividade_operacional_faixa) * fator_conv)
-                    # Estima seletividade para a condiçãoo variada.
+                    # Estima seletividade para a condição variada.
                     seletividade = limitar_0_100((45 + 50 * row["score_seletividade"]) * fator_sel)
-                    # Calcula rendimento ou produtividade para a condiçãoo variada.
+                    # Calcula rendimento ou produtividade para a condição variada.
                     rendimento = limitar_0_100(conversao * seletividade / 100.0)
-                    # Calcula score de condiçãoo para a simulaçãoo local.
+                    # Calcula score de condição para a simulação local.
                     score_condicao = 0.40 * conversao/100 + 0.30 * seletividade/100 + 0.30 * rendimento/100
                     # Aplica a mesma penalizacao explicita de coque usada na parcela operacional nominal.
                     if reacao == "reforma":
@@ -3399,7 +3399,7 @@ for coluna_chave in chaves_desempenho_merge:
 if desempenho_merge_df.duplicated(subset=chaves_desempenho_merge).any():
     desempenho_merge_df = desempenho_merge_df.groupby(chaves_desempenho_merge, as_index=False)[metricas_desempenho_merge].mean()
 
-# Junta o desempenho médio por faixa ao ranking final nominal sem duplicar temperatura, pressão e razãoo.
+# Junta o desempenho médio por faixa ao ranking final nominal sem duplicar temperatura, pressão e razão.
 ranking_final_df = ranking_final_df.merge(
     desempenho_merge_df,
     on=chaves_desempenho_merge,
@@ -3407,7 +3407,7 @@ ranking_final_df = ranking_final_df.merge(
     validate="many_to_one",
 )
 
-# Recalcula o score final favorecendo candidatos robustos em uma faixa de condiçãoo.
+# Recalcula o score final favorecendo candidatos robustos em uma faixa de condição.
 ranking_final_df["score_final"] = (
     0.80 * ranking_final_df["score_final"]
     + 0.20 * ranking_final_df["score_faixa_condicao"]
@@ -3502,13 +3502,13 @@ for _, row in refinado_df.iterrows():
 # Converte a análise de sensibilidade em tabela.
 sensibilidade_descritores_df = pd.DataFrame(linhas_sensibilidade)
 
-# Cria gerador aleatório reprodutível para simulaçãoo Monte Carlo.
+# Cria gerador aleatório reprodutível para simulação Monte Carlo.
 rng = np.random.default_rng(42)
 
 # Define quantas simulações Monte Carlo serão realizadas.
 n_simulacoes_mc = 300
 
-# Seleciona um conjunto controlado de candidatos-condiçãoo para estimar incerteza no ranking.
+# Seleciona um conjunto controlado de candidatos-condição para estimar incerteza no ranking.
 base_mc = ranking_final_df.head(30).copy()
 
 # Define limite mínimo para evitar divisão por zero no score de estabilidade.
@@ -3544,7 +3544,7 @@ def sigma_dft_mc(row):
     # Usa maior incerteza quando o DFT é apenas proxy químico.
     return 0.120
 
-# Define função para estimar o desvio do volcano conforme a origem da energia de adsorçãoo.
+# Define função para estimar o desvio do volcano conforme a origem da energia de adsorção.
 def sigma_volcano_mc(row):
     # Usa menor incerteza quando a energia do volcano veio do Catalysis-Hub.
     if str(row.get("fonte_volcano", "")).lower() == "catalysis-hub":
@@ -3576,9 +3576,9 @@ for _ in range(n_simulacoes_mc):
     sigma_dft = simulado.apply(sigma_dft_mc, axis=1).to_numpy(dtype=float)
     # Perturba o score DFT/proxy.
     simulado["score_DFT_mc"] = np.clip(simulado["score_DFT"].to_numpy(dtype=float) + rng.normal(0, sigma_dft, len(simulado)), 0, 1)
-    # Calcula desvio específico para o score volcano.
+    # Calcula desvio específico para o score vulcão.
     sigma_volcano = simulado.apply(sigma_volcano_mc, axis=1).to_numpy(dtype=float)
-    # Perturba o score volcano.
+    # Perturba o score vulcão.
     simulado["score_volcano_mc"] = np.clip(simulado["score_volcano"].fillna(0.5).to_numpy(dtype=float) + rng.normal(0, sigma_volcano, len(simulado)), 0, 1)
     # Perturba a penalidade de coque quando ela existe no ranking.
     simulado["penalidade_coque_mc"] = np.clip(
@@ -3632,11 +3632,11 @@ for _ in range(n_simulacoes_mc):
         0.70 * simulado["score_final_material_mc_sem_cinetica"]
         + 0.30 * simulado["score_cinetico_mc"]
     ).clip(0, 1)
-    # Recalcula conversãoo prevista a partir da atividade perturbada.
+    # Recalcula conversão prevista a partir da atividade perturbada.
     conversao_mc = np.clip(simulado["conversao_prevista_pct"].to_numpy(dtype=float) * (0.80 + 0.40 * simulado["score_atividade_corrigida_coque_mc"].to_numpy(dtype=float)), 0, 100)
     # Recalcula seletividade prevista a partir da seletividade perturbada.
     seletividade_mc = np.clip(simulado["seletividade_produto_prevista_pct"].to_numpy(dtype=float) * (0.80 + 0.40 * simulado["score_seletividade_mc"].to_numpy(dtype=float)), 0, 100)
-    # Recalcula rendimento/produtividade a partir de conversãoo e seletividade perturbadas.
+    # Recalcula rendimento/produtividade a partir de conversão e seletividade perturbadas.
     rendimento_mc = np.clip(conversao_mc * seletividade_mc / 100.0, 0, 100)
     # Recalcula o score da condicao nominal perturbada antes da cinetica.
     score_condicao_mc_sem_cinetica = 0.40 * conversao_mc / 100 + 0.30 * seletividade_mc / 100 + 0.30 * rendimento_mc / 100
@@ -3648,9 +3648,9 @@ for _ in range(n_simulacoes_mc):
     score_material_condicao_mc = 0.60 * simulado["score_final_material_mc"] + 0.40 * score_condicao_mc
     # Recalcula o score final propagando a incerteza ate a etapa de ranking.
     simulado["score_final_mc"] = np.clip(0.80 * score_material_condicao_mc + 0.20 * score_faixa_mc, 0, 1)
-    # Ordena a simulaçãoo pelo score recalculado.
+    # Ordena a simulação pelo score recalculado.
     simulado = simulado.sort_values("score_final_mc", ascending=False)
-    # Identifica as fórmulas que ficaram entre as cinco primeiras na simulaçãoo.
+    # Identifica as fórmulas que ficaram entre as cinco primeiras na simulação.
     top5_simulado = simulado.head(5)["formula"].unique()
     # Atualiza a contagem de permanência no top 5.
     for formula in top5_simulado:
@@ -3754,7 +3754,7 @@ def classificar_confiabilidade(row):
 # Aplica classificação de confiabilidade.
 ranking_final_df["confiabilidade"] = ranking_final_df.apply(classificar_confiabilidade, axis=1)
 
-# Seleciona a melhor condiçãoo por fórmula preservando a ordenação real por score final.
+# Seleciona a melhor condição por fórmula preservando a ordenação real por score final.
 melhor_por_candidato_df = ranking_final_df.sort_values("score_final", ascending=False).drop_duplicates("formula", keep="first").reset_index(drop=True)
 
 # Mantem os melhores candidatos refinados para classificacao top 10 com representação multimetálica.
@@ -5127,7 +5127,7 @@ validacao_quimiometrica_df
 
 Esta etapa reavalia os candidatos finais para verificar se o Top 2 continua quimicamente defensavel quando se consideram fragilidades que nao aparecem completamente no score principal: qualidade da evidencia, compatibilidade metal-suporte, risco de sinterizacao, estabilidade redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma e vies sistematico dos proxies.
 
-Como validacao fina adicional, o Top 10 recebe uma correcao termodinamica aproximada de temperatura. O codigo parte da energia de adsorcao estatica/proxy do volcano e estima uma energia efetiva em temperatura operacional, usando termos aproximados de energia de ponto zero, contribuicao entalpica vibracional e perda entropica por adsorbato guia. Em seguida, recalcula o score de vulcao e o score final corrigido por temperatura. Essa rotina nao substitui frequencias vibracionais DFT explicitas, mas indica se o ranking permanece robusto nas temperaturas reais de operacao.
+Como validacao fina adicional, o Top 10 recebe uma correcao termodinamica aproximada de temperatura. O código parte da energia de adsorcao estatica/proxy do volcano e estima uma energia efetiva em temperatura operacional, usando termos aproximados de energia de ponto zero, contribuição entálpica vibracional e perda entrópica por adsorbato guia. Em seguida, recalcula o score de vulcão e o score final corrigido por temperatura. Essa rotina nao substitui frequências vibracionais DFT explícitas, mas indica se o ranking permanece robusto nas temperaturas reais de operação.
 """
     ),
     code(VALIDACAO_AVANCADA_CODE),
@@ -5412,7 +5412,7 @@ x_max = max(float(volcano_plot["energia_adsorcao_volcano_eV"].max()), energia_ot
 # Cria pontos da curva teórica.
 x_volcano = np.linspace(x_min, x_max, 250)
 
-# Calcula score volcano teórico pela distância ao ótimo.
+# Calcula score vulcão teórico pela distância ao ótimo.
 y_volcano = np.exp(-np.abs(x_volcano - energia_otima_plot) / max(largura_volcano_plot, 0.05))
 
 # Desenha a curva de vulcão.
@@ -5469,7 +5469,7 @@ if len(volcano_plot):
         )
 
 # Define rótulo do eixo x.
-plt.xlabel(f"Energia de adsorçãoo proxy de {volcano_cfg['descritor']} (eV)")
+plt.xlabel(f"Energia de adsorção proxy de {volcano_cfg['descritor']} (eV)")
 
 # Define rótulo do eixo y.
 plt.ylabel("Score de vulcão")
@@ -5540,10 +5540,10 @@ condicao_plot = desempenho_top10_df.groupby(["regime", "temperatura_C"], as_inde
 # Ordena as condições por temperatura para melhorar leitura.
 condicao_plot = condicao_plot.sort_values(["temperatura_C", "regime"])
 
-# Cria figura para desempenho médio por condiçãoo.
+# Cria figura para desempenho médio por condição.
 plt.figure(figsize=(10, 5.5))
 
-# Desenha linha de conversãoo média.
+# Desenha linha de conversão média.
 plt.plot(condicao_plot["regime"], condicao_plot["conversao_media_faixa_pct"], marker="o", label="Conversão média")
 
 # Desenha linha de seletividade média.
@@ -5559,12 +5559,12 @@ plt.xticks(rotation=25, ha="right")
 plt.ylabel("Valor médio previsto (%)")
 
 # Define título do gráfico.
-plt.title("Desempenho médio por faixa de condiçãoo - Top 10")
+plt.title("Desempenho médio por faixa de condição - Top 10")
 
 # Adiciona legenda.
 legenda_a_direita(fontsize=8)
 
-# Salva o gráfico de desempenho por condiçãoo.
+# Salva o gráfico de desempenho por condição.
 salvar_figura("06_desempenho_faixa_condicoes")
 
 # Exibe o gráfico no notebook.
@@ -5945,10 +5945,10 @@ nomes_colunas_pt = {
     "score_redox": "score redox",
     "score_resistencia_coque": "score de resistência a coque",
     "penalidade_tendencia_coque": "penalidade de tendência a coque",
-    "taxa_desativacao_coque_proxy": "taxa proxy de desativaçãooo por coque",
+    "taxa_desativacao_coque_proxy": "taxa proxy de desativação por coque",
     "score_atividade_corrigida_coque": "score de atividade corrigida por coque",
-    "penalidade_coque_condicao": "penalidade de coque na condiçãoo",
-    "taxa_desativacao_coque_condicao": "taxa de desativaçãooo por coque na condiçãoo",
+    "penalidade_coque_condicao": "penalidade de coque na condição",
+    "taxa_desativacao_coque_condicao": "taxa de desativação por coque na condição",
     "score_matminer_composicional": "score composicional matminer",
     "score_pymatgen_quimico": "score químico pymatgen",
     "score_gnn_local": "score GNN local",
@@ -5964,7 +5964,7 @@ nomes_colunas_pt = {
     "peso_boltzmann_estabilidade": "peso de Boltzmann da estabilidade",
     "score_DFT_boltzmann": "score DFT ajustado por Boltzmann",
     "descritor_volcano": "descritor de vulcão",
-    "energia_adsorcao_volcano_eV": "energia de adsorçãoo do vulcão (eV)",
+    "energia_adsorcao_volcano_eV": "energia de adsorção do vulcão (eV)",
     "fonte_volcano": "fonte do vulcão",
     "distancia_otimo_volcano_eV": "distância ao ótimo do vulcão (eV)",
     "barreira_aparente_volcano_eV": "barreira aparente do vulcão (eV)",
@@ -5973,21 +5973,21 @@ nomes_colunas_pt = {
     "score_final_material": "score final do material",
     "temperatura_C": "temperatura (°C)",
     "pressao_bar": "pressão (bar)",
-    "razao_nome": "nome da razãoo reacional",
-    "razao": "valor da razãoo reacional",
-    "razao_reacional": "razãoo reacional",
+    "razao_nome": "nome da razão reacional",
+    "razao": "valor da razão reacional",
+    "razao_reacional": "razão reacional",
     "GHSV_h_1": "GHSV (h⁻¹)",
     "ghsv_h-1": "GHSV (h⁻¹)",
     "regime": "regime operacional",
-    "conversao_prevista_pct": "conversãoo prevista (%)",
+    "conversao_prevista_pct": "conversão prevista (%)",
     "seletividade_produto_prevista_pct": "seletividade prevista (%)",
     "rendimento_ou_produtividade_prevista_pct": "rendimento ou produtividade prevista (%)",
     "score_final": "score final",
-    "conversao_media_faixa_pct": "conversãoo média na faixa (%)",
+    "conversao_media_faixa_pct": "conversão média na faixa (%)",
     "seletividade_media_faixa_pct": "seletividade média na faixa (%)",
     "rendimento_medio_faixa_pct": "rendimento médio na faixa (%)",
     "delta_rendimento_faixa": "delta de rendimento na faixa (%)",
-    "score_faixa_condicao": "score da faixa de condiçãoo",
+    "score_faixa_condicao": "score da faixa de condição",
     "probabilidade_top5_mc": "probabilidade Monte Carlo de ficar no top 5",
     "probabilidade_top5_mc_ic95_inf": "limite inferior IC95 da probabilidade top 5",
     "probabilidade_top5_mc_ic95_sup": "limite superior IC95 da probabilidade top 5",
@@ -6032,7 +6032,7 @@ nomes_colunas_pt = {
     "percentual_promotor_planejado": "percentual de promotor planejado (%)",
     "nivel_codificado_temperatura": "nível codificado da temperatura",
     "nivel_codificado_pressao": "nível codificado da pressão",
-    "nivel_codificado_razao": "nível codificado da razãoo",
+    "nivel_codificado_razao": "nível codificado da razão",
     "nivel_codificado_ghsv": "nível codificado do GHSV",
     "nivel_codificado_promotor": "nível codificado do promotor",
     "objetivo_quimiometrico": "objetivo quimiométrico",
@@ -6100,16 +6100,16 @@ nomes_colunas_pt = {
     "temperatura_tammann_min_C": "temperatura de Tammann mínima (°C)",
     "risco_redox_operando": "risco redox operando",
     "score_redox_operando": "score redox operando",
-    "risco_adsorcao_extrema": "risco de adsorçãoo extrema",
-    "score_equilibrio_adsorcao": "score de equilíbrio de adsorçãoo",
+    "risco_adsorcao_extrema": "risco de adsorção extrema",
+    "score_equilibrio_adsorcao": "score de equilíbrio de adsorção",
     "risco_coque_avancado": "risco avançado de coque",
     "score_anti_coque_avancado": "score avançado anti-coque",
     "score_correcao_temperatura": "score de correção de temperatura",
     "descritor_correcao_temperatura": "descritor usado na correção de temperatura",
     "temperatura_correcao_K": "temperatura usada na correção (K)",
-    "energia_adsorcao_estatica_eV": "energia de adsorçãoo estática/proxy (eV)",
-    "deltaG_correcao_temperatura_eV": "correção térmica aproximada de adsorçãoo (eV)",
-    "energia_adsorcao_corrigida_temperatura_eV": "energia de adsorçãoo corrigida por temperatura (eV)",
+    "energia_adsorcao_estatica_eV": "energia de adsorção estática/proxy (eV)",
+    "deltaG_correcao_temperatura_eV": "correção térmica aproximada de adsorção (eV)",
+    "energia_adsorcao_corrigida_temperatura_eV": "energia de adsorção corrigida por temperatura (eV)",
     "distancia_otimo_corrigida_temperatura_eV": "distância ao ótimo após correção de temperatura (eV)",
     "score_volcano_corrigido_temperatura": "score de vulcão corrigido por temperatura",
     "taxa_relativa_corrigida_temperatura": "taxa relativa corrigida por temperatura",
@@ -6147,16 +6147,16 @@ def traduzir_colunas(df):
     # Renomeia colunas conhecidas e mantém as demais sem alteração.
     return df.rename(columns={col: nomes_colunas_pt.get(col, col) for col in df.columns})
 
-# Salva o ranking completo catalisador-condiçãoo.
+# Salva o ranking completo catalisador-condição.
 traduzir_colunas(ranking_final_df).to_csv(OUTPUT_DIR / f"{prefixo}_ranking_condicoes.csv", index=False, encoding="utf-8-sig")
 
-# Salva a melhor condiçãoo por candidato.
+# Salva a melhor condição por candidato.
 traduzir_colunas(melhor_por_candidato_df).to_csv(OUTPUT_DIR / f"{prefixo}_melhor_condicao_por_candidato.csv", index=False, encoding="utf-8-sig")
 
 # Salva os candidatos prioritários para síntese.
 traduzir_colunas(prioritarios_df).to_csv(OUTPUT_DIR / f"{prefixo}_prioritarios_sintese.csv", index=False, encoding="utf-8-sig")
 
-# Salva a avaliação média em faixa de condiçãoo.
+# Salva a avaliação média em faixa de condição.
 traduzir_colunas(desempenho_faixa_df).to_csv(OUTPUT_DIR / f"{prefixo}_desempenho_faixa_condicoes.csv", index=False, encoding="utf-8-sig")
 
 # Salva a análise de sensibilidade dos descritores.
@@ -6235,11 +6235,11 @@ traduzir_colunas(relatorio_validacao_metodo_df).to_csv(OUTPUT_DIR / f"{prefixo}_
 with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl") as writer:
     # Aba com candidatos prioritários.
     traduzir_colunas(prioritarios_df).to_excel(writer, sheet_name="Prioritarios_sintese", index=False)
-    # Aba com melhor condiçãoo por candidato.
+    # Aba com melhor condição por candidato.
     traduzir_colunas(melhor_por_candidato_df).to_excel(writer, sheet_name="Melhor_por_candidato", index=False)
     # Aba com ranking completo.
     traduzir_colunas(ranking_final_df.head(150)).to_excel(writer, sheet_name="Top_condicoes", index=False)
-    # Aba com desempenho médio em faixa de condiçãoo.
+    # Aba com desempenho médio em faixa de condição.
     traduzir_colunas(desempenho_faixa_df).to_excel(writer, sheet_name="Desempenho_faixa", index=False)
     # Aba com sensibilidade dos descritores.
     traduzir_colunas(sensibilidade_descritores_df).to_excel(writer, sheet_name="Sensibilidade", index=False)

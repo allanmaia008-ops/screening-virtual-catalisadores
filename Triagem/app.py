@@ -1338,7 +1338,7 @@ def mostrar_visualizacao_cientifica_plotly(
         [["score", "vulc"], ["score", "volcano"], ["taxa", "relativa"]],
     )
     gerou_volcano = renderizar_scatter_plotly(
-        "Volcano plot interativo",
+        "Vulc?o plot interativo",
         fonte_volcano,
         [["energia", "adsor"], ["adsorcao"], ["adsorção"]],
         [["score", "vulc"], ["score", "volcano"], ["taxa", "relativa"]],
