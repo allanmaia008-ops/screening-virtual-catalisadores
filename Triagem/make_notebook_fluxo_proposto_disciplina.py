@@ -186,7 +186,7 @@ nb["cells"] = [
 
 9.1. Peso termodinamico de Boltzmann: penaliza candidatos mais metaestaveis usando estabilidade termodinâmica e temperatura de referência.
 
-9.2. Vulc?o e modelo cinético simplificado: transforma energia de adsorção real ou proxy em taxa relativa tipo Sabatier e estima uma energia de ativação proxy por Arrhenius, favorecendo adsorção moderada, barreira baixa e condição operacional compatível.
+9.2. Vulcão e modelo cinético simplificado: transforma energia de adsorção real ou proxy em taxa relativa tipo Sabatier e estima uma energia de ativação proxy por Arrhenius, favorecendo adsorção moderada, barreira baixa e condição operacional compatível.
 
 9.3. Correção de desativação por coque para reforma: usa energia/proxy de adsorção de C, score redox, resistência composicional a coque, razão $CH_4$/$CO_2$ e taxa cinética corrigida para penalizar candidatos com maior tendência a formar carbono superficial.
 
@@ -2739,7 +2739,7 @@ refinado_df.sort_values("score_final_material", ascending=False)[[
     ),
     md(
         """
-### Subetapa 9.2 - Vulc?o simplificado por descritor catalítico
+### Subetapa 9.2 - Vulcão simplificado por descritor catalítico
 
 Esta subetapa aplica uma forma simplificada do princípio de Sabatier: adsorção fraca demais reduz ativação, e adsorção forte demais dificulta dessorção/turnover. O score vulcão usa energia real do Catalysis-Hub quando disponível; quando não há, usa um descritor proxy derivado de GNN local, DFT proxy e estabilidade. O resultado é uma taxa relativa adimensional, não uma microcinética completa.
 """
