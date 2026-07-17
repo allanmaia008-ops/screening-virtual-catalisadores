@@ -314,7 +314,7 @@ def mostrar_painel_decisao(
 ) -> None:
     """Mostra indicadores interpretativos para tomada de decisao."""
     if prioritarios_df.empty:
-        st.info("Execute a triagem para visualizar o painel de decis\u00e3o.")
+        st.info("Execute a triagem para visualizar o painel de decisão.")
         return
 
     top = prioritarios_df.iloc[0]
@@ -326,11 +326,14 @@ def mostrar_painel_decisao(
     temperatura = valor_linha(top, ["temperatura"])
     pressao = valor_linha(top, ["press"])
     razao = valor_linha(top, ["razao"])
+    score_cinetico = formatar_numero_linha(top, ["score", "cinet"], casas=3)
+    taxa_cinetica = formatar_numero_linha(top, ["taxa", "relativa", "cinet"], casas=3)
+    energia_ativacao = formatar_numero_linha(top, ["energia", "ativacao", "proxy"], "eV", casas=3)
 
     mostrar_linha_cartoes(
         "Resultado principal",
         [
-            ("Candidato para s\u00edntese", candidato, True),
+            ("Candidato para síntese", candidato, True),
             ("Suporte sugerido", suporte, False),
             ("Regime recomendado", regime, False),
             ("Score final", formatar_valor(score_final), True),
@@ -351,15 +354,24 @@ def mostrar_painel_decisao(
             score_medio = float(scores.mean())
         if len(scores) >= 2:
             diferenca_top = abs(float(scores.iloc[0]) - float(scores.iloc[1]))
-            empate = "sim" if diferenca_top <= 0.01 else "n\u00e3o"
+            empate = "sim" if diferenca_top <= 0.01 else "não"
 
     mostrar_linha_cartoes(
         "Qualidade do ranking",
         [
             ("Candidatos no Top 10", formatar_valor(len(monte_carlo_df) if not monte_carlo_df.empty else len(classificacao_df)), False),
-            ("Score m\u00e9dio Top 10", formatar_valor(score_medio), True),
-            ("Diferen\u00e7a 1\u00ba-2\u00ba", formatar_valor(diferenca_top), False),
-            ("Empate t\u00e9cnico", empate, False),
+            ("Score médio Top 10", formatar_valor(score_medio), True),
+            ("Diferença 1º-2º", formatar_valor(diferenca_top), False),
+            ("Empate técnico", empate, False),
+        ],
+    )
+
+    mostrar_linha_cartoes(
+        "Modelo cinético simplificado",
+        [
+            ("Score cinético", score_cinetico, True),
+            ("Taxa cinética relativa", taxa_cinetica, False),
+            ("Energia de ativação proxy", energia_ativacao, False),
         ],
     )
 
@@ -374,11 +386,11 @@ def mostrar_painel_decisao(
         coque = numero_coluna(prioritarios_df, ["coque"], linhas=10)
 
     mostrar_linha_cartoes(
-        "Viabilidade qu\u00edmica",
+        "Viabilidade química",
         [
-            ("Estabilidade m\u00e9dia", f"{formatar_valor(estabilidade_media)} eV/\u00e1tomo" if estabilidade_media is not None else "-", False),
-            ("Melhor estabilidade", f"{formatar_valor(melhor_estabilidade)} eV/\u00e1tomo" if melhor_estabilidade is not None else "-", False),
-            ("Resist\u00eancia a coque", formatar_valor(coque), False),
+            ("Estabilidade média", f"{formatar_valor(estabilidade_media)} eV/átomo" if estabilidade_media is not None else "-", False),
+            ("Melhor estabilidade", f"{formatar_valor(melhor_estabilidade)} eV/átomo" if melhor_estabilidade is not None else "-", False),
+            ("Resistência a coque", formatar_valor(coque), False),
             ("Viabilidade global", formatar_valor(extrair_metrica(metricas_df, "taxa de viabilidade"), percentual=True), True),
         ],
     )
@@ -392,7 +404,7 @@ def mostrar_painel_decisao(
         valores = fonte_conf[coluna_conf].astype(str).map(normalizar_texto)
         if not valores.empty:
             conf_predominante = valores.value_counts().idxmax()
-            conf_predominante = "m\u00e9dia" if conf_predominante == "media" else conf_predominante
+            conf_predominante = "média" if conf_predominante == "media" else conf_predominante
 
     melhor_regime = "-"
     if not desempenho_df.empty:
@@ -404,13 +416,13 @@ def mostrar_painel_decisao(
                 melhor_regime = str(resumo_regime.sort_values(col_score_cond, ascending=False).iloc[0][col_regime])
 
     mostrar_linha_cartoes(
-        "Robustez e opera\u00e7\u00e3o",
+        "Robustez e operação",
         [
             ("Maior prob. MC Top 5", formatar_valor(prob_mc, percentual=True), True),
-            ("Incerteza m\u00e9dia MC", formatar_valor(incert_mc), False),
-            ("Confian\u00e7a predominante", conf_predominante, False),
+            ("Incerteza média MC", formatar_valor(incert_mc), False),
+            ("Confiança predominante", conf_predominante, False),
             ("Melhor regime Top 10", melhor_regime, True),
-            ("Condi\u00e7\u00e3o sugerida", f"{formatar_valor(temperatura)} \u00b0C | {formatar_valor(pressao)} bar | raz\u00e3o {razao}", False),
+            ("Condição sugerida", f"{formatar_valor(temperatura)} °C | {formatar_valor(pressao)} bar | razão {razao}", False),
         ],
     )
 
@@ -428,7 +440,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
     n_refinados = float(n_refinados_metricas or 0)
     n_recomendados = float(n_recomendados_metricas or 0)
     if n_gerados == 0 and n_viaveis == 0 and n_refinados == 0 and n_recomendados == 0:
-        st.info("O fluxo da triagem ser\u00e1 exibido ap\u00f3s a execu\u00e7\u00e3o da triagem.")
+        st.info("O fluxo da triagem será exibido após a execução da triagem.")
         return
 
     def retencao(valor: float, anterior: float | None) -> str:
@@ -443,28 +455,28 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
         {
             "rotulo": "Candidatos gerados",
             "valor": n_gerados,
-            "criterio": "Combina\u00e7\u00f5es de fase ativa, promotor e suporte definidas pela gera\u00e7\u00e3o de candidatos.",
+            "criterio": "Combinações de fase ativa, promotor e suporte definidas pela geração de candidatos.",
             "retencao": retencao(n_gerados, None),
             "cor": "#168AC8",
         },
         {
-            "rotulo": "Candidatos vi\u00e1veis",
+            "rotulo": "Candidatos viáveis",
             "valor": n_viaveis,
-            "criterio": "Filtro de estabilidade termodin\u00e2mica, viabilidade qu\u00edmica e descritores iniciais.",
+            "criterio": "Filtro de estabilidade termodinâmica, viabilidade química e descritores iniciais.",
             "retencao": retencao(n_viaveis, n_gerados),
             "cor": "#2FA7B2",
         },
         {
             "rotulo": "Candidatos refinados",
             "valor": n_refinados,
-            "criterio": "Refinamento por descritores catal\u00edticos, dados DFT ou proxies e penaliza\u00e7\u00e3o de incerteza.",
+            "criterio": "Refinamento por descritores catalíticos, dados DFT ou proxies, volcano, cinética simplificada e penalização de incerteza.",
             "retencao": retencao(n_refinados, n_viaveis),
             "cor": "#0B6F8F",
         },
         {
-            "rotulo": "Recomendados para s\u00edntese",
+            "rotulo": "Recomendados para síntese",
             "valor": n_recomendados,
-            "criterio": "Sele\u00e7\u00e3o final por score multicrit\u00e9rio, robustez Monte Carlo e condi\u00e7\u00f5es desej\u00e1veis de s\u00edntese.",
+            "criterio": "Seleção final por score multicritério, robustez Monte Carlo e condições desejáveis de síntese.",
             "retencao": retencao(n_recomendados, n_refinados),
             "cor": "#C7A548",
         },
@@ -486,7 +498,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                         <div class="fluxo-barra-interna" style="width:{largura:.1f}%; background:{etapa['cor']};"></div>
                     </div>
                     <div class="fluxo-criterio">{html.escape(etapa['criterio'])}</div>
-                    <div class="fluxo-retencao">Reten\u00e7\u00e3o nesta etapa: <strong>{html.escape(etapa['retencao'])}</strong></div>
+                    <div class="fluxo-retencao">Retenção nesta etapa: <strong>{html.escape(etapa['retencao'])}</strong></div>
                 </div>
             </div>
             {conector}
@@ -630,6 +642,9 @@ def selecionar_colunas_tecnicas(dataframe: pd.DataFrame) -> pd.DataFrame:
         ["score", "seletividade"],
         ["score", "dft"],
         ["score", "volcano"],
+        ["score", "cinet"],
+        ["taxa", "cinet"],
+        ["energia", "ativacao", "proxy"],
         ["coque"],
         ["confiabilidade"],
         ["temperatura"],
@@ -756,6 +771,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
         suporte = texto_curto(valor_linha(row, ["suporte"], "-"), limite=135)
         condicao = montar_condicao_operacional(row)
         score_final = formatar_numero_linha(row, ["score", "final"], casas=3)
+        score_cinetico = formatar_numero_linha(row, ["score", "cinet"], casas=3)
         confiabilidade = extrair_confiabilidade(row)
         estabilidade = formatar_numero_linha(row, ["estabilidade"], "eV/átomo", casas=3)
         rendimento = formatar_numero_linha(row, ["rendimento"], "%", casas=1)
@@ -776,6 +792,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 </div>
                 <div class="top2-metrics">
                     <div><span>Score final</span><strong>{html.escape(score_final)}</strong></div>
+                    <div><span>Score cinético</span><strong>{html.escape(score_cinetico)}</strong></div>
                     <div><span>Confiabilidade</span><strong>{html.escape(confiabilidade)}</strong></div>
                     <div><span>Rendimento previsto</span><strong>{html.escape(rendimento)}</strong></div>
                 </div>
@@ -843,7 +860,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             }}
             .top2-metrics {{
                 display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(4, minmax(0, 1fr));
                 gap: 8px;
                 margin-bottom: 12px;
             }}
@@ -1104,8 +1121,8 @@ def selecionar_classificacao_formula(dataframe: pd.DataFrame, linhas: int = 10) 
     if coluna_formula is None:
         coluna_formula = dataframe.columns[0]
     tabela = dataframe.head(linhas).copy()
-    tabela.insert(0, "Classifica\u00e7\u00e3o", range(1, len(tabela) + 1))
-    return tabela[["Classifica\u00e7\u00e3o", coluna_formula]].rename(columns={coluna_formula: "F\u00f3rmula"})
+    tabela.insert(0, "Classificação", range(1, len(tabela) + 1))
+    return tabela[["Classificação", coluna_formula]].rename(columns={coluna_formula: "Fórmula"})
 
 
 def montar_classificacao_top10(fontes: list[pd.DataFrame], linhas: int = 10) -> pd.DataFrame:
@@ -1129,8 +1146,8 @@ def montar_classificacao_top10(fontes: list[pd.DataFrame], linhas: int = 10) -> 
         if len(formulas) >= linhas:
             break
     return pd.DataFrame({
-        "Classifica\u00e7\u00e3o": range(1, len(formulas) + 1),
-        "F\u00f3rmula": formulas,
+        "Classificação": range(1, len(formulas) + 1),
+        "Fórmula": formulas,
     })
 
 
@@ -1138,7 +1155,7 @@ def mostrar_classificacao_centralizada(titulo: str, dataframe: pd.DataFrame) -> 
     """Mostra classificacao com titulo, cabecalho e valores centralizados."""
     st.markdown(f"<h3 style='text-align:center;'>{html.escape(titulo)}</h3>", unsafe_allow_html=True)
     if dataframe.empty:
-        st.info("Classifica\u00e7\u00e3o ainda n\u00e3o dispon\u00edvel.")
+        st.info("Classificação ainda não disponível.")
         return
     tabela_html = dataframe.to_html(index=False, escape=True, border=0)
     st.html(
@@ -1212,6 +1229,8 @@ def preparar_dados_plotly(dataframe: pd.DataFrame, limite: int = 300) -> pd.Data
                 "_rendimento": formatar_numero_linha(row, ["rendimento"], "%", casas=1),
                 "_energia_adsorcao": formatar_numero_linha(row, ["energia", "adsor"], "eV", casas=3),
                 "_score_volcano": formatar_numero_linha(row, ["score", "vulc"], casas=3),
+                "_score_cinetico": formatar_numero_linha(row, ["score", "cinet"], casas=3),
+                "_taxa_cinetica": formatar_numero_linha(row, ["taxa", "relativa", "cinet"], casas=3),
             }
         )
     auxiliares = pd.DataFrame(linhas, index=df.index)
@@ -1258,6 +1277,8 @@ def renderizar_scatter_plotly(
             "_rendimento",
             "_energia_adsorcao",
             "_score_volcano",
+            "_score_cinetico",
+            "_taxa_cinetica",
         ],
         title=titulo,
     )
@@ -1273,7 +1294,9 @@ def renderizar_scatter_plotly(
             "Estabilidade: %{customdata[6]}<br>"
             "Rendimento previsto: %{customdata[7]}<br>"
             "Energia de adsorção: %{customdata[8]}<br>"
-            "Score volcano: %{customdata[9]}<extra></extra>"
+            "Score volcano: %{customdata[9]}<br>"
+            "Score cinético: %{customdata[10]}<br>"
+            "Taxa cinética relativa: %{customdata[11]}<extra></extra>"
         ),
     )
     fig.update_layout(
@@ -1333,7 +1356,19 @@ def mostrar_visualizacao_cientifica_plotly(
         [["score", "final"], ["desejabilidade", "global"]],
     )
 
-    if not gerou_volcano and not gerou_dispersao:
+    fonte_cinetica = escolher_fonte_plotly(
+        fontes,
+        [["taxa", "relativa", "cinet"], ["score", "cinet"]],
+        [["score", "final"], ["rendimento"]],
+    )
+    gerou_cinetica = renderizar_scatter_plotly(
+        "Cinética simplificada vs score final",
+        fonte_cinetica,
+        [["taxa", "relativa", "cinet"], ["score", "cinet"]],
+        [["score", "final"], ["rendimento"]],
+    )
+
+    if not gerou_volcano and not gerou_dispersao and not gerou_cinetica:
         st.info("Ainda não há colunas numéricas suficientes para gerar gráficos Plotly interativos.")
 
 
@@ -1539,7 +1574,7 @@ if executar:
         st.error("Informe o promotor.")
     else:
         try:
-            with st.spinner("Executando consultas, descritores, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
+            with st.spinner("Executando consultas, descritores, modelo cinético simplificado, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
                 notebook_executado = executar_triagem(reacao, metais, promotor, output_dir)
         except Exception as erro_execucao:
             st.error("A triagem nao foi concluida. Verifique os detalhes tecnicos abaixo.")
@@ -1577,7 +1612,7 @@ mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_car
 aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
     "Visão geral",
     "Candidatos",
-    "Classifica\u00e7\u00e3o",
+    "Classificação",
     "Incerteza",
     "Química",
     "Validação",
@@ -1594,7 +1629,7 @@ with aba_candidatos:
 
 with aba_ranking:
     top10_df = montar_classificacao_top10([classificacao_df, monte_carlo_df, ranking_df], linhas=10)
-    mostrar_classificacao_centralizada("Classifica\u00e7\u00e3o dos 10 primeiros", top10_df)
+    mostrar_classificacao_centralizada("Classificação dos 10 primeiros", top10_df)
 
 with aba_incerteza:
     col1, col2 = st.columns([1.0, 1.0])
@@ -1614,7 +1649,7 @@ with aba_quimica:
     with col2:
         metricas_quimicas_df = filtrar_metricas_por_termos(
             metricas_df,
-            ["dft", "volcano", "descritores", "quimica", "quimiometria", "adsorcao"],
+            ["dft", "volcano", "cinet", "descritores", "quimica", "quimiometria", "adsorcao"],
         )
         mostrar_tabela("Métricas químicas e DFT", metricas_quimicas_df, linhas=30)
 
@@ -1639,7 +1674,7 @@ with aba_figuras:
     mostrar_figuras(figuras_df)
 
 with aba_arquivos:
-    st.markdown("<h3 style='text-align:center;'>Exporta\u00e7\u00f5es</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align:center;'>Exportações</h3>", unsafe_allow_html=True)
     if paths["excel"].exists():
         st.download_button(
             "Baixar resultados em Excel",
