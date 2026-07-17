@@ -93,6 +93,30 @@ NOMES_ELEMENTOS_PARA_SIMBOLOS = {
     "cobre": "Cu",
     "zinco": "Zn",
     "itrio": "Y",
+    "rodio": "Rh",
+    "paladio": "Pd",
+    "platina": "Pt",
+    "iridio": "Ir",
+    "renio": "Re",
+    "prata": "Ag",
+    "ouro": "Au",
+    "indio": "In",
+    "galio": "Ga",
+    "estanho": "Sn",
+    "vanadio": "V",
+    "niobio": "Nb",
+    "tantalo": "Ta",
+    "hafnio": "Hf",
+    "escandio": "Sc",
+    "estroncio": "Sr",
+    "potassio": "K",
+    "sodio": "Na",
+    "litio": "Li",
+    "cesio": "Cs",
+    "praseodimio": "Pr",
+    "neodimio": "Nd",
+    "samario": "Sm",
+    "gadolinio": "Gd",
 }
 
 
@@ -1532,7 +1556,7 @@ with st.sidebar:
     st.header("Configuração")
     reacao = st.selectbox("Reação", ["metanacao", "reforma", "rwgs"], format_func=lambda x: {"metanacao": "Metanação de CO2", "reforma": "Reforma de CH4", "rwgs": "RWGS"}[x])
     n_metais = st.number_input("Número de metais ativos", min_value=1, max_value=4, value=1, step=1)
-    metais_padrao = ["Fe", "Co", "Ni", "Cu"]
+    metais_padrao = ["Fe", "Co", "Ir", "In"]
     metais = []
     for indice_metal in range(int(n_metais)):
         valor_padrao = metais_padrao[indice_metal] if indice_metal < len(metais_padrao) else ""
@@ -1541,11 +1565,12 @@ with st.sidebar:
                 f"Metal ativo {indice_metal + 1}",
                 value=valor_padrao,
                 key=f"metal_ativo_{indice_metal + 1}",
+                help="Exemplos: Ni, Co, Fe, Cu, Ir, Re, In, Ga, Sn",
             )
         )
         if metal_informado:
             metais.append(metal_informado)
-    promotor = limpar_simbolo_quimico(st.text_input("Promotor", value="La"))
+    promotor = limpar_simbolo_quimico(st.text_input("Promotor", value="La", help="Exemplos: Ce, Zr, La, Mg, K, Na, Sr, Pr, Nd"))
     destino_saida = st.radio("Local de salvamento", ["Usar pasta padrão", "Escolher outra pasta"], horizontal=False)
     if destino_saida == "Escolher outra pasta":
         output_dir_texto = st.text_input("Pasta de destino dos resultados", value="", placeholder="Digite ou cole a pasta de destino")

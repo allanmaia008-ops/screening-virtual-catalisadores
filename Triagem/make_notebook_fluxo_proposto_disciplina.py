@@ -495,6 +495,35 @@ NOMES_ELEMENTOS_PARA_SIMBOLOS = {
     "zinco": "Zn",
     # Converte ítrio por extenso para o símbolo químico.
     "itrio": "Y",
+    # Converte nomes de metais nobres e raros adicionais usados em catálise.
+    "rodio": "Rh",
+    "paladio": "Pd",
+    "platina": "Pt",
+    "iridio": "Ir",
+    "renio": "Re",
+    "prata": "Ag",
+    "ouro": "Au",
+    # Converte metais pós-transição úteis em RWGS e modulação eletrônica.
+    "indio": "In",
+    "galio": "Ga",
+    "estanho": "Sn",
+    # Converte metais de transição/redox adicionais.
+    "vanadio": "V",
+    "niobio": "Nb",
+    "tantalo": "Ta",
+    "hafnio": "Hf",
+    "escandio": "Sc",
+    # Converte promotores básicos não radioativos.
+    "estroncio": "Sr",
+    "potassio": "K",
+    "sodio": "Na",
+    "litio": "Li",
+    "cesio": "Cs",
+    # Converte lantanídeos estáveis usados como modificadores redox/básicos.
+    "praseodimio": "Pr",
+    "neodimio": "Nd",
+    "samario": "Sm",
+    "gadolinio": "Gd",
 }
 
 # Normaliza símbolos ou nomes de elementos antes da geração das fórmulas.
@@ -1454,6 +1483,35 @@ PROPRIEDADES_ELEMENTOS = {
     "La": {"ativo": 0.10, "redox": 0.55, "basicidade": 0.88, "nobre": 0.00, "coque": 0.82},
     "Cu": {"ativo": 0.35, "redox": 0.40, "basicidade": 0.10, "nobre": 0.00, "coque": 0.45},
     "Mo": {"ativo": 0.35, "redox": 0.65, "basicidade": 0.20, "nobre": 0.00, "coque": 0.55},
+    "W": {"ativo": 0.32, "redox": 0.62, "basicidade": 0.18, "nobre": 0.00, "coque": 0.55},
+    "Ir": {"ativo": 0.88, "redox": 0.35, "basicidade": 0.10, "nobre": 1.00, "coque": 0.75},
+    "Re": {"ativo": 0.50, "redox": 0.70, "basicidade": 0.15, "nobre": 0.40, "coque": 0.62},
+    "Ag": {"ativo": 0.25, "redox": 0.20, "basicidade": 0.10, "nobre": 0.80, "coque": 0.50},
+    "Au": {"ativo": 0.30, "redox": 0.25, "basicidade": 0.10, "nobre": 1.00, "coque": 0.65},
+    "In": {"ativo": 0.25, "redox": 0.45, "basicidade": 0.20, "nobre": 0.00, "coque": 0.55},
+    "Ga": {"ativo": 0.22, "redox": 0.35, "basicidade": 0.25, "nobre": 0.00, "coque": 0.58},
+    "Sn": {"ativo": 0.25, "redox": 0.55, "basicidade": 0.25, "nobre": 0.00, "coque": 0.60},
+    "V": {"ativo": 0.38, "redox": 0.80, "basicidade": 0.20, "nobre": 0.00, "coque": 0.55},
+    "Nb": {"ativo": 0.30, "redox": 0.65, "basicidade": 0.25, "nobre": 0.00, "coque": 0.62},
+    "Ta": {"ativo": 0.28, "redox": 0.55, "basicidade": 0.22, "nobre": 0.00, "coque": 0.65},
+    "Hf": {"ativo": 0.18, "redox": 0.50, "basicidade": 0.35, "nobre": 0.00, "coque": 0.70},
+    "Sc": {"ativo": 0.15, "redox": 0.45, "basicidade": 0.40, "nobre": 0.00, "coque": 0.68},
+    "Al": {"ativo": 0.08, "redox": 0.15, "basicidade": 0.35, "nobre": 0.00, "coque": 0.65},
+    "Ti": {"ativo": 0.18, "redox": 0.55, "basicidade": 0.30, "nobre": 0.00, "coque": 0.70},
+    "Mn": {"ativo": 0.30, "redox": 0.70, "basicidade": 0.20, "nobre": 0.00, "coque": 0.50},
+    "Zn": {"ativo": 0.12, "redox": 0.25, "basicidade": 0.20, "nobre": 0.00, "coque": 0.48},
+    "Y": {"ativo": 0.10, "redox": 0.45, "basicidade": 0.75, "nobre": 0.00, "coque": 0.78},
+    "Ca": {"ativo": 0.08, "redox": 0.15, "basicidade": 0.90, "nobre": 0.00, "coque": 0.72},
+    "Sr": {"ativo": 0.08, "redox": 0.20, "basicidade": 0.85, "nobre": 0.00, "coque": 0.72},
+    "Ba": {"ativo": 0.08, "redox": 0.15, "basicidade": 0.92, "nobre": 0.00, "coque": 0.74},
+    "Li": {"ativo": 0.05, "redox": 0.10, "basicidade": 0.88, "nobre": 0.00, "coque": 0.60},
+    "Na": {"ativo": 0.05, "redox": 0.10, "basicidade": 0.90, "nobre": 0.00, "coque": 0.60},
+    "K": {"ativo": 0.05, "redox": 0.10, "basicidade": 0.92, "nobre": 0.00, "coque": 0.62},
+    "Cs": {"ativo": 0.05, "redox": 0.10, "basicidade": 0.95, "nobre": 0.00, "coque": 0.64},
+    "Pr": {"ativo": 0.12, "redox": 0.65, "basicidade": 0.75, "nobre": 0.00, "coque": 0.80},
+    "Nd": {"ativo": 0.12, "redox": 0.60, "basicidade": 0.72, "nobre": 0.00, "coque": 0.78},
+    "Sm": {"ativo": 0.12, "redox": 0.58, "basicidade": 0.70, "nobre": 0.00, "coque": 0.76},
+    "Gd": {"ativo": 0.12, "redox": 0.55, "basicidade": 0.68, "nobre": 0.00, "coque": 0.76},
 }
 
 # Define uma função para calcular média de uma propriedade elementar.
@@ -3032,13 +3090,15 @@ def recomendar_sintese(formula):
     # Extrai elementos presentes no candidato.
     elems = elementos_formula(formula)
     # Identifica metais ativos comuns em reações de CO2/CH4.
-    ativos_transicao = elems & {"Ni", "Co", "Fe", "Cu", "Mo"}
+    ativos_transicao = elems & {"Ni", "Co", "Fe", "Cu", "Mo", "W", "Re", "V", "Nb", "Ta"}
     # Identifica metais nobres que normalmente pedem baixa carga e alta dispersão.
-    nobres = elems & {"Ru", "Rh", "Pt", "Pd"}
+    nobres = elems & {"Ru", "Rh", "Pt", "Pd", "Ir", "Ag", "Au"}
     # Identifica modificadores redox importantes.
-    redox_mod = elems & {"Ce", "Zr", "Mo", "Fe"}
+    redox_mod = elems & {"Ce", "Zr", "Mo", "W", "Fe", "Mn", "Ti", "V", "Nb", "Ta", "Sn", "Pr", "Nd", "Sm", "Gd"}
     # Identifica modificadores básicos úteis para ativação de CO2 e mitigação de coque.
-    basicos = elems & {"Mg", "La", "Ca", "Ba"}
+    basicos = elems & {"Mg", "La", "Ca", "Sr", "Ba", "Y", "Sc", "Li", "Na", "K", "Cs", "Pr", "Nd", "Sm", "Gd"}
+    # Identifica metais pós-transição úteis para modular RWGS e adsorção de CO.
+    pos_transicao_rwgs = elems & {"In", "Ga", "Sn"}
     # Define valores padrão para composição sem regra específica.
     suporte = "Al2O3-ZrO2"
     rota = "impregnacao incipiente em suporte oxido"
@@ -3093,10 +3153,14 @@ def recomendar_sintese(formula):
         observacao = "avaliar razao CH4/CO2 e tempo de estabilidade para confirmar resistencia a coque"
     # Ajusta regras para RWGS.
     else:
-        if "Cu" in elems and redox_mod & {"Ce", "Zr"}:
+        if ({"Cu", "In", "Ga"} & elems) and redox_mod & {"Ce", "Zr"}:
             suporte = "CeO2-ZrO2 com Cu altamente disperso"
-            rota = "deposicao-precipitacao ou impregnacao de Cu sobre suporte Ce-Zr"
-            justificativa = "Cu favorece seletividade a CO e Ce/Zr auxilia ativação de CO2"
+            rota = "deposicao-precipitacao ou impregnacao da fase ativa sobre suporte Ce-Zr"
+            justificativa = "Cu/In/Ga favorecem seletividade a CO e Ce/Zr auxilia ativação de CO2"
+        elif pos_transicao_rwgs:
+            suporte = "ZrO2, CeO2-ZrO2 ou In2O3-ZrO2"
+            rota = "coprecipitacao ou impregnacao controlada para modular interface metal-oxido"
+            justificativa = "In/Ga/Sn podem modular adsorcao de CO e reduzir tendencia a metanacao na RWGS"
         elif redox_mod & {"Ce", "Zr"}:
             suporte = "CeO2-ZrO2 ou ZrO2"
             rota = "coprecipitacao/sol-gel do suporte redox seguida de impregnacao metalica"

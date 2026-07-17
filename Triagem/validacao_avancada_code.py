@@ -48,6 +48,29 @@ ponto_fusao_metais_K = {
     "Mg": 923.0,
     "Y": 1799.0,
     "Ti": 1941.0,
+    "Ir": 2719.0,
+    "Re": 3459.0,
+    "Ag": 1235.0,
+    "Au": 1337.0,
+    "In": 430.0,
+    "Ga": 303.0,
+    "Sn": 505.0,
+    "V": 2183.0,
+    "Nb": 2750.0,
+    "Ta": 3290.0,
+    "Hf": 2506.0,
+    "Sc": 1814.0,
+    "Sr": 1050.0,
+    "Ca": 1115.0,
+    "Ba": 1000.0,
+    "Li": 454.0,
+    "Na": 371.0,
+    "K": 337.0,
+    "Cs": 302.0,
+    "Pr": 1208.0,
+    "Nd": 1297.0,
+    "Sm": 1345.0,
+    "Gd": 1585.0,
 }
 
 # Define leitura numerica robusta de uma coluna de uma linha.
@@ -104,6 +127,9 @@ def caracterizar_suporte_avancado(suporte):
     # Valoriza titania por interacao metal-suporte.
     if "tio2" in texto:
         redox = max(redox, 0.70)
+    # Valoriza oxidos de In/Ga/Sn/Nb/Ta como moduladores redox/eletronicos.
+    if "in2o3" in texto or "ga2o3" in texto or "sno2" in texto or "nb2o5" in texto or "ta2o5" in texto:
+        redox = max(redox, 0.68)
     # Inicia score de basicidade do suporte.
     basicidade = 0.0
     # Valoriza MgO e MgAlOx para reforma e controle de coque.
@@ -112,8 +138,8 @@ def caracterizar_suporte_avancado(suporte):
     # Valoriza La2O3 por basicidade e ativacao de CO2.
     if "la2o3" in texto or "la2o3-al2o3" in texto:
         basicidade = max(basicidade, 0.88)
-    # Valoriza CaO/BaO quando aparecerem no suporte.
-    if "cao" in texto or "bao" in texto:
+    # Valoriza CaO/SrO/BaO e alcalinos quando aparecerem no suporte.
+    if "cao" in texto or "sro" in texto or "bao" in texto or "k2o" in texto or "na2o" in texto or "li2o" in texto or "cs2o" in texto:
         basicidade = max(basicidade, 0.85)
     # Inicia score de dispersao.
     dispersao = 0.45
@@ -121,12 +147,12 @@ def caracterizar_suporte_avancado(suporte):
     if "al2o3" in texto or "sio2" in texto:
         dispersao = max(dispersao, 0.90)
     # Valoriza oxidos redox tambem como suportes de dispersao intermediaria.
-    if "ceo2" in texto or "zro2" in texto or "tio2" in texto:
+    if "ceo2" in texto or "zro2" in texto or "tio2" in texto or "in2o3" in texto or "ga2o3" in texto or "sno2" in texto:
         dispersao = max(dispersao, 0.70)
     # Inicia score de estabilidade termica.
     estabilidade_termica = 0.55
     # Valoriza suportes estaveis em alta temperatura.
-    if "zro2" in texto or "mgal2o4" in texto or "mgalox" in texto or "mgo" in texto:
+    if "zro2" in texto or "mgal2o4" in texto or "mgalox" in texto or "mgo" in texto or "hfo2" in texto or "ta2o5" in texto:
         estabilidade_termica = max(estabilidade_termica, 0.90)
     # Valoriza alumina e lantana como estabilidade intermediaria/alta.
     if "al2o3" in texto or "la2o3" in texto:
@@ -163,7 +189,7 @@ def score_interface_avancado(row, caracteristicas, temperatura_C):
     # Le elementos da formula.
     elementos = elementos_formula(row.get("formula", ""))
     # Identifica metais que podem interagir fortemente com suporte redox.
-    tem_metal_catalitico = bool(elementos & {"Ni", "Co", "Fe", "Cu", "Mo", "Ru", "Rh", "Pt", "Pd", "W"})
+    tem_metal_catalitico = bool(elementos & {"Ni", "Co", "Fe", "Cu", "Mo", "W", "Re", "V", "Nb", "Ta", "Ru", "Rh", "Pt", "Pd", "Ir", "Ag", "Au", "In", "Ga", "Sn"})
     # Le score redox do candidato.
     score_redox = valor_float_avancado(row, "score_redox", 0.5)
     # Le score de estabilidade do candidato.
