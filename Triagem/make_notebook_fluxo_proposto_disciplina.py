@@ -190,7 +190,7 @@ nb["cells"] = [
 
 9.3. Correção de desativação por coque para reforma: usa energia/proxy de adsorção de C, score redox, resistência composicional a coque, razão $CH_4$/$CO_2$ e taxa cinética corrigida para penalizar candidatos com maior tendência a formar carbono superficial.
 
-10. Suporte e condicoes desejaveis de sintese/teste: sugere suporte, rota de sintese e faixas de temperatura, pressao, razao reacional e GHSV de acordo com a reacao e a composicao. Em reforma, a razao CH4/CO2 tambem ajusta a penalidade de coque por condicao operacional.
+10. Suporte, triade catalitica e condicoes desejaveis de sintese/teste: sugere uma rota preliminar e depois avalia uma biblioteca de suportes para escolher a melhor combinacao metal ativo-promotor-suporte. O score da triade considera redox, basicidade, dispersao, estabilidade termica, vacancias de oxigenio, afinidade por CO2, risco de SMSI, risco de sinterizacao e penalidade de coque em reforma. Em seguida, define faixas de temperatura, pressao, razao reacional e GHSV de acordo com a reacao e a composicao.
 
 11. Ranking catalisador-condição: combina score do material, score cinético simplificado e desempenho previsto em diferentes condições operacionais, mantendo apenas os 2 melhores candidatos no ranking final. Para reforma, a conversão prevista usa atividade corrigida por coque e a taxa cinética corrigida por desativação.
 
@@ -262,7 +262,7 @@ Construir um fluxo independente de triagem virtual para sugerir catalisadores ca
 7. Aplicar filtro de viabilidade.
 8. Fazer triagem preliminar.
 9. Refinar o ranking com dados/proxies DFT, volcano e cinética simplificada.
-10. Gerar a tabela final com candidatos, suporte sugerido, condições desejáveis, score cinético e nível de confiabilidade.
+10. Gerar a tabela final com candidatos, suporte sugerido por score da tríade metal-suporte-promotor, condições desejáveis, score cinético e nível de confiabilidade.
 
 ## Resultados esperados
 
@@ -2866,20 +2866,6 @@ def calcular_volcano(row):
         "barreira_aparente_volcano_eV": barreira_aparente,
         "taxa_relativa_volcano": taxa_relativa,
         "score_volcano": float(np.clip(score_volcano, 0, 1)),
-    "score_final_material_sem_cinetica": "score final do material sem cinética",
-    "temperatura_cinetica_C": "temperatura usada na cinética (°C)",
-    "Ea_proxy_cinetica_eV": "energia de ativação proxy cinética (eV)",
-    "k_cinetico_proxy": "constante cinética proxy",
-    "fator_pressao_cinetico": "fator cinético de pressão",
-    "fator_razao_cinetico": "fator cinético da razão reacional",
-    "fator_cobertura_cinetico": "fator cinético de cobertura",
-    "taxa_relativa_cinetica": "taxa relativa cinética",
-    "taxa_corrigida_coque_cinetica": "taxa cinética corrigida por coque",
-    "score_cinetico": "score cinético",
-    "Ea_proxy_cinetica_condicao_eV": "energia de ativação proxy na condição (eV)",
-    "taxa_relativa_cinetica_condicao": "taxa relativa cinética na condição",
-    "taxa_corrigida_coque_cinetica_condicao": "taxa cinética corrigida por coque na condição",
-    "score_cinetico_condicao": "score cinético na condição",
     })
 
 # Calcula volcano simplificado para cada candidato refinado.
@@ -3032,6 +3018,15 @@ def calcular_cinetica_simplificada(row, condicao=None):
     score_cinetico = float(np.clip(0.65 * taxa_corrigida + 0.20 * score_volcano_local + 0.15 * score_seletividade_local, 0, 1))
     # Retorna os descritores cineticos calculados.
     return pd.Series({
+        "temperatura_cinetica_C": temperatura_C,
+        "Ea_proxy_cinetica_eV": Ea_proxy,
+        "k_cinetico_proxy": k_relativo,
+        "fator_pressao_cinetico": fator_pressao,
+        "fator_razao_cinetico": fator_razao,
+        "fator_cobertura_cinetico": fator_cobertura,
+        "taxa_relativa_cinetica": taxa_relativa,
+        "taxa_corrigida_coque_cinetica": taxa_corrigida,
+        "score_cinetico": score_cinetico,
     })
 
 # Atualiza o score final incorporando o volcano simplificado.
@@ -3051,6 +3046,7 @@ if reacao == "reforma":
     ).clip(0, 1)
 
 # Guarda o score do material antes da camada cinetica para auditoria da decisao.
+refinado_df["score_final_material_sem_cinetica"] = refinado_df["score_final_material"]
 
 # Calcula descritores cineticos de referencia para cada candidato refinado.
 cinetica_df = refinado_df.apply(calcular_cinetica_simplificada, axis=1)
@@ -3060,6 +3056,8 @@ refinado_df = pd.concat([refinado_df.reset_index(drop=True), cinetica_df.reset_i
 
 # Recalcula o score do material combinando ranking multicriterio e cinetica simplificada.
 refinado_df["score_final_material"] = (
+    0.70 * refinado_df["score_final_material_sem_cinetica"]
+    + 0.30 * refinado_df["score_cinetico"]
 ).clip(0, 1)
 
 # Exibe impacto do volcano, coque e cinetica no ranking.
@@ -3078,9 +3076,9 @@ refinado_df.sort_values("score_final_material", ascending=False)[[
     ),
     md(
         """
-## Etapa 10 - Suporte e condições desejáveis de síntese/teste
+## Etapa 10 - Suporte, tríade catalítica e condições desejáveis de síntese/teste
 
-O suporte e as condições são definidos pelo modelo com base na reação e na composição química do candidato.
+O suporte e as condições são definidos pelo modelo com base na reação e na composição química do candidato. Primeiro o notebook gera uma recomendação química preliminar de suporte, rota e pré-tratamento. Em seguida, cada candidato refinado é combinado com uma biblioteca de suportes possíveis e recebe um score de tríade metal-suporte-promotor. Esse score considera compatibilidade metal-suporte, compatibilidade promotor-suporte, propriedades redox, basicidade, dispersão, estabilidade térmica, afinidade por $CO_2$, vacâncias de oxigênio, risco de SMSI, risco de sinterização e tendência a coque em reforma.
 """
     ),
     code(
@@ -3191,10 +3189,186 @@ sintese_df = refinado_df["formula"].apply(recomendar_sintese)
 # Junta recomendações ao dataframe refinado.
 refinado_df = pd.concat([refinado_df.reset_index(drop=True), sintese_df.reset_index(drop=True)], axis=1)
 
+# Define uma biblioteca curta de suportes candidatos com propriedades quimicas relevantes para a interface.
+BIBLIOTECA_SUPORTES_TRIADES = [
+    {"suporte": "Al2O3", "reacoes": ["metanacao", "rwgs"], "redox": 0.20, "basicidade": 0.25, "dispersao": 0.92, "estabilidade_termica": 0.78, "vacancia_oxigenio": 0.20, "afinidade_CO2": 0.35, "risco_smsi": 0.20},
+    {"suporte": "SiO2-Al2O3", "reacoes": ["metanacao"], "redox": 0.15, "basicidade": 0.22, "dispersao": 0.88, "estabilidade_termica": 0.72, "vacancia_oxigenio": 0.15, "afinidade_CO2": 0.30, "risco_smsi": 0.15},
+    {"suporte": "ZrO2", "reacoes": ["metanacao", "reforma", "rwgs"], "redox": 0.75, "basicidade": 0.45, "dispersao": 0.70, "estabilidade_termica": 0.90, "vacancia_oxigenio": 0.65, "afinidade_CO2": 0.65, "risco_smsi": 0.45},
+    {"suporte": "CeO2-ZrO2", "reacoes": ["metanacao", "reforma", "rwgs"], "redox": 1.00, "basicidade": 0.62, "dispersao": 0.72, "estabilidade_termica": 0.84, "vacancia_oxigenio": 1.00, "afinidade_CO2": 0.82, "risco_smsi": 0.75},
+    {"suporte": "Al2O3-CeO2-ZrO2", "reacoes": ["metanacao", "reforma"], "redox": 0.88, "basicidade": 0.56, "dispersao": 0.82, "estabilidade_termica": 0.82, "vacancia_oxigenio": 0.85, "afinidade_CO2": 0.76, "risco_smsi": 0.62},
+    {"suporte": "MgO-Al2O3", "reacoes": ["reforma"], "redox": 0.30, "basicidade": 0.92, "dispersao": 0.78, "estabilidade_termica": 0.88, "vacancia_oxigenio": 0.25, "afinidade_CO2": 0.86, "risco_smsi": 0.25},
+    {"suporte": "MgAl2O4", "reacoes": ["reforma"], "redox": 0.28, "basicidade": 0.88, "dispersao": 0.72, "estabilidade_termica": 0.94, "vacancia_oxigenio": 0.22, "afinidade_CO2": 0.80, "risco_smsi": 0.22},
+    {"suporte": "MgAlOx", "reacoes": ["reforma"], "redox": 0.35, "basicidade": 0.95, "dispersao": 0.80, "estabilidade_termica": 0.90, "vacancia_oxigenio": 0.28, "afinidade_CO2": 0.88, "risco_smsi": 0.26},
+    {"suporte": "La2O3-Al2O3", "reacoes": ["metanacao", "reforma"], "redox": 0.45, "basicidade": 0.88, "dispersao": 0.78, "estabilidade_termica": 0.82, "vacancia_oxigenio": 0.38, "afinidade_CO2": 0.90, "risco_smsi": 0.32},
+    {"suporte": "CeO2-ZrO2-MgAlOx", "reacoes": ["reforma"], "redox": 0.92, "basicidade": 0.88, "dispersao": 0.74, "estabilidade_termica": 0.88, "vacancia_oxigenio": 0.92, "afinidade_CO2": 0.90, "risco_smsi": 0.70},
+    {"suporte": "TiO2", "reacoes": ["metanacao", "rwgs"], "redox": 0.70, "basicidade": 0.30, "dispersao": 0.70, "estabilidade_termica": 0.76, "vacancia_oxigenio": 0.62, "afinidade_CO2": 0.50, "risco_smsi": 0.82},
+    {"suporte": "In2O3-ZrO2", "reacoes": ["rwgs"], "redox": 0.82, "basicidade": 0.42, "dispersao": 0.70, "estabilidade_termica": 0.78, "vacancia_oxigenio": 0.76, "afinidade_CO2": 0.78, "risco_smsi": 0.48},
+    {"suporte": "Ga2O3-ZrO2", "reacoes": ["rwgs"], "redox": 0.72, "basicidade": 0.38, "dispersao": 0.72, "estabilidade_termica": 0.80, "vacancia_oxigenio": 0.65, "afinidade_CO2": 0.70, "risco_smsi": 0.45},
+    {"suporte": "SnO2-ZrO2", "reacoes": ["rwgs"], "redox": 0.76, "basicidade": 0.40, "dispersao": 0.70, "estabilidade_termica": 0.82, "vacancia_oxigenio": 0.70, "afinidade_CO2": 0.72, "risco_smsi": 0.46},
+    {"suporte": "HfO2", "reacoes": ["reforma", "rwgs"], "redox": 0.45, "basicidade": 0.35, "dispersao": 0.62, "estabilidade_termica": 0.96, "vacancia_oxigenio": 0.35, "afinidade_CO2": 0.52, "risco_smsi": 0.35},
+    {"suporte": "Nb2O5-ZrO2", "reacoes": ["rwgs", "reforma"], "redox": 0.68, "basicidade": 0.32, "dispersao": 0.68, "estabilidade_termica": 0.86, "vacancia_oxigenio": 0.58, "afinidade_CO2": 0.58, "risco_smsi": 0.42},
+    {"suporte": "Ta2O5-ZrO2", "reacoes": ["rwgs", "reforma"], "redox": 0.58, "basicidade": 0.30, "dispersao": 0.66, "estabilidade_termica": 0.94, "vacancia_oxigenio": 0.48, "afinidade_CO2": 0.52, "risco_smsi": 0.38},
+]
+
+# Agrupa classes quimicas usadas para ajustar a compatibilidade metal-suporte-promotor.
+METAIS_NOBRES_TRIADES = {"Ru", "Rh", "Pt", "Pd", "Ir", "Ag", "Au"}
+METAIS_BASE_REFORMA_TRIADES = {"Ni", "Co", "Fe", "Mo", "W", "Re"}
+METAIS_RWGS_TRIADES = {"Cu", "In", "Ga", "Sn", "Fe", "Pt", "Pd", "Au"}
+PROMOTORES_REDOX_TRIADES = {"Ce", "Zr", "Pr", "Nd", "Sm", "Gd", "Mn", "Ti", "V", "Nb", "Ta", "Sn"}
+PROMOTORES_BASICOS_TRIADES = {"La", "Mg", "Ca", "Sr", "Ba", "Y", "Sc", "Li", "Na", "K", "Cs"}
+PROMOTORES_ELETRONICOS_TRIADES = {"In", "Ga", "Sn", "Zn", "Cu"}
+
+# Converte valores numericos incertos em float para evitar erro em dados ausentes.
+def valor_float_triada(row, coluna, padrao=0.5):
+    try:
+        valor = float(row.get(coluna, padrao))
+    except (TypeError, ValueError):
+        return float(padrao)
+    return float(padrao) if not np.isfinite(valor) else valor
+
+# Define a rota de sintese associada ao suporte que venceu a triagem da triade.
+def rota_triada(suporte):
+    nome = suporte["suporte"]
+    if "CeO2-ZrO2" in nome or "CeO2" in nome:
+        return "coprecipitacao ou sol-gel do suporte redox seguida de impregnacao da fase ativa"
+    if "MgAl" in nome or "MgO" in nome:
+        return "coprecipitacao/hidrotalcita-like ou impregnacao incipiente sobre suporte basico calcinado"
+    if "In2O3" in nome or "Ga2O3" in nome or "SnO2" in nome:
+        return "coprecipitacao do oxido misto ou impregnacao controlada para modular interface metal-oxido"
+    if "TiO2" in nome or "Nb2O5" in nome or "Ta2O5" in nome or "HfO2" in nome:
+        return "impregnacao controlada sobre oxido de alta estabilidade com reducao suave"
+    return "impregnacao incipiente da fase ativa sobre suporte de alta area"
+
+# Define o pre-tratamento coerente com a reacao escolhida.
+def pretratamento_triada():
+    if reacao == "reforma":
+        return "calcinacao entre 650 e 800 C e reducao em H2 antes do teste"
+    if reacao == "rwgs":
+        return "calcinacao entre 450 e 650 C e reducao moderada para preservar oxidos redox"
+    return "calcinacao entre 450 e 550 C e reducao em H2 diluido antes do teste"
+
+# Avalia uma combinacao especifica entre candidato refinado e suporte.
+def avaliar_triada(row, suporte):
+    formula = str(row.get("formula", ""))
+    elementos = elementos_formula(formula)
+    ativos_presentes = set(metais_usuario) & elementos
+    promotor = promotor_usuario if promotor_usuario in elementos or promotor_usuario else ""
+    score_redox_linha = valor_float_triada(row, "score_redox")
+    score_basicidade_linha = valor_float_triada(row, "score_basicidade")
+    score_estabilidade_linha = valor_float_triada(row, "score_estabilidade")
+    score_dft_linha = valor_float_triada(row, "score_DFT_refinado")
+    score_volcano_linha = valor_float_triada(row, "score_volcano")
+    score_incerteza_linha = valor_float_triada(row, "score_incerteza")
+    score_coque_linha = valor_float_triada(row, "score_resistencia_coque")
+    penalidade_coque_linha = valor_float_triada(row, "penalidade_tendencia_coque", 0.0)
+    if reacao == "reforma":
+        compat_metal_suporte = 0.28 * suporte["estabilidade_termica"] + 0.25 * suporte["basicidade"] + 0.18 * suporte["redox"] + 0.14 * suporte["dispersao"] + 0.15 * score_coque_linha
+    elif reacao == "metanacao":
+        compat_metal_suporte = 0.30 * suporte["dispersao"] + 0.28 * suporte["redox"] + 0.18 * suporte["basicidade"] + 0.14 * suporte["estabilidade_termica"] + 0.10 * score_volcano_linha
+    else:
+        compat_metal_suporte = 0.30 * suporte["redox"] + 0.25 * suporte["estabilidade_termica"] + 0.20 * suporte["dispersao"] + 0.15 * (1.0 - 0.35 * suporte["basicidade"]) + 0.10 * score_dft_linha
+    if ativos_presentes & METAIS_NOBRES_TRIADES:
+        compat_metal_suporte = 0.82 * compat_metal_suporte + 0.18 * suporte["dispersao"]
+    if reacao == "reforma" and ativos_presentes & METAIS_BASE_REFORMA_TRIADES:
+        compat_metal_suporte = 0.85 * compat_metal_suporte + 0.15 * np.mean([suporte["basicidade"], suporte["estabilidade_termica"]])
+    if reacao == "rwgs" and ativos_presentes & METAIS_RWGS_TRIADES:
+        compat_metal_suporte = 0.85 * compat_metal_suporte + 0.15 * np.mean([suporte["redox"], suporte["afinidade_CO2"]])
+    if promotor in PROMOTORES_REDOX_TRIADES:
+        compat_promotor_suporte = 0.50 * suporte["redox"] + 0.30 * suporte["vacancia_oxigenio"] + 0.20 * suporte["estabilidade_termica"]
+    elif promotor in PROMOTORES_BASICOS_TRIADES:
+        compat_promotor_suporte = 0.52 * suporte["basicidade"] + 0.28 * suporte["afinidade_CO2"] + 0.20 * suporte["estabilidade_termica"]
+    elif promotor in PROMOTORES_ELETRONICOS_TRIADES:
+        compat_promotor_suporte = 0.42 * suporte["redox"] + 0.28 * suporte["dispersao"] + 0.30 * suporte["estabilidade_termica"]
+    else:
+        compat_promotor_suporte = 0.50
+    score_redox_interface = float(np.clip(np.mean([score_redox_linha, suporte["redox"], suporte["vacancia_oxigenio"]]), 0, 1))
+    score_basicidade_interface = float(np.clip(np.mean([score_basicidade_linha, suporte["basicidade"], suporte["afinidade_CO2"]]), 0, 1))
+    score_ancoragem = float(np.clip(0.35 * suporte["dispersao"] + 0.30 * suporte["estabilidade_termica"] + 0.20 * suporte["redox"] + 0.15 * score_estabilidade_linha, 0, 1))
+    score_adsorcao = float(np.clip(0.50 * score_volcano_linha + 0.30 * score_dft_linha + 0.20 * score_incerteza_linha, 0, 1))
+    fator_temp_alta = float(np.clip((temperatura_referencia_C - 600.0) / 300.0, 0, 1))
+    tem_metal_catalitico = bool(elementos & (METAIS_NOBRES_TRIADES | METAIS_BASE_REFORMA_TRIADES | METAIS_RWGS_TRIADES | {"V", "Nb", "Ta"}))
+    penalidade_smsi = float(np.clip(0.18 * suporte["risco_smsi"] * fator_temp_alta * (1.0 if tem_metal_catalitico else 0.5), 0, 0.18))
+    penalidade_sinterizacao = float(np.clip(0.18 * (1.0 - suporte["estabilidade_termica"]) * fator_temp_alta, 0, 0.18))
+    penalidade_coque = 0.0
+    if reacao == "reforma":
+        capacidade_remocao_c = np.mean([suporte["basicidade"], suporte["redox"], score_redox_linha, score_coque_linha])
+        penalidade_coque = float(np.clip(0.18 * penalidade_coque_linha * (1.0 - capacidade_remocao_c), 0, 0.18))
+    score_triada = float(np.clip(0.20 * compat_metal_suporte + 0.18 * compat_promotor_suporte + 0.15 * score_redox_interface + 0.15 * score_basicidade_interface + 0.12 * score_ancoragem + 0.10 * suporte["estabilidade_termica"] + 0.10 * score_adsorcao - penalidade_smsi - penalidade_sinterizacao - penalidade_coque, 0, 1))
+    justificativa = f"{suporte['suporte']} foi priorizado por combinar redox={suporte['redox']:.2f}, basicidade={suporte['basicidade']:.2f}, estabilidade={suporte['estabilidade_termica']:.2f} e compatibilidade com promotor {promotor or 'nao informado'}."
+    return {
+        "formula": formula,
+        "suporte_avaliado": suporte["suporte"],
+        "suporte_sugerido": suporte["suporte"],
+        "rota_sintese_sugerida": rota_triada(suporte),
+        "pretratamento_sugerido": pretratamento_triada(),
+        "justificativa_suporte_sintese": justificativa,
+        "observacao_sintese": "validar dispersao, tamanho de particula e estabilidade em teste de longa duracao",
+        "score_triada_metal_suporte_promotor": score_triada,
+        "score_compatibilidade_metal_suporte_triada": float(np.clip(compat_metal_suporte, 0, 1)),
+        "score_compatibilidade_promotor_suporte_triada": float(np.clip(compat_promotor_suporte, 0, 1)),
+        "score_redox_interface_triada": score_redox_interface,
+        "score_basicidade_interface_triada": score_basicidade_interface,
+        "score_ancoragem_triada": score_ancoragem,
+        "score_dispersao_triada": suporte["dispersao"],
+        "score_estabilidade_termica_triada": suporte["estabilidade_termica"],
+        "score_adsorcao_intermediarios_triada": score_adsorcao,
+        "penalidade_smsi_triada": penalidade_smsi,
+        "penalidade_sinterizacao_triada": penalidade_sinterizacao,
+        "penalidade_coque_triada": penalidade_coque,
+        "n_suportes_avaliados_triada": 0,
+    }
+
+# Avalia todos os suportes coerentes com a reacao para cada candidato refinado.
+linhas_triades = []
+melhores_triades = []
+refinado_df = refinado_df.reset_index(drop=True)
+refinado_df["_indice_refinado_triada"] = refinado_df.index
+for _, row in refinado_df.iterrows():
+    suportes_reacao = [s for s in BIBLIOTECA_SUPORTES_TRIADES if reacao in s["reacoes"]]
+    avaliacoes = []
+    for suporte in suportes_reacao:
+        resultado = avaliar_triada(row, suporte)
+        resultado["_indice_refinado_triada"] = int(row["_indice_refinado_triada"])
+        resultado["n_suportes_avaliados_triada"] = len(suportes_reacao)
+        avaliacoes.append(resultado)
+    avaliacoes_df = pd.DataFrame(avaliacoes).sort_values("score_triada_metal_suporte_promotor", ascending=False)
+    linhas_triades.extend(avaliacoes_df.to_dict(orient="records"))
+    melhores_triades.append(avaliacoes_df.iloc[0].to_dict())
+
+# Organiza a auditoria completa das triades avaliadas.
+triades_suportes_df = pd.DataFrame(linhas_triades)
+
+# Organiza a melhor triade para cada candidato refinado.
+triades_melhores_df = pd.DataFrame(melhores_triades)
+
+# Remove recomendacoes antigas para substituir pela triade mais bem pontuada.
+colunas_recomendacao_triada = ["suporte_sugerido", "rota_sintese_sugerida", "pretratamento_sugerido", "justificativa_suporte_sintese", "observacao_sintese"]
+refinado_df = refinado_df.drop(columns=[c for c in colunas_recomendacao_triada if c in refinado_df.columns], errors="ignore")
+
+# Junta os dados da melhor triade ao dataframe principal.
+colunas_merge_triada = [c for c in triades_melhores_df.columns if c != "formula"]
+refinado_df = refinado_df.merge(triades_melhores_df[colunas_merge_triada], on="_indice_refinado_triada", how="left")
+refinado_df = refinado_df.drop(columns=["_indice_refinado_triada"])
+
+# Guarda o score anterior para auditoria.
+refinado_df["score_final_material_antes_triada"] = refinado_df["score_final_material"]
+
+# Recalcula o score do material incorporando a compatibilidade metal-suporte-promotor.
+refinado_df["score_final_material"] = (
+    0.82 * refinado_df["score_final_material_antes_triada"]
+    + 0.18 * refinado_df["score_triada_metal_suporte_promotor"]
+).clip(0, 1)
+
 # Mostra suporte, rota e justificativa para os principais candidatos.
 refinado_df.sort_values("score_final_material", ascending=False)[[
     "formula",
     "suporte_sugerido",
+    "score_triada_metal_suporte_promotor",
+    "score_compatibilidade_metal_suporte_triada",
+    "score_compatibilidade_promotor_suporte_triada",
+    "penalidade_smsi_triada",
+    "penalidade_sinterizacao_triada",
+    "score_final_material",
     "rota_sintese_sugerida",
     "pretratamento_sugerido",
     "justificativa_suporte_sintese",
@@ -3300,6 +3474,20 @@ for _, row in refinado_df.iterrows():
             "pretratamento_sugerido": row["pretratamento_sugerido"],
             "justificativa_suporte_sintese": row["justificativa_suporte_sintese"],
             "observacao_sintese": row["observacao_sintese"],
+            "score_final_material_antes_triada": row.get("score_final_material_antes_triada", np.nan),
+            "score_triada_metal_suporte_promotor": row.get("score_triada_metal_suporte_promotor", np.nan),
+            "score_compatibilidade_metal_suporte_triada": row.get("score_compatibilidade_metal_suporte_triada", np.nan),
+            "score_compatibilidade_promotor_suporte_triada": row.get("score_compatibilidade_promotor_suporte_triada", np.nan),
+            "score_redox_interface_triada": row.get("score_redox_interface_triada", np.nan),
+            "score_basicidade_interface_triada": row.get("score_basicidade_interface_triada", np.nan),
+            "score_ancoragem_triada": row.get("score_ancoragem_triada", np.nan),
+            "score_dispersao_triada": row.get("score_dispersao_triada", np.nan),
+            "score_estabilidade_termica_triada": row.get("score_estabilidade_termica_triada", np.nan),
+            "score_adsorcao_intermediarios_triada": row.get("score_adsorcao_intermediarios_triada", np.nan),
+            "penalidade_smsi_triada": row.get("penalidade_smsi_triada", np.nan),
+            "penalidade_sinterizacao_triada": row.get("penalidade_sinterizacao_triada", np.nan),
+            "penalidade_coque_triada": row.get("penalidade_coque_triada", np.nan),
+            "n_suportes_avaliados_triada": row.get("n_suportes_avaliados_triada", np.nan),
             "energy_above_hull_eV_atom": row["energy_above_hull_eV_atom"],
             "score_estabilidade": row["score_estabilidade"],
             "score_atividade": row["score_atividade"],
@@ -4793,6 +4981,10 @@ n_cathub_usado = int(pd.Series(refinado_df.get("cathub_incremental_usado", pd.Se
 # Registra metrica de evidencia DFT/catalitica.
 adicionar_metrica("DFT/proxy", "candidatos com Catalysis-Hub incremental", n_cathub_usado, "n", "Numero de candidatos refinados com alguma evidencia consultada no Catalysis-Hub.")
 
+# Registra metricas da avaliacao metal-suporte-promotor.
+adicionar_metrica("tríade catalítica", "score medio da triade Top 10", float(pd.to_numeric(top10_metricas_df.get("score_triada_metal_suporte_promotor", pd.Series(dtype=float)), errors="coerce").mean()), "0-1", "Media da compatibilidade metal-suporte-promotor dos candidatos do Top 10.")
+adicionar_metrica("tríade catalítica", "suportes avaliados por candidato", float(pd.to_numeric(top10_metricas_df.get("n_suportes_avaliados_triada", pd.Series(dtype=float)), errors="coerce").median()), "n", "Numero mediano de suportes testados por candidato refinado para escolher a triade mais coerente.")
+
 # Registra metricas de descritores.
 adicionar_metrica("descritores", "matminer usado", bool(matminer_disponivel), "booleano", "Indica se descritores Magpie foram calculados obrigatoriamente.")
 adicionar_metrica("descritores", "numero de descritores matminer", int(len(matminer_feature_cols)), "n", "Quantidade de descritores Magpie disponiveis para o ranking.")
@@ -5991,6 +6183,21 @@ nomes_colunas_pt = {
     "pretratamento_sugerido": "pre-tratamento sugerido",
     "justificativa_suporte_sintese": "justificativa química do suporte e síntese",
     "observacao_sintese": "observação de síntese",
+    "suporte_avaliado": "suporte avaliado",
+    "score_final_material_antes_triada": "score final do material antes da tríade",
+    "score_triada_metal_suporte_promotor": "score da tríade metal-suporte-promotor",
+    "score_compatibilidade_metal_suporte_triada": "score de compatibilidade metal-suporte",
+    "score_compatibilidade_promotor_suporte_triada": "score de compatibilidade promotor-suporte",
+    "score_redox_interface_triada": "score redox da interface",
+    "score_basicidade_interface_triada": "score de basicidade da interface",
+    "score_ancoragem_triada": "score de ancoragem no suporte",
+    "score_dispersao_triada": "score de dispersão do suporte",
+    "score_estabilidade_termica_triada": "score de estabilidade térmica do suporte",
+    "score_adsorcao_intermediarios_triada": "score de adsorção de intermediários da tríade",
+    "penalidade_smsi_triada": "penalidade SMSI da tríade",
+    "penalidade_sinterizacao_triada": "penalidade de sinterização da tríade",
+    "penalidade_coque_triada": "penalidade de coque da tríade",
+    "n_suportes_avaliados_triada": "número de suportes avaliados na tríade",
     "energy_above_hull_eV_atom": "Estabilidade termodinâmica (eV/átomo)",
     "score_estabilidade": "score de estabilidade",
     "score_atividade": "score de atividade",
@@ -6220,6 +6427,9 @@ traduzir_colunas(melhor_por_candidato_df).to_csv(OUTPUT_DIR / f"{prefixo}_melhor
 # Salva os candidatos prioritários para síntese.
 traduzir_colunas(prioritarios_df).to_csv(OUTPUT_DIR / f"{prefixo}_prioritarios_sintese.csv", index=False, encoding="utf-8-sig")
 
+# Salva a auditoria das combinações metal-suporte-promotor avaliadas.
+traduzir_colunas(triades_suportes_df).to_csv(OUTPUT_DIR / f"{prefixo}_triades_suportes.csv", index=False, encoding="utf-8-sig")
+
 # Salva a avaliação média em faixa de condição.
 traduzir_colunas(desempenho_faixa_df).to_csv(OUTPUT_DIR / f"{prefixo}_desempenho_faixa_condicoes.csv", index=False, encoding="utf-8-sig")
 
@@ -6299,6 +6509,8 @@ traduzir_colunas(relatorio_validacao_metodo_df).to_csv(OUTPUT_DIR / f"{prefixo}_
 with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl") as writer:
     # Aba com candidatos prioritários.
     traduzir_colunas(prioritarios_df).to_excel(writer, sheet_name="Prioritarios_sintese", index=False)
+    # Aba com auditoria das triades metal-suporte-promotor.
+    traduzir_colunas(triades_suportes_df.head(300)).to_excel(writer, sheet_name="Triades_suportes", index=False)
     # Aba com melhor condição por candidato.
     traduzir_colunas(melhor_por_candidato_df).to_excel(writer, sheet_name="Melhor_por_candidato", index=False)
     # Aba com ranking completo.
@@ -6603,6 +6815,8 @@ resumo = {
     "arquivo_modelos_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_modelos_regressao_quimiometrica.csv"),
     "arquivo_predicoes_regressao_quimiometrica": str(OUTPUT_DIR / f"{prefixo}_predicoes_regressao_quimiometrica.csv"),
     "arquivo_relatorio_validacao_metodo": str(OUTPUT_DIR / f"{prefixo}_relatorio_validacao_metodo.csv"),
+    "arquivo_triades_suportes": str(OUTPUT_DIR / f"{prefixo}_triades_suportes.csv"),
+    "score_medio_triada_top10": float(pd.to_numeric(melhor_por_candidato_df.head(10).get("score_triada_metal_suporte_promotor", pd.Series(dtype=float)), errors="coerce").mean()) if not melhor_por_candidato_df.empty else None,
     "arquivo_descritores_matminer": str(OUTPUT_DIR / f"{prefixo}_descritores_matminer.csv"),
     "arquivo_descritores_pymatgen": str(OUTPUT_DIR / f"{prefixo}_descritores_pymatgen.csv"),
     "arquivo_proxy_gnn_local": str(OUTPUT_DIR / f"{prefixo}_proxy_gnn_local.csv"),

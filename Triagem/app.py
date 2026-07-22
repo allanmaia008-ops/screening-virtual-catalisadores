@@ -1115,6 +1115,7 @@ def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
         "validacao_quimio": output_dir / f"{prefixo}_validacao_quimiometrica.csv",
         "validacao_avancada": output_dir / f"{prefixo}_validacao_avancada.csv",
         "correcao_temperatura": output_dir / f"{prefixo}_correcao_temperatura_top10.csv",
+        "triades": output_dir / f"{prefixo}_triades_suportes.csv",
         "excel": output_dir / f"{prefixo}_resultados.xlsx",
         "html": output_dir / f"{prefixo}_relatorio.html",
         "resumo": output_dir / f"{prefixo}_resumo.json",
@@ -1630,6 +1631,7 @@ pareto_df = ler_csv(paths["pareto"])
 validacao_quimio_df = ler_csv(paths["validacao_quimio"])
 validacao_avancada_df = ler_csv(paths["validacao_avancada"])
 correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
+triades_df = ler_csv(paths["triades"])
 
 st.markdown("<h3 style='text-align:center; color:#111111; margin-bottom: 0.6rem;'>Resumo dos resultados</h3>", unsafe_allow_html=True)
 mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
@@ -1677,6 +1679,7 @@ with aba_quimica:
             ["dft", "volcano", "cinet", "descritores", "quimica", "quimiometria", "adsorcao"],
         )
         mostrar_tabela("Métricas químicas e DFT", metricas_quimicas_df, linhas=30)
+    mostrar_tabela("Tríades metal-suporte-promotor avaliadas", triades_df, linhas=30)
 
 with aba_validacao:
     col1, col2 = st.columns([1.0, 1.0])
@@ -1726,6 +1729,7 @@ with aba_arquivos:
         ("Validação quimiométrica", paths["validacao_quimio"]),
         ("Validação avançada", paths["validacao_avancada"]),
         ("Correção de temperatura Top 10", paths["correcao_temperatura"]),
+        ("Tríades metal-suporte-promotor", paths["triades"]),
         ("Índice de figuras", paths["figuras"]),
     ]
     for rotulo, caminho in arquivos_disponiveis:
