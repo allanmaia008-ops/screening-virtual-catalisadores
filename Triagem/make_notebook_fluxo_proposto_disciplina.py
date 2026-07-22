@@ -6186,6 +6186,7 @@ nomes_colunas_pt = {
     "suporte_avaliado": "suporte avaliado",
     "score_final_material_antes_triada": "score final do material antes da tríade",
     "score_triada_metal_suporte_promotor": "score da tríade metal-suporte-promotor",
+    "score_triada_metal_suporte_promotor_validacao": "score da tríade na validação avançada",
     "score_compatibilidade_metal_suporte_triada": "score de compatibilidade metal-suporte",
     "score_compatibilidade_promotor_suporte_triada": "score de compatibilidade promotor-suporte",
     "score_redox_interface_triada": "score redox da interface",

@@ -8,6 +8,7 @@ colunas_validacao_avancada = [
     "recomendacao_validacao_avancada",
     "nivel_evidencia",
     "score_evidencia_dados",
+    "score_triada_metal_suporte_promotor_validacao",
     "score_compatibilidade_suporte",
     "score_interface_metal_suporte",
     "risco_sinterizacao",
@@ -207,6 +208,20 @@ def score_interface_avancado(row, caracteristicas, temperatura_C):
     )
     # Retorna score limitado entre 0 e 1.
     return float(np.clip(score_interface, 0, 1))
+
+# Combina a avaliacao avancada antiga com a triade calculada na etapa de suporte.
+def combinar_suporte_interface_com_triada_avancado(row, score_suporte, score_interface):
+    # Le o score da triade quando ele foi gerado na etapa 10.
+    score_triada = valor_float_avancado(row, "score_triada_metal_suporte_promotor", np.nan)
+    # Mantem o calculo antigo quando a triade ainda nao existe.
+    if not np.isfinite(score_triada):
+        return np.nan, score_suporte, score_interface
+    # Reforca a compatibilidade do suporte com a avaliacao direta metal-suporte-promotor.
+    score_suporte_ajustado = float(np.clip(0.65 * score_suporte + 0.35 * score_triada, 0, 1))
+    # Reforca a interface com maior peso da triade, pois ela ja combina metal, promotor e suporte.
+    score_interface_ajustado = float(np.clip(0.55 * score_interface + 0.45 * score_triada, 0, 1))
+    # Retorna a triade e os scores ajustados.
+    return float(score_triada), score_suporte_ajustado, score_interface_ajustado
 
 # Calcula nivel de evidencia dos dados usados no candidato.
 def avaliar_evidencia_avancada(row):
@@ -539,6 +554,8 @@ for _, row in prioritarios_df.head(N_CANDIDATOS_RANKING_FINAL).copy().iterrows()
     score_suporte = score_compatibilidade_suporte_avancado(row, suporte_caracteristicas)
     # Calcula score de interface metal-suporte.
     score_interface = score_interface_avancado(row, suporte_caracteristicas, temperatura_linha_C)
+    # Ajusta suporte e interface usando a triade metal-suporte-promotor quando disponivel.
+    score_triada_validacao, score_suporte, score_interface = combinar_suporte_interface_com_triada_avancado(row, score_suporte, score_interface)
     # Calcula risco de sinterizacao.
     score_termico, risco_sinterizacao, tammann_min_C = avaliar_sinterizacao_avancada(row)
     # Calcula risco redox em operando.
@@ -620,6 +637,7 @@ for _, row in prioritarios_df.head(N_CANDIDATOS_RANKING_FINAL).copy().iterrows()
         "recomendacao_validacao_avancada": recomendacao,
         "nivel_evidencia": nivel_evidencia,
         "score_evidencia_dados": score_evidencia,
+        "score_triada_metal_suporte_promotor_validacao": score_triada_validacao,
         "score_compatibilidade_suporte": score_suporte,
         "score_interface_metal_suporte": score_interface,
         "risco_sinterizacao": risco_sinterizacao,
@@ -735,6 +753,7 @@ colunas_validacao_avancada_merge = [
     "recomendacao_validacao_avancada",
     "nivel_evidencia",
     "score_evidencia_dados",
+    "score_triada_metal_suporte_promotor_validacao",
     "score_compatibilidade_suporte",
     "score_interface_metal_suporte",
     "risco_sinterizacao",
