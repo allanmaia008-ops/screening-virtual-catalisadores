@@ -318,70 +318,119 @@ def mostrar_painel_decisao(
         return
 
     top = prioritarios_df.iloc[0]
-    candidato = valor_linha(top, ["formula"])
-    suporte = valor_linha(top, ["suporte"])
-    regime = valor_linha(top, ["regime"])
-    score_final = valor_linha(top, ["score", "final"])
+
+    def encontrar_opcao(opcoes: list[list[str]]) -> str | None:
+        return encontrar_coluna_por_opcoes(pd.DataFrame(columns=top.index), opcoes)
+
+    def texto_opcao(opcoes: list[list[str]], padrao: str = "-") -> str:
+        coluna = encontrar_opcao(opcoes)
+        if coluna is None:
+            return padrao
+        valor = top.get(coluna, padrao)
+        return padrao if valor is None or pd.isna(valor) else str(valor)
+
+    def numero_opcao(opcoes: list[list[str]]) -> float | None:
+        coluna = encontrar_opcao(opcoes)
+        if coluna is None:
+            return None
+        valor = pd.to_numeric(pd.Series([top.get(coluna)]), errors="coerce").iloc[0]
+        return None if pd.isna(valor) else float(valor)
+
+    def percentual(valor: float | None) -> str:
+        return "-" if valor is None else f"{valor:.1f}%"
+
+    formula = texto_opcao([["formula"], ["f"]])
+    suporte = texto_opcao([["suporte", "sugerido"], ["suporte"]])
+    rota_sintese = texto_opcao([["rota", "sintese"]])
+    pretratamento = texto_opcao([["pretratamento"]])
+    justificativa_suporte = texto_opcao([["justificativa", "suporte"], ["justificativa"]])
+    observacao_sintese = texto_opcao([["observacao", "sintese"], ["observacao"]])
+    regime = texto_opcao([["regime"]])
     confiabilidade = extrair_confiabilidade(top)
-    temperatura = valor_linha(top, ["temperatura"])
-    pressao = valor_linha(top, ["press"])
-    razao = valor_linha(top, ["razao"])
+    conversao = numero_opcao([["conversao", "prevista"], ["conversao"]])
+    seletividade = numero_opcao([["seletividade", "prevista"], ["seletividade"]])
+    rendimento = numero_opcao([["rendimento", "produtividade", "prevista"], ["rendimento", "prevista"], ["rendimento"]])
+    estabilidade = numero_opcao([["estabilidade", "termodinamica"], ["energy", "above", "hull"]])
+    resistencia_coque = numero_opcao([["resistencia", "coque"]])
+    distancia_volcano = numero_opcao([["distancia", "otimo", "volcano"]])
+    energia_adsorcao = numero_opcao([["energia", "adsorcao", "volcano"], ["energia", "adsorcao"]])
+    descritor_volcano = texto_opcao([["descritor", "volcano"]], "")
+    fonte_volcano = texto_opcao([["fonte", "volcano"]], "")
+    probabilidade_top5 = numero_opcao([["probabilidade", "top5"], ["probabilidade", "top", "5"]])
+    condicao_inicial = montar_condicao_operacional(top)
+    ghsv = numero_opcao([["ghsv"]])
 
     mostrar_linha_cartoes(
-        "Resultado principal",
+        "Decisão experimental",
         [
-            ("Candidato para s\u00edntese", candidato, True),
+            ("Catalisador para síntese", formula, True),
             ("Suporte sugerido", suporte, False),
-            ("Regime recomendado", regime, False),
-            ("Score final", formatar_valor(score_final), True),
-            ("Confiabilidade", confiabilidade, False),
+            ("Rendimento ou produtividade prevista", percentual(rendimento), True),
         ],
     )
-
-    fonte_score = classificacao_df if not classificacao_df.empty else prioritarios_df
-    if len(fonte_score) < 3 and not monte_carlo_df.empty:
-        fonte_score = monte_carlo_df
-    coluna_score = encontrar_coluna(fonte_score, ["score", "final"]) or encontrar_coluna(fonte_score, ["media", "monte", "carlo"])
-    score_medio = None
-    diferenca_top = None
-    empate = "-"
-    if coluna_score:
-        scores = pd.to_numeric(fonte_score[coluna_score], errors="coerce").dropna().head(10)
-        if not scores.empty:
-            score_medio = float(scores.mean())
-        if len(scores) >= 2:
-            diferenca_top = abs(float(scores.iloc[0]) - float(scores.iloc[1]))
-            empate = "sim" if diferenca_top <= 0.01 else "n\u00e3o"
-
     mostrar_linha_cartoes(
-        "Qualidade do ranking",
+        "Condição e confiança",
         [
-            ("Candidatos no Top 10", formatar_valor(len(monte_carlo_df) if not monte_carlo_df.empty else len(classificacao_df)), False),
-            ("Score m\u00e9dio Top 10", formatar_valor(score_medio), True),
-            ("Diferen\u00e7a 1\u00ba-2\u00ba", formatar_valor(diferenca_top), False),
-            ("Empate t\u00e9cnico", empate, False),
+            ("Condição inicial de ensaio", f"{condicao_inicial} · {regime.replace('_', ' ')}" if regime != "-" else condicao_inicial, False),
+            ("Confiabilidade da recomendação", confiabilidade.capitalize() if confiabilidade != "-" else "-", True),
+            ("Robustez no Top 5", "-" if probabilidade_top5 is None else f"{100 * probabilidade_top5:.0f}%", False),
         ],
     )
-
-    estabilidade_media = numero_coluna(classificacao_df, ["estabilidade"], linhas=10)
-    if estabilidade_media is None:
-        estabilidade_media = numero_coluna(prioritarios_df, ["estabilidade"], linhas=10)
-    melhor_estabilidade = numero_coluna(classificacao_df, ["estabilidade"], linhas=10, menor=True)
-    if melhor_estabilidade is None:
-        melhor_estabilidade = numero_coluna(prioritarios_df, ["estabilidade"], linhas=10, menor=True)
-    coque = numero_coluna(classificacao_df, ["coque"], linhas=10)
-    if coque is None:
-        coque = numero_coluna(prioritarios_df, ["coque"], linhas=10)
-
     mostrar_linha_cartoes(
-        "Viabilidade qu\u00edmica",
+        "Desempenho químico previsto",
         [
-            ("Estabilidade m\u00e9dia", f"{formatar_valor(estabilidade_media)} eV/\u00e1tomo" if estabilidade_media is not None else "-", False),
-            ("Melhor estabilidade", f"{formatar_valor(melhor_estabilidade)} eV/\u00e1tomo" if melhor_estabilidade is not None else "-", False),
-            ("Resist\u00eancia a coque", formatar_valor(coque), False),
-            ("Viabilidade global", formatar_valor(extrair_metrica(metricas_df, "taxa de viabilidade"), percentual=True), True),
+            ("Conversão prevista", percentual(conversao), True),
+            ("Seletividade prevista", percentual(seletividade), True),
+            ("Estabilidade termodinâmica", "-" if estabilidade is None else f"{estabilidade:.3f} eV/átomo", False),
+            ("Resistência à deposição de carbono", "-" if resistencia_coque is None else ("Alta" if resistencia_coque >= 0.70 else "Moderada" if resistencia_coque >= 0.45 else "Baixa"), False),
         ],
     )
+
+    if distancia_volcano is not None and distancia_volcano <= 0.15:
+        leitura_adsorcao = "Próxima do ótimo de adsorção"
+    elif distancia_volcano is not None and distancia_volcano <= 0.30:
+        leitura_adsorcao = "Adsorção intermediária"
+    elif distancia_volcano is not None:
+        leitura_adsorcao = "Adsorção distante do ótimo"
+    else:
+        leitura_adsorcao = "Energia de adsorção não disponível"
+    if energia_adsorcao is not None:
+        leitura_adsorcao += f" (ΔE = {energia_adsorcao:.3f} eV)"
+    if descritor_volcano:
+        leitura_adsorcao = f"{descritor_volcano}: {leitura_adsorcao}"
+
+    if resistencia_coque is not None and resistencia_coque >= 0.70:
+        principal_vantagem = "Boa resistência estimada à deposição de carbono"
+    elif distancia_volcano is not None and distancia_volcano <= 0.15:
+        principal_vantagem = "Adsorção próxima da região ótima de Sabatier"
+    elif estabilidade is not None and estabilidade <= 0.10:
+        principal_vantagem = "Boa estabilidade termodinâmica prevista"
+    else:
+        principal_vantagem = "Equilíbrio previsto entre atividade e estabilidade"
+
+    if confiabilidade == "baixa":
+        principal_risco = "Baixa confiança global na predição"
+    elif estabilidade is not None and estabilidade > 0.15:
+        principal_risco = "Metaestabilidade elevada para síntese e operação"
+    elif distancia_volcano is not None and distancia_volcano > 0.30:
+        principal_risco = "Energia de adsorção distante do ótimo"
+    elif "proxy" in normalizar_texto(fonte_volcano):
+        principal_risco = "Energia de adsorção estimada por proxy químico"
+    else:
+        principal_risco = "Requer confirmação experimental de atividade e superfície"
+
+    col_quimica, col_plano, col_evidencia = st.columns(3)
+    with col_quimica:
+        st.markdown("<h4 style='text-align:center;'>Justificativa química</h4>", unsafe_allow_html=True)
+        st.write(f"{leitura_adsorcao}. {justificativa_suporte}")
+    with col_plano:
+        st.markdown("<h4 style='text-align:center;'>Plano experimental inicial</h4>", unsafe_allow_html=True)
+        st.write(f"Rota: {rota_sintese}. Pré-tratamento: {pretratamento}. GHSV: {f'{ghsv:.0f} h⁻¹' if ghsv is not None else 'não informado'}.")
+    with col_evidencia:
+        st.markdown("<h4 style='text-align:center;'>Evidência e ponto de atenção</h4>", unsafe_allow_html=True)
+        st.write(f"Vantagem principal: {principal_vantagem}. Atenção: {principal_risco}. {observacao_sintese}")
+
+    st.caption("Os valores desta tela são previsões de triagem virtual e devem ser confirmados por caracterização e ensaios catalíticos.")
 
 def mostrar_robustez_operacao(
     metricas_df: pd.DataFrame,
@@ -783,10 +832,12 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
         formula = valor_linha(row, ["formula"], valor_linha(row, ["f"], "-"))
         suporte = texto_curto(valor_linha(row, ["suporte"], "-"), limite=135)
         condicao = montar_condicao_operacional(row)
-        score_final = formatar_numero_linha(row, ["score", "final"], casas=3)
+        conversao = formatar_numero_linha(row, ["conversao"], "%", casas=1)
+        seletividade = formatar_numero_linha(row, ["seletividade"], "%", casas=1)
         confiabilidade = extrair_confiabilidade(row)
         estabilidade = formatar_numero_linha(row, ["estabilidade"], "eV/átomo", casas=3)
         rendimento = formatar_numero_linha(row, ["rendimento"], "%", casas=1)
+        rota_sintese = texto_curto(valor_linha(row, ["rota", "sintese"], "-"), limite=135)
         justificativa = texto_curto(
             valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e robustez.")),
             limite=155,
@@ -803,15 +854,17 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                     </div>
                 </div>
                 <div class="top2-metrics">
-                    <div><span>Score final</span><strong>{html.escape(score_final)}</strong></div>
+                    <div><span>Conversão prevista</span><strong>{html.escape(conversao)}</strong></div>
+                    <div><span>Seletividade prevista</span><strong>{html.escape(seletividade)}</strong></div>
                     <div><span>Confiabilidade</span><strong>{html.escape(confiabilidade)}</strong></div>
                     <div><span>Rendimento previsto</span><strong>{html.escape(rendimento)}</strong></div>
                 </div>
                 <div class="top2-info"><span>Suporte</span><strong>{html.escape(suporte)}</strong></div>
                 <div class="top2-info"><span>Condição sugerida</span><strong>{html.escape(condicao)}</strong></div>
+                <div class="top2-info"><span>Rota de síntese</span><strong>{html.escape(rota_sintese)}</strong></div>
                 <div class="top2-info"><span>Estabilidade termodinâmica</span><strong>{html.escape(estabilidade)}</strong></div>
                 <div class="top2-why">
-                    <span>Justificativa do suporte</span>
+                    <span>Justificativa química e do suporte</span>
                     <p>{html.escape(justificativa)}</p>
                 </div>
             </article>
@@ -871,7 +924,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             }}
             .top2-metrics {{
                 display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(4, minmax(0, 1fr));
                 gap: 8px;
                 margin-bottom: 12px;
             }}
