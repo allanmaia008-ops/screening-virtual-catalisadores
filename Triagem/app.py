@@ -1362,8 +1362,8 @@ def renderizar_cabecalho() -> None:
         labtam_base64 = base64.b64encode(LABTAM_LOGO_PATH.read_bytes()).decode("utf-8") if LABTAM_LOGO_PATH.exists() else ""
         labtam_img = (
             f"""<img src="data:image/png;base64,{labtam_base64}" alt="LabTAm UFRN" style="
-                width: min(300px, 24vw);
-                max-height: 120px;
+                width: min(240px, 20vw);
+                max-height: 94px;
                 object-fit: contain;
                 display: block;
             " />"""
