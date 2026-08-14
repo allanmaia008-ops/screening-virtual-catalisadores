@@ -1420,7 +1420,7 @@ def renderizar_cabecalho() -> None:
                         display: block;
                     ">
                         <div style="
-                            color: #009830;
+                            color: #111111;
                             font-family: Arial, Helvetica, sans-serif;
                             font-size: clamp(1.9rem, 3.2vw, 3.2rem);
                             font-weight: 850;
