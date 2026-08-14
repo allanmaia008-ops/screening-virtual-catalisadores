@@ -383,11 +383,28 @@ def mostrar_painel_decisao(
         ],
     )
 
+def mostrar_robustez_operacao(
+    metricas_df: pd.DataFrame,
+    prioritarios_df: pd.DataFrame,
+    classificacao_df: pd.DataFrame,
+    monte_carlo_df: pd.DataFrame,
+    desempenho_df: pd.DataFrame,
+) -> None:
+    """Mostra os indicadores operacionais e de robustez em uma aba dedicada."""
+    if prioritarios_df.empty and monte_carlo_df.empty and desempenho_df.empty:
+        st.info("Execute a triagem para visualizar os dados de robustez e opera\u00e7\u00e3o.")
+        return
+
+    top = prioritarios_df.iloc[0] if not prioritarios_df.empty else pd.Series(dtype=object)
+    temperatura = valor_linha(top, ["temperatura"])
+    pressao = valor_linha(top, ["press"])
+    razao = valor_linha(top, ["razao"])
     prob_mc = numero_coluna(monte_carlo_df, ["probabilidade", "top"], linhas=10, maior=True)
     incert_mc = numero_coluna(monte_carlo_df, ["desvio", "score"], linhas=10)
+
     conf_predominante = "-"
     coluna_conf = encontrar_coluna(classificacao_df, ["confiabilidade"]) or encontrar_coluna(prioritarios_df, ["confiabilidade"])
-    fonte_conf = classificacao_df if coluna_conf in classificacao_df.columns else prioritarios_df
+    fonte_conf = classificacao_df if coluna_conf and coluna_conf in classificacao_df.columns else prioritarios_df
     if coluna_conf and not fonte_conf.empty:
         valores = fonte_conf[coluna_conf].astype(str).map(normalizar_texto)
         if not valores.empty:
@@ -414,6 +431,17 @@ def mostrar_painel_decisao(
         ],
     )
 
+    col1, col2 = st.columns([1.0, 1.0])
+    with col1:
+        mostrar_tabela("Robustez Monte Carlo", monte_carlo_df, linhas=30)
+    with col2:
+        metricas_operacao_df = filtrar_metricas_por_termos(
+            metricas_df,
+            ["robustez", "monte carlo", "probabilidade", "desvio", "faixa", "condicao", "condi\u00e7\u00e3o", "operacao", "opera\u00e7\u00e3o", "regime"],
+        )
+        mostrar_tabela("M\u00e9tricas de robustez e opera\u00e7\u00e3o", metricas_operacao_df, linhas=30)
+
+    mostrar_tabela("Desempenho por faixa de condi\u00e7\u00e3o", desempenho_df, linhas=30)
 
 def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
     """Mostra a triagem como um fluxo vertical com criterios e retencao."""
@@ -1574,11 +1602,12 @@ correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
 st.markdown("<h3 style='text-align:center; color:#111111; margin-bottom: 0.6rem;'>Resumo dos resultados</h3>", unsafe_allow_html=True)
 mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
 
-aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
+aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
     "Visão geral",
     "Candidatos",
     "Classifica\u00e7\u00e3o",
     "Incerteza",
+    "Robustez e opera\u00e7\u00e3o",
     "Química",
     "Validação",
     "Visualização científica",
@@ -1603,9 +1632,12 @@ with aba_incerteza:
     with col2:
         metricas_confianca_df = filtrar_metricas_por_termos(
             metricas_df,
-            ["confianca", "confiabilidade", "incerteza", "monte carlo", "ic95", "robustez"],
+            ["confianca", "confiabilidade", "incerteza", "monte carlo", "ic95"],
         )
         mostrar_tabela("Métricas de confiança", metricas_confianca_df, linhas=30)
+
+with aba_robustez:
+    mostrar_robustez_operacao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
 
 with aba_quimica:
     col1, col2 = st.columns([1.1, 1.0])
