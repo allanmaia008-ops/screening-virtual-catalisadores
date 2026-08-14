@@ -1428,7 +1428,7 @@ def renderizar_cabecalho() -> None:
                             letter-spacing: 0;
                             text-align: center;
                         ">
-                            Screening Virtual
+                            CatAiLab
                         </div>
                     </div>
                     <div style="
@@ -1458,7 +1458,7 @@ def renderizar_cabecalho() -> None:
             unsafe_allow_html=True,
         )
     else:
-        st.title("Screening Virtual")
+        st.title("CatAiLab")
 
 
 def renderizar_logo_projeto_sidebar() -> None:
@@ -1477,7 +1477,7 @@ def renderizar_logo_projeto_sidebar() -> None:
             margin: 0 0 8px 0;
             border-bottom: 1px solid rgba(11, 79, 122, 0.16);
         ">
-            <img src="data:image/png;base64,{projeto_base64}" alt="Screening Virtual" style="
+            <img src="data:image/png;base64,{projeto_base64}" alt="CatAiLab" style="
                 width: min(210px, 92%);
                 max-height: 118px;
                 object-fit: contain;
@@ -1489,7 +1489,7 @@ def renderizar_logo_projeto_sidebar() -> None:
     )
 
 
-st.set_page_config(page_title="Triagem virtual de catalisadores", layout="wide")
+st.set_page_config(page_title="CatAiLab", layout="wide")
 renderizar_cabecalho()
 
 with st.sidebar:
