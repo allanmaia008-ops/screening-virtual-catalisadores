@@ -1359,15 +1359,15 @@ def renderizar_cabecalho() -> None:
     """Renderiza o cabeçalho institucional sem exibir caminhos locais."""
     if BRASAO_PATH.exists():
         imagem_base64 = base64.b64encode(BRASAO_PATH.read_bytes()).decode("utf-8")
-        projeto_base64 = base64.b64encode(PROJECT_LOGO_PATH.read_bytes()).decode("utf-8") if PROJECT_LOGO_PATH.exists() else ""
-        projeto_img = (
-            f"""<img src="data:image/png;base64,{projeto_base64}" style="
-                width: min(320px, 26vw);
+        labtam_base64 = base64.b64encode(LABTAM_LOGO_PATH.read_bytes()).decode("utf-8") if LABTAM_LOGO_PATH.exists() else ""
+        labtam_img = (
+            f"""<img src="data:image/png;base64,{labtam_base64}" alt="LabTAm UFRN" style="
+                width: min(300px, 24vw);
                 max-height: 120px;
                 object-fit: contain;
                 display: block;
             " />"""
-            if projeto_base64
+            if labtam_base64
             else ""
         )
         st.markdown(
@@ -1451,7 +1451,7 @@ def renderizar_cabecalho() -> None:
                     min-width: 0;
                     transform: translateX(19px);
                 ">
-                    {projeto_img}
+                    {labtam_img}
                 </div>
             </div>
             """,
@@ -1461,11 +1461,11 @@ def renderizar_cabecalho() -> None:
         st.title("Screening Virtual")
 
 
-def renderizar_logo_labtam_sidebar() -> None:
-    """Renderiza o logotipo do LabTAm no topo da barra lateral."""
-    if not LABTAM_LOGO_PATH.exists():
+def renderizar_logo_projeto_sidebar() -> None:
+    """Renderiza o logotipo do projeto no topo da barra lateral."""
+    if not PROJECT_LOGO_PATH.exists():
         return
-    labtam_base64 = base64.b64encode(LABTAM_LOGO_PATH.read_bytes()).decode("utf-8")
+    projeto_base64 = base64.b64encode(PROJECT_LOGO_PATH.read_bytes()).decode("utf-8")
     st.markdown(
         f"""
         <div style="
@@ -1477,9 +1477,9 @@ def renderizar_logo_labtam_sidebar() -> None:
             margin: 0 0 8px 0;
             border-bottom: 1px solid rgba(11, 79, 122, 0.16);
         ">
-            <img src="data:image/png;base64,{labtam_base64}" alt="LabTAm UFRN" style="
+            <img src="data:image/png;base64,{projeto_base64}" alt="Screening Virtual" style="
                 width: min(210px, 92%);
-                max-height: 84px;
+                max-height: 118px;
                 object-fit: contain;
                 display: block;
             " />
@@ -1493,7 +1493,7 @@ st.set_page_config(page_title="Triagem virtual de catalisadores", layout="wide")
 renderizar_cabecalho()
 
 with st.sidebar:
-    renderizar_logo_labtam_sidebar()
+    renderizar_logo_projeto_sidebar()
     st.header("Configuração")
     reacao = st.selectbox("Reação", ["metanacao", "reforma", "rwgs"], format_func=lambda x: {"metanacao": "Metanação de CO2", "reforma": "Reforma de CH4", "rwgs": "RWGS"}[x])
     n_metais = st.number_input("Número de metais ativos", min_value=1, max_value=4, value=1, step=1)
