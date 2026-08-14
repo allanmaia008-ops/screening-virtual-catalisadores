@@ -252,7 +252,7 @@ def cartao_html(rotulo: str, valor: str, destaque: bool = False) -> str:
         align-items: center;
     ">
         <div style="
-            color: #516B5A;
+            color: #111111;
             font-family: Arial, Helvetica, sans-serif;
             font-size: clamp(1.0rem, 1.08vw, 1.14rem);
             font-weight: 850;
@@ -445,21 +445,21 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "valor": n_gerados,
             "criterio": "Combina\u00e7\u00f5es de fase ativa, promotor e suporte definidas pela gera\u00e7\u00e3o de candidatos.",
             "retencao": retencao(n_gerados, None),
-            "cor": "#009830",
+            "cor": "#168AC8",
         },
         {
             "rotulo": "Candidatos vi\u00e1veis",
             "valor": n_viaveis,
             "criterio": "Filtro de estabilidade termodin\u00e2mica, viabilidade qu\u00edmica e descritores iniciais.",
             "retencao": retencao(n_viaveis, n_gerados),
-            "cor": "#40A858",
+            "cor": "#2FA7B2",
         },
         {
             "rotulo": "Candidatos refinados",
             "valor": n_refinados,
             "criterio": "Refinamento por descritores catal\u00edticos, dados DFT ou proxies e penaliza\u00e7\u00e3o de incerteza.",
             "retencao": retencao(n_refinados, n_viaveis),
-            "cor": "#007A32",
+            "cor": "#0B6F8F",
         },
         {
             "rotulo": "Recomendados para s\u00edntese",
@@ -499,12 +499,12 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 width: 100%;
                 box-sizing: border-box;
                 padding: 18px 18px 16px 18px;
-                border: 1px solid #D8EEDC;
+                border: 1px solid #D8EEF8;
                 border-radius: 12px;
                 background: #FFFFFF;
             }}
             .fluxo-titulo {{
-                color: #006B2A;
+                color: #0B4F7A;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 1.18rem;
                 font-weight: 800;
@@ -528,12 +528,12 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 1rem;
                 font-weight: 850;
-                box-shadow: 0 2px 8px rgba(0, 107, 42, 0.16);
+                box-shadow: 0 2px 8px rgba(11, 79, 122, 0.16);
             }}
             .fluxo-conteudo {{
-                border: 1px solid #E2F0E6;
+                border: 1px solid #E3EFF5;
                 border-radius: 10px;
-                background: #F8FCF9;
+                background: #F8FCFE;
                 padding: 12px 14px;
             }}
             .fluxo-cabecalho {{
@@ -541,7 +541,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 justify-content: space-between;
                 align-items: baseline;
                 gap: 12px;
-                color: #006B2A;
+                color: #0B4F7A;
                 font-family: Arial, Helvetica, sans-serif;
                 font-weight: 800;
             }}
@@ -549,7 +549,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-size: 1rem;
             }}
             .fluxo-cabecalho strong {{
-                color: #009830;
+                color: #168AC8;
                 font-size: 1.42rem;
                 white-space: nowrap;
             }}
@@ -557,7 +557,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 width: 100%;
                 height: 10px;
                 border-radius: 999px;
-                background: #E9F6ED;
+                background: #E9F4F9;
                 overflow: hidden;
                 margin: 9px 0 7px 0;
             }}
@@ -567,20 +567,20 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 border-radius: 999px;
             }}
             .fluxo-criterio {{
-                color: #516B5A;
+                color: #526F82;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 0.91rem;
                 line-height: 1.34;
                 margin-top: 6px;
             }}
             .fluxo-retencao {{
-                color: #315F3F;
+                color: #315A6F;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 0.88rem;
                 margin-top: 8px;
             }}
             .fluxo-seta {{
-                color: #8AB99A;
+                color: #8BAFC0;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 1.4rem;
                 font-weight: 800;
@@ -676,7 +676,7 @@ def mostrar_resumo_top(prioritarios_df: pd.DataFrame) -> None:
                 align-items: center;
             ">
                 <div style="
-                    color: #607A68;
+                    color: #111111;
                     font-family: Arial, Helvetica, sans-serif;
                     font-size: 0.86rem;
                     font-weight: 650;
@@ -684,7 +684,7 @@ def mostrar_resumo_top(prioritarios_df: pd.DataFrame) -> None:
                     margin-bottom: 8px;
                 ">{html.escape(rotulo)}</div>
                 <div style="
-                    color: #006B2A;
+                    color: #111111;
                     font-family: Arial, Helvetica, sans-serif;
                     font-size: 1.12rem;
                     font-weight: 800;
@@ -828,7 +828,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 flex: 0 0 auto;
             }}
             .top2-label {{
-                color: #607A68;
+                color: #111111;
                 font-size: 0.78rem;
                 font-weight: 750;
                 text-transform: uppercase;
@@ -857,14 +857,14 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             .top2-metrics span,
             .top2-info span {{
                 display: block;
-                color: #607A68;
+                color: #111111;
                 font-size: 0.74rem;
                 font-weight: 750;
                 line-height: 1.12;
                 margin-bottom: 3px;
             }}
             .top2-metrics strong {{
-                color: #006B2A;
+                color: #111111;
                 font-size: 0.98rem;
                 font-weight: 850;
                 line-height: 1.12;
@@ -887,7 +887,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             }}
             .top2-why span {{
                 display: block;
-                color: #607A68;
+                color: #111111;
                 font-size: 0.76rem;
                 font-weight: 800;
                 line-height: 1.12;
@@ -897,7 +897,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             }}
             .top2-why p {{
                 margin: 0;
-                color: #516B5A;
+                color: #111111;
                 font-size: 0.9rem;
                 line-height: 1.28;
             }}
@@ -1153,7 +1153,7 @@ def mostrar_classificacao_centralizada(titulo: str, dataframe: pd.DataFrame) -> 
                 border-collapse: collapse;
                 min-width: min(520px, 100%);
                 font-family: Arial, Helvetica, sans-serif;
-                color: #006B2A;
+                color: #111111;
                 background: #FFFFFF;
                 border: 1px solid #D8EEDC;
                 border-radius: 10px;
@@ -1161,7 +1161,7 @@ def mostrar_classificacao_centralizada(titulo: str, dataframe: pd.DataFrame) -> 
             }}
             .classificacao-top10 th {{
                 background: #EAF8EF;
-                color: #006B2A;
+                color: #111111;
                 font-weight: 850;
                 text-align: center;
                 padding: 11px 14px;
@@ -1401,7 +1401,7 @@ def renderizar_cabecalho() -> None:
                         display: block;
                     " />
                     <div style="
-                        color: #006B2A;
+                        color: #111111;
                         font-family: Arial, Helvetica, sans-serif;
                         font-size: clamp(0.78rem, 0.95vw, 0.98rem);
                         font-weight: 750;
@@ -1432,7 +1432,7 @@ def renderizar_cabecalho() -> None:
                         </div>
                     </div>
                     <div style="
-                        color: #516B5A;
+                        color: #111111;
                         font-family: Arial, Helvetica, sans-serif;
                         font-size: clamp(0.95rem, 1.2vw, 1.18rem);
                         font-weight: 550;
