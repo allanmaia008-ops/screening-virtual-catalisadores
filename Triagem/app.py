@@ -27,6 +27,97 @@ BRASAO_PATH = APP_DIR / "assets" / "logo_ufrn_header.png"
 PROJECT_LOGO_PATH = APP_DIR / "assets" / "logo_triagem_catalitica.png"
 LABTAM_LOGO_PATH = APP_DIR / "assets" / "logo_labtam.png"
 
+PERFIL_PESQUISADOR = {
+    "nome": "Allan Maia",
+    "email": os.environ.get("CATAILAB_CONTACT_EMAIL", "allan.maia.008@ufrn.edu.br").strip(),
+    "telefone": os.environ.get("CATAILAB_CONTACT_PHONE", "(88) 99909-6430").strip(),
+    "lattes": os.environ.get("CATAILAB_LATTES_URL", "http://lattes.cnpq.br/0437324677042249").strip(),
+}
+
+TRADUCOES_EN = {
+    "Triagem": "Screening",
+    "Sobre": "About",
+    "Pesquisa": "Research",
+    "Contato": "Contact",
+    "Programa de Pós-Graduação<br />em Química": "Graduate Program<br />in Chemistry",
+    "Predição virtual de catalisadores e condições de síntese": "Virtual prediction of catalysts and synthesis conditions",
+    "Configuração": "Configuration",
+    "Reação": "Reaction",
+    "Metanação de CO2": "CO₂ methanation",
+    "Reforma de CH4": "CH₄ reforming",
+    "Número de metais ativos": "Number of active metals",
+    "Metais ativos": "Active metals",
+    "Promotor": "Promoter",
+    "Local de salvamento": "Output location",
+    "Usar pasta padrão": "Use default folder",
+    "Escolher outra pasta": "Choose another folder",
+    "Pasta de destino dos resultados": "Results destination folder",
+    "Executar triagem": "Run screening",
+    "Resumo dos resultados": "Results summary",
+    "Visão geral": "Overview",
+    "Candidatos": "Candidates",
+    "Classificação": "Ranking",
+    "Incerteza": "Uncertainty",
+    "Robustez e operação": "Robustness and operation",
+    "Química": "Chemistry",
+    "Validação": "Validation",
+    "Visualização científica": "Scientific visualization",
+    "Arquivos": "Files",
+    "Exportações": "Exports",
+    "Tabela ainda não disponível.": "Table not available yet.",
+    "Catalisador para síntese": "Catalyst for synthesis",
+    "Suporte sugerido": "Suggested support",
+    "Rendimento ou produtividade prevista": "Predicted yield or productivity",
+    "Condição e confiança": "Conditions and confidence",
+    "Condição inicial de ensaio": "Initial test condition",
+    "Confiabilidade da recomendação": "Recommendation confidence",
+    "Robustez no Top 5": "Top 5 robustness",
+    "Desempenho químico previsto": "Predicted chemical performance",
+    "Conversão prevista": "Predicted conversion",
+    "Seletividade prevista": "Predicted selectivity",
+    "Estabilidade termodinâmica": "Thermodynamic stability",
+    "Resistência à deposição de carbono": "Resistance to carbon deposition",
+    "Justificativa química": "Chemical rationale",
+    "Plano experimental inicial": "Initial experimental plan",
+    "Evidência e ponto de atenção": "Evidence and point of attention",
+    "Top 2 recomendados para síntese": "Top 2 recommended for synthesis",
+    "Confiabilidade": "Confidence",
+    "Rendimento previsto": "Predicted yield",
+    "Suporte": "Support",
+    "Condição sugerida": "Suggested condition",
+    "Rota de síntese": "Synthesis route",
+    "Justificativa química e do suporte": "Chemical and support rationale",
+}
+
+
+def idioma_atual() -> str:
+    """Retorna o idioma selecionado na navegação."""
+    return st.session_state.get("idioma", "pt")
+
+
+def t(texto: str) -> str:
+    """Traduz os textos principais da interface para inglês quando solicitado."""
+    return TRADUCOES_EN.get(texto, texto) if idioma_atual() == "en" else texto
+
+
+def obter_dado_publico(chave: str, padrao: str = "") -> str:
+    """Lê dados públicos do perfil por secrets, ambiente ou valor padrão."""
+    try:
+        valor_secreto = st.secrets.get(chave, "")
+    except Exception:
+        valor_secreto = ""
+    return str(valor_secreto or os.environ.get(chave, padrao)).strip()
+
+
+def dados_pesquisador() -> dict[str, str]:
+    """Consolida os dados públicos exibidos nas páginas institucionais."""
+    return {
+        "nome": obter_dado_publico("CATAILAB_RESEARCHER_NAME", PERFIL_PESQUISADOR["nome"]),
+        "email": obter_dado_publico("CATAILAB_CONTACT_EMAIL", PERFIL_PESQUISADOR["email"]),
+        "telefone": obter_dado_publico("CATAILAB_CONTACT_PHONE", PERFIL_PESQUISADOR["telefone"]),
+        "lattes": obter_dado_publico("CATAILAB_LATTES_URL", PERFIL_PESQUISADOR["lattes"]),
+    }
+
 
 def obter_secret_streamlit(nome: str) -> str:
     """Le segredo do Streamlit ou variavel de ambiente sem expor o valor."""
@@ -258,7 +349,7 @@ def cartao_html(rotulo: str, valor: str, destaque: bool = False) -> str:
             font-weight: 850;
             line-height: 1.14;
             margin-bottom: 7px;
-        ">{html.escape(rotulo)}</div>
+        ">{html.escape(t(rotulo))}</div>
         <div style="
             color: {cor_valor};
             font-family: Arial, Helvetica, sans-serif;
@@ -268,6 +359,37 @@ def cartao_html(rotulo: str, valor: str, destaque: bool = False) -> str:
             text-align: center;
             overflow-wrap: anywhere;
         ">{html.escape(valor)}</div>
+    </div>
+    """
+
+
+def cartao_texto_html(titulo: str, texto: str, alerta: bool = False) -> str:
+    """Cria um cartão textual para explicações químicas e operacionais."""
+    cor_borda = "#C62828" if alerta else "#007A32"
+    return f"""
+    <div style="
+        min-height: 188px;
+        padding: 15px;
+        border: 1px solid #D8EEDC;
+        border-top: 4px solid {cor_borda};
+        border-radius: 10px;
+        background: #F7FCF8;
+        color: #111111;
+        font-family: Arial, Helvetica, sans-serif;
+    ">
+        <div style="
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 1.02rem;
+            font-weight: 850;
+            line-height: 1.2;
+        ">{html.escape(t(titulo))}</div>
+        <div style="
+            font-size: 0.94rem;
+            line-height: 1.45;
+            overflow-wrap: anywhere;
+            white-space: pre-line;
+        ">{html.escape(texto)}</div>
     </div>
     """
 
@@ -299,7 +421,7 @@ def mostrar_cartoes_metricas(metricas_df: pd.DataFrame, prioritarios_df: pd.Data
 
 def mostrar_linha_cartoes(titulo: str, cards: list[tuple[str, str, bool]]) -> None:
     """Mostra uma linha de cartoes de decisao."""
-    st.markdown(f"<h4 style='text-align:center;'>{html.escape(titulo)}</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h4 style='text-align:center;'>{html.escape(t(titulo))}</h4>", unsafe_allow_html=True)
     colunas = st.columns(len(cards))
     for coluna, (rotulo, valor, destaque) in zip(colunas, cards):
         coluna.markdown(cartao_html(rotulo, valor, destaque=destaque), unsafe_allow_html=True)
@@ -421,14 +543,11 @@ def mostrar_painel_decisao(
 
     col_quimica, col_plano, col_evidencia = st.columns(3)
     with col_quimica:
-        st.markdown("<h4 style='text-align:center;'>Justificativa química</h4>", unsafe_allow_html=True)
-        st.write(f"{leitura_adsorcao}. {justificativa_suporte}")
+        st.markdown(cartao_texto_html("Justificativa química", f"{leitura_adsorcao}. {justificativa_suporte}"), unsafe_allow_html=True)
     with col_plano:
-        st.markdown("<h4 style='text-align:center;'>Plano experimental inicial</h4>", unsafe_allow_html=True)
-        st.write(f"Rota: {rota_sintese}. Pré-tratamento: {pretratamento}. GHSV: {f'{ghsv:.0f} h⁻¹' if ghsv is not None else 'não informado'}.")
+        st.markdown(cartao_texto_html("Plano experimental inicial", f"Rota: {rota_sintese}. Pré-tratamento: {pretratamento}. GHSV: {f'{ghsv:.0f} h⁻¹' if ghsv is not None else 'não informado'}."), unsafe_allow_html=True)
     with col_evidencia:
-        st.markdown("<h4 style='text-align:center;'>Evidência e ponto de atenção</h4>", unsafe_allow_html=True)
-        st.write(f"Vantagem principal: {principal_vantagem}. Atenção: {principal_risco}. {observacao_sintese}")
+        st.markdown(cartao_texto_html("Evidência e ponto de atenção", f"Vantagem principal: {principal_vantagem}. Atenção: {principal_risco}. {observacao_sintese}", alerta=True), unsafe_allow_html=True)
 
     st.caption("Os valores desta tela são previsões de triagem virtual e devem ser confirmados por caracterização e ensaios catalíticos.")
 
@@ -842,12 +961,13 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e robustez.")),
             limite=155,
         )
-        cor_posicao = "#C62828" if posicao == 1 else "#007A32"
+        cor_posicao = "#007A32" if posicao == 1 else "#E0A800"
+        cor_texto_posicao = "#FFFFFF" if posicao == 1 else "#111111"
         cards_html.append(
             f"""
             <article class="top2-card">
                 <div class="top2-card-head">
-                    <span class="top2-badge" style="background:{cor_posicao};">#{posicao}</span>
+                    <span class="top2-badge" style="background:{cor_posicao}; color:{cor_texto_posicao};">#{posicao}</span>
                     <div>
                         <div class="top2-label">Candidato</div>
                         <div class="top2-formula">{html.escape(formula)}</div>
@@ -1163,9 +1283,9 @@ def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
 
 def mostrar_tabela(titulo: str, dataframe: pd.DataFrame, linhas: int = 20) -> None:
     """Mostra uma tabela apenas quando ela existe."""
-    st.markdown(f"<h3 style='text-align:center;'>{html.escape(titulo)}</h3>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align:center;'>{html.escape(t(titulo))}</h3>", unsafe_allow_html=True)
     if dataframe.empty:
-        st.info("Tabela ainda não disponível.")
+        st.info(t("Tabela ainda não disponível."))
         return
     tabela = dataframe.head(linhas)
     tabela_centralizada = tabela.style.set_properties(**{"text-align": "center"}).set_table_styles(
@@ -1490,7 +1610,7 @@ def renderizar_cabecalho() -> None:
                         letter-spacing: 0;
                         text-align: center;
                     ">
-                        Programa de Pós-Graduação<br />em Química
+                        {t("Programa de Pós-Graduação<br />em Química")}
                     </div>
                 </div>
                 <div style="
@@ -1522,7 +1642,7 @@ def renderizar_cabecalho() -> None:
                         margin-top: 6px;
                         text-align: center;
                     ">
-                        Predição virtual de catalisadores e condições de síntese
+                        {t("Predição virtual de catalisadores e condições de síntese")}
                     </div>
                 </div>
                 <div style="
@@ -1570,12 +1690,118 @@ def renderizar_logo_projeto_sidebar() -> None:
     )
 
 
+def renderizar_navegacao() -> str:
+    """Exibe a navegacao principal e o seletor de idioma."""
+    if "pagina_atual" not in st.session_state:
+        st.session_state["pagina_atual"] = "triagem"
+    if "idioma" not in st.session_state:
+        st.session_state["idioma"] = "pt"
+
+    opcoes = [
+        ("triagem", "Triagem", "nav_triagem"),
+        ("sobre", "Sobre", "nav_sobre"),
+        ("pesquisa", "Pesquisa", "nav_pesquisa"),
+        ("contato", "Contato", "nav_contato"),
+    ]
+    colunas = st.columns([1.12, 1.0, 1.0, 1.0, 0.36])
+    for coluna, (pagina, rotulo, chave) in zip(colunas[:-1], opcoes):
+        tipo = "primary" if st.session_state["pagina_atual"] == pagina else "secondary"
+        if coluna.button(t(rotulo), key=chave, type=tipo, width="stretch"):
+            st.session_state["pagina_atual"] = pagina
+            st.rerun()
+
+    bandeira = "🇺🇸" if idioma_atual() == "pt" else "🇧🇷"
+    rotulo_idioma = "Translate to English" if idioma_atual() == "pt" else "Traduzir para portugues"
+    if colunas[-1].button(bandeira, key="nav_idioma", help=rotulo_idioma, width="stretch"):
+        st.session_state["idioma"] = "en" if idioma_atual() == "pt" else "pt"
+        st.rerun()
+    st.divider()
+    return st.session_state["pagina_atual"]
+
+
+def renderizar_pagina_institucional(pagina: str) -> None:
+    """Apresenta informacoes institucionais fora do fluxo de triagem."""
+    dados = dados_pesquisador()
+    telefone_numerico = re.sub(r"\D", "", dados["telefone"])
+    telefone_link = f"+{telefone_numerico}" if telefone_numerico.startswith("55") else f"+55{telefone_numerico}"
+
+    if pagina == "sobre":
+        st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Sobre'))}</h2>", unsafe_allow_html=True)
+        if idioma_atual() == "en":
+            finalidade = (
+                "CatAiLab is a virtual-screening platform that prioritizes catalysts and synthesis "
+                "conditions for CO2 methanation, CH4 reforming, and RWGS. It supports experimental "
+                "decisions using thermodynamic stability, chemical descriptors, DFT data or proxies, "
+                "operational robustness, uncertainty, and synthesis criteria."
+            )
+            desenvolvimento = (
+                "Its development integrates Materials Project, OQMD, and Catalysis-Hub with matminer "
+                "and pymatgen descriptors, stability assessment, volcano-style analysis, Monte Carlo "
+                "simulation, chemometrics, and recommendations for support and synthesis route."
+            )
+            titulo_finalidade, titulo_desenvolvimento = "Purpose", "Development"
+        else:
+            finalidade = (
+                "CatAiLab e uma plataforma de triagem virtual para priorizar catalisadores e condicoes "
+                "de sintese para metanacao de CO2, reforma de CH4 e RWGS. Ela apoia a decisao "
+                "experimental com estabilidade termodinamica, descritores quimicos, dados ou proxies "
+                "DFT, robustez operacional, incerteza e criterios de sintese."
+            )
+            desenvolvimento = (
+                "O desenvolvimento integra Materials Project, OQMD e Catalysis-Hub com descritores "
+                "do matminer e pymatgen, avaliacao de estabilidade, analise tipo volcano, simulacao "
+                "de Monte Carlo, quimiometria e recomendacao de suporte e rota de sintese."
+            )
+            titulo_finalidade, titulo_desenvolvimento = "Finalidade", "Desenvolvimento"
+        col1, col2 = st.columns(2)
+        col1.markdown(cartao_texto_html(titulo_finalidade, finalidade), unsafe_allow_html=True)
+        col2.markdown(cartao_texto_html(titulo_desenvolvimento, desenvolvimento), unsafe_allow_html=True)
+
+    elif pagina == "pesquisa":
+        st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Pesquisa'))}</h2>", unsafe_allow_html=True)
+        if idioma_atual() == "en":
+            perfil = f"{dados['nome']} is the researcher and developer responsible for CatAiLab."
+            titulo_perfil, titulo_citacao = "Researcher and developer", "Suggested citation"
+            citacao = (
+                "MAIA, Allan. CatAiLab: virtual screening of catalysts and synthesis conditions. "
+                "Scientific software. Federal University of Rio Grande do Norte, 2026. "
+                "Available at: https://triagemufrn.streamlit.app/."
+            )
+        else:
+            perfil = f"{dados['nome']} e o pesquisador e desenvolvedor responsavel pelo CatAiLab."
+            titulo_perfil, titulo_citacao = "Pesquisador e desenvolvedor", "Forma de citacao"
+            citacao = (
+                "MAIA, Allan. CatAiLab: triagem virtual de catalisadores e condicoes de sintese. "
+                "Software cientifico. Universidade Federal do Rio Grande do Norte, 2026. "
+                "Disponivel em: https://triagemufrn.streamlit.app/."
+            )
+        col1, col2 = st.columns(2)
+        col1.markdown(cartao_texto_html(titulo_perfil, perfil), unsafe_allow_html=True)
+        col2.markdown(cartao_texto_html(titulo_citacao, citacao), unsafe_allow_html=True)
+        st.link_button("Curriculum Lattes" if idioma_atual() == "en" else "Curriculo Lattes", dados["lattes"])
+
+    elif pagina == "contato":
+        st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Contato'))}</h2>", unsafe_allow_html=True)
+        titulo = "Contact" if idioma_atual() == "en" else "Contato profissional"
+        texto = f"Email: {dados['email']}\n\nTelefone: {dados['telefone']}\n\nCurriculo Lattes: {dados['lattes']}"
+        col1, col2 = st.columns([1.2, 0.8])
+        col1.markdown(cartao_texto_html(titulo, texto), unsafe_allow_html=True)
+        with col2:
+            st.link_button("Email", f"mailto:{dados['email']}", width="stretch")
+            st.link_button("WhatsApp / telefone", f"tel:{telefone_link}", width="stretch")
+            st.link_button("Curriculo Lattes", dados["lattes"], width="stretch")
+
+
 st.set_page_config(page_title="CatAiLab", layout="wide")
 renderizar_cabecalho()
+pagina_atual = renderizar_navegacao()
+if pagina_atual != "triagem":
+    renderizar_pagina_institucional(pagina_atual)
+    st.stop()
 
 with st.sidebar:
     renderizar_logo_projeto_sidebar()
-    st.header("Configuração")
+    st.header(t("Configuração"))
     reacao = st.selectbox("Reação", ["metanacao", "reforma", "rwgs"], format_func=lambda x: {"metanacao": "Metanação de CO2", "reforma": "Reforma de CH4", "rwgs": "RWGS"}[x])
     n_metais = st.number_input("Número de metais ativos", min_value=1, max_value=4, value=1, step=1)
     metais_padrao = ["Fe", "Co", "Ni", "Cu"]
@@ -1597,7 +1823,7 @@ with st.sidebar:
         output_dir_texto = st.text_input("Pasta de destino dos resultados", value="", placeholder="Digite ou cole a pasta de destino")
     else:
         output_dir_texto = ""
-    executar = st.button("Executar triagem", type="primary")
+    executar = st.button(t("Executar triagem"), type="primary")
 
 metais_unicos = list(dict.fromkeys(metais))
 metais_repetidos = len(metais_unicos) != len(metais)
