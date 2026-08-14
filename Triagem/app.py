@@ -237,12 +237,12 @@ def extrair_confiabilidade(row: pd.Series) -> str:
 def cartao_html(rotulo: str, valor: str, destaque: bool = False) -> str:
     """Cria HTML de cartão centralizado."""
     cor_valor = "#C62828"
-    fundo = "#F3FBFF" if destaque else "#F6FBFE"
+    fundo = "#F3FCF6" if destaque else "#F7FCF8"
     return f"""
     <div style="
         min-height: 92px;
         padding: 12px 9px;
-        border: 1px solid #D8EEF8;
+        border: 1px solid #D8EEDC;
         border-radius: 12px;
         background: {fundo};
         text-align: center;
@@ -252,7 +252,7 @@ def cartao_html(rotulo: str, valor: str, destaque: bool = False) -> str:
         align-items: center;
     ">
         <div style="
-            color: #526F82;
+            color: #516B5A;
             font-family: Arial, Helvetica, sans-serif;
             font-size: clamp(1.0rem, 1.08vw, 1.14rem);
             font-weight: 850;
@@ -445,21 +445,21 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "valor": n_gerados,
             "criterio": "Combina\u00e7\u00f5es de fase ativa, promotor e suporte definidas pela gera\u00e7\u00e3o de candidatos.",
             "retencao": retencao(n_gerados, None),
-            "cor": "#168AC8",
+            "cor": "#009830",
         },
         {
             "rotulo": "Candidatos vi\u00e1veis",
             "valor": n_viaveis,
             "criterio": "Filtro de estabilidade termodin\u00e2mica, viabilidade qu\u00edmica e descritores iniciais.",
             "retencao": retencao(n_viaveis, n_gerados),
-            "cor": "#2FA7B2",
+            "cor": "#40A858",
         },
         {
             "rotulo": "Candidatos refinados",
             "valor": n_refinados,
             "criterio": "Refinamento por descritores catal\u00edticos, dados DFT ou proxies e penaliza\u00e7\u00e3o de incerteza.",
             "retencao": retencao(n_refinados, n_viaveis),
-            "cor": "#0B6F8F",
+            "cor": "#007A32",
         },
         {
             "rotulo": "Recomendados para s\u00edntese",
@@ -499,12 +499,12 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 width: 100%;
                 box-sizing: border-box;
                 padding: 18px 18px 16px 18px;
-                border: 1px solid #D8EEF8;
+                border: 1px solid #D8EEDC;
                 border-radius: 12px;
                 background: #FFFFFF;
             }}
             .fluxo-titulo {{
-                color: #0B4F7A;
+                color: #006B2A;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 1.18rem;
                 font-weight: 800;
@@ -528,12 +528,12 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 1rem;
                 font-weight: 850;
-                box-shadow: 0 2px 8px rgba(11, 79, 122, 0.16);
+                box-shadow: 0 2px 8px rgba(0, 107, 42, 0.16);
             }}
             .fluxo-conteudo {{
-                border: 1px solid #E3EFF5;
+                border: 1px solid #E2F0E6;
                 border-radius: 10px;
-                background: #F8FCFE;
+                background: #F8FCF9;
                 padding: 12px 14px;
             }}
             .fluxo-cabecalho {{
@@ -541,7 +541,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 justify-content: space-between;
                 align-items: baseline;
                 gap: 12px;
-                color: #0B4F7A;
+                color: #006B2A;
                 font-family: Arial, Helvetica, sans-serif;
                 font-weight: 800;
             }}
@@ -549,7 +549,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-size: 1rem;
             }}
             .fluxo-cabecalho strong {{
-                color: #168AC8;
+                color: #009830;
                 font-size: 1.42rem;
                 white-space: nowrap;
             }}
@@ -557,7 +557,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 width: 100%;
                 height: 10px;
                 border-radius: 999px;
-                background: #E9F4F9;
+                background: #E9F6ED;
                 overflow: hidden;
                 margin: 9px 0 7px 0;
             }}
@@ -567,20 +567,20 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 border-radius: 999px;
             }}
             .fluxo-criterio {{
-                color: #526F82;
+                color: #516B5A;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 0.91rem;
                 line-height: 1.34;
                 margin-top: 6px;
             }}
             .fluxo-retencao {{
-                color: #315A6F;
+                color: #315F3F;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 0.88rem;
                 margin-top: 8px;
             }}
             .fluxo-seta {{
-                color: #8BAFC0;
+                color: #8AB99A;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 1.4rem;
                 font-weight: 800;
@@ -666,7 +666,7 @@ def mostrar_resumo_top(prioritarios_df: pd.DataFrame) -> None:
             <div style="
                 min-height: 92px;
                 padding: 12px 10px;
-                border: 1px solid #E3EFF5;
+                border: 1px solid #E2F0E6;
                 border-radius: 10px;
                 background: #FFFFFF;
                 text-align: center;
@@ -676,7 +676,7 @@ def mostrar_resumo_top(prioritarios_df: pd.DataFrame) -> None:
                 align-items: center;
             ">
                 <div style="
-                    color: #60798A;
+                    color: #607A68;
                     font-family: Arial, Helvetica, sans-serif;
                     font-size: 0.86rem;
                     font-weight: 650;
@@ -684,7 +684,7 @@ def mostrar_resumo_top(prioritarios_df: pd.DataFrame) -> None:
                     margin-bottom: 8px;
                 ">{html.escape(rotulo)}</div>
                 <div style="
-                    color: #0B4F7A;
+                    color: #006B2A;
                     font-family: Arial, Helvetica, sans-serif;
                     font-size: 1.12rem;
                     font-weight: 800;
@@ -763,7 +763,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e robustez.")),
             limite=155,
         )
-        cor_posicao = "#C62828" if posicao == 1 else "#0B6FA4"
+        cor_posicao = "#C62828" if posicao == 1 else "#007A32"
         cards_html.append(
             f"""
             <article class="top2-card">
@@ -800,14 +800,14 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 margin: 6px 0 18px 0;
             }}
             .top2-card {{
-                border: 1px solid #D8EEF8;
+                border: 1px solid #D8EEDC;
                 border-radius: 14px;
-                background: linear-gradient(180deg, #FFFFFF 0%, #F6FBFE 100%);
-                box-shadow: 0 10px 24px rgba(11, 79, 122, 0.08);
+                background: linear-gradient(180deg, #FFFFFF 0%, #F7FCF8 100%);
+                box-shadow: 0 10px 24px rgba(0, 107, 42, 0.08);
                 padding: 16px 16px 14px 16px;
                 min-height: 250px;
                 font-family: Arial, Helvetica, sans-serif;
-                color: #17384C;
+                color: #173D24;
             }}
             .top2-card-head {{
                 display: flex;
@@ -828,7 +828,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 flex: 0 0 auto;
             }}
             .top2-label {{
-                color: #60798A;
+                color: #607A68;
                 font-size: 0.78rem;
                 font-weight: 750;
                 text-transform: uppercase;
@@ -848,7 +848,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 margin-bottom: 12px;
             }}
             .top2-metrics div {{
-                border: 1px solid #E3EFF5;
+                border: 1px solid #E2F0E6;
                 border-radius: 10px;
                 background: #FFFFFF;
                 padding: 9px 8px;
@@ -857,14 +857,14 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             .top2-metrics span,
             .top2-info span {{
                 display: block;
-                color: #60798A;
+                color: #607A68;
                 font-size: 0.74rem;
                 font-weight: 750;
                 line-height: 1.12;
                 margin-bottom: 3px;
             }}
             .top2-metrics strong {{
-                color: #0B4F7A;
+                color: #006B2A;
                 font-size: 0.98rem;
                 font-weight: 850;
                 line-height: 1.12;
@@ -874,7 +874,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 margin: 8px 0;
             }}
             .top2-info strong {{
-                color: #17384C;
+                color: #173D24;
                 font-size: 0.92rem;
                 font-weight: 750;
                 line-height: 1.22;
@@ -883,11 +883,11 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             .top2-why {{
                 margin: 12px 0 0 0;
                 padding-top: 10px;
-                border-top: 1px solid #E3EFF5;
+                border-top: 1px solid #E2F0E6;
             }}
             .top2-why span {{
                 display: block;
-                color: #60798A;
+                color: #607A68;
                 font-size: 0.76rem;
                 font-weight: 800;
                 line-height: 1.12;
@@ -897,7 +897,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             }}
             .top2-why p {{
                 margin: 0;
-                color: #526F82;
+                color: #516B5A;
                 font-size: 0.9rem;
                 line-height: 1.28;
             }}
@@ -1153,24 +1153,24 @@ def mostrar_classificacao_centralizada(titulo: str, dataframe: pd.DataFrame) -> 
                 border-collapse: collapse;
                 min-width: min(520px, 100%);
                 font-family: Arial, Helvetica, sans-serif;
-                color: #0B4F7A;
+                color: #006B2A;
                 background: #FFFFFF;
-                border: 1px solid #D8EEF8;
+                border: 1px solid #D8EEDC;
                 border-radius: 10px;
                 overflow: hidden;
             }}
             .classificacao-top10 th {{
-                background: #EAF7FC;
-                color: #0B4F7A;
+                background: #EAF8EF;
+                color: #006B2A;
                 font-weight: 850;
                 text-align: center;
                 padding: 11px 14px;
-                border-bottom: 1px solid #CFE7F2;
+                border-bottom: 1px solid #CFE8D6;
             }}
             .classificacao-top10 td {{
                 text-align: center;
                 padding: 10px 14px;
-                border-bottom: 1px solid #EDF4F8;
+                border-bottom: 1px solid #EEF6F0;
                 font-weight: 650;
             }}
             .classificacao-top10 tr:last-child td {{
@@ -1283,8 +1283,8 @@ def renderizar_scatter_plotly(
         height=520,
         hovermode="closest",
     )
-    fig.update_xaxes(title_text=x_col, showgrid=True, gridcolor="#E8F1F6")
-    fig.update_yaxes(title_text=y_col, showgrid=True, gridcolor="#E8F1F6")
+    fig.update_xaxes(title_text=x_col, showgrid=True, gridcolor="#E8F3EA")
+    fig.update_yaxes(title_text=y_col, showgrid=True, gridcolor="#E8F3EA")
     st.plotly_chart(fig, width="stretch")
     return True
 
@@ -1376,9 +1376,9 @@ def renderizar_cabecalho() -> None:
                 width: 100%;
                 padding: 12px 18px;
                 margin: 0 auto 14px auto;
-                background: linear-gradient(180deg, #F3FBFF 0%, #EAF7FC 100%);
+                background: linear-gradient(180deg, #F3FCF6 0%, #EAF8EF 100%);
                 border-radius: 14px;
-                border: 1px solid #D8EEF8;
+                border: 1px solid #D8EEDC;
                 display: grid;
                 grid-template-columns: minmax(260px, 330px) minmax(320px, 1fr) minmax(260px, 330px);
                 align-items: center;
@@ -1401,7 +1401,7 @@ def renderizar_cabecalho() -> None:
                         display: block;
                     " />
                     <div style="
-                        color: #0B4F7A;
+                        color: #006B2A;
                         font-family: Arial, Helvetica, sans-serif;
                         font-size: clamp(0.78rem, 0.95vw, 0.98rem);
                         font-weight: 750;
@@ -1420,7 +1420,7 @@ def renderizar_cabecalho() -> None:
                         display: block;
                     ">
                         <div style="
-                            color: #168AC8;
+                            color: #009830;
                             font-family: Arial, Helvetica, sans-serif;
                             font-size: clamp(1.9rem, 3.2vw, 3.2rem);
                             font-weight: 850;
@@ -1432,7 +1432,7 @@ def renderizar_cabecalho() -> None:
                         </div>
                     </div>
                     <div style="
-                        color: #526F82;
+                        color: #516B5A;
                         font-family: Arial, Helvetica, sans-serif;
                         font-size: clamp(0.95rem, 1.2vw, 1.18rem);
                         font-weight: 550;
@@ -1475,7 +1475,7 @@ def renderizar_logo_projeto_sidebar() -> None:
             align-items: center;
             padding: 4px 0 14px 0;
             margin: 0 0 8px 0;
-            border-bottom: 1px solid rgba(11, 79, 122, 0.16);
+            border-bottom: 1px solid rgba(0, 107, 42, 0.16);
         ">
             <img src="data:image/png;base64,{projeto_base64}" alt="CatAiLab" style="
                 width: min(210px, 92%);
