@@ -1808,6 +1808,7 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] div[data-testid="stRadio"] label p { color: #315843; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button { width: 100%; min-height: 48px; justify-content: flex-start; border: 1px solid #A8D3B9; border-radius: 8px; background: rgba(255, 255, 255, 0.88); color: #173D2B; font-weight: 800; box-shadow: 0 2px 7px rgba(25, 122, 75, 0.06); }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button *, section[data-testid="stSidebar"] div[data-testid="stPopover"] > button p, section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { font-weight: 850 !important; }
+            section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { text-align: center; }
             section[data-testid="stSidebar"] button[kind="secondary"], section[data-testid="stSidebar"] button[kind="secondary"] p, section[data-testid="stSidebar"] button[kind="secondary"] span { font-weight: 850 !important; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button:hover { border-color: #197A4B; background: #FFFFFF; color: #145F3B; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
