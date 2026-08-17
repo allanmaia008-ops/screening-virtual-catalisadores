@@ -325,7 +325,7 @@ def extrair_confiabilidade(row: pd.Series) -> str:
     return "-"
 
 
-def cartao_html(rotulo: str, valor: str, destaque: bool = False) -> str:
+def cartao_html(rotulo: str, valor: str, destaque: bool = False, icone: str = "", nota: str = "") -> str:
     """Cria HTML de cartão centralizado."""
     cor_valor = "#C62828"
     fundo = "#F3FCF6" if destaque else "#F7FCF8"
@@ -343,22 +343,33 @@ def cartao_html(rotulo: str, valor: str, destaque: bool = False) -> str:
         align-items: center;
     ">
         <div style="
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
             color: #111111;
-            font-family: Arial, Helvetica, sans-serif;
-            font-size: clamp(1.0rem, 1.08vw, 1.14rem);
+            font-size: 0.78rem;
             font-weight: 850;
             line-height: 1.14;
             margin-bottom: 7px;
-        ">{html.escape(t(rotulo))}</div>
+        ">{html.escape(icone)} <span>{html.escape(t(rotulo))}</span></div>
+        <div style="
+            color: #111111;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: clamp(1.35rem, 1.8vw, 1.85rem);
+            font-weight: 900;
+            line-height: 1.05;
+            margin-bottom: 4px;
+        ">{html.escape(valor)}</div>
         <div style="
             color: {cor_valor};
             font-family: Arial, Helvetica, sans-serif;
-            font-size: clamp(0.82rem, 0.95vw, 1.0rem);
-            font-weight: 750;
+            font-size: 0.72rem;
+            font-weight: 700;
             line-height: 1.16;
             text-align: center;
             overflow-wrap: anywhere;
-        ">{html.escape(valor)}</div>
+        ">{html.escape(nota)}</div>
     </div>
     """
 
@@ -406,17 +417,16 @@ def mostrar_cartoes_metricas(metricas_df: pd.DataFrame, prioritarios_df: pd.Data
     if n_recomendados is None:
         n_recomendados = len(prioritarios_df) if not prioritarios_df.empty else None
     cards = [
-        ("Gerados", formatar_valor(n_gerados)),
-        ("Viáveis", formatar_valor(n_viaveis)),
-        ("Refinados", formatar_valor(n_refinados)),
-        ("Recomendados", formatar_valor(n_recomendados), True),
-        ("Viabilidade", formatar_valor(taxa_viabilidade, percentual=True)),
+        ("Gerados", formatar_valor(n_gerados), False, "◌", "espaço químico inicial"),
+        ("Viáveis", formatar_valor(n_viaveis), False, "⌕", "filtros de viabilidade"),
+        ("Refinados", formatar_valor(n_refinados), False, "◈", "descritores e DFT"),
+        ("Recomendados", formatar_valor(n_recomendados), True, "✓", "prioridade para síntese"),
+        ("Viabilidade", formatar_valor(taxa_viabilidade, percentual=True), False, "◒", "retenção do funil"),
     ]
     colunas = st.columns(len(cards))
     for coluna, card in zip(colunas, cards):
-        rotulo, valor = card[0], card[1]
-        destaque = bool(card[2]) if len(card) > 2 else False
-        coluna.markdown(cartao_html(rotulo, valor, destaque=destaque), unsafe_allow_html=True)
+        rotulo, valor, destaque, icone, nota = card
+        coluna.markdown(cartao_html(rotulo, valor, destaque=destaque, icone=icone, nota=nota), unsafe_allow_html=True)
 
 
 def mostrar_linha_cartoes(titulo: str, cards: list[tuple[str, str, bool]]) -> None:
@@ -961,6 +971,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
         confiabilidade = extrair_confiabilidade(row)
         estabilidade = formatar_numero_linha(row, ["estabilidade"], "eV/átomo", casas=3)
         rendimento = formatar_numero_linha(row, ["rendimento"], "%", casas=1)
+        score_final = formatar_numero_linha(row, ["score", "final"], "", casas=3)
         rota_sintese = texto_curto(valor_linha(row, ["rota", "sintese"], "-"), limite=135)
         justificativa = texto_curto(
             valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e robustez.")),
@@ -977,6 +988,10 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                         <div class="top2-label">Candidato</div>
                         <div class="top2-formula">{html.escape(formula)}</div>
                     </div>
+                </div>
+                <div class="top2-score">
+                    <div><span>Score final</span><strong>{html.escape(score_final)}</strong><em>/ 1,00</em></div>
+                    <div class="top2-confidence"><span>Confiança do modelo</span><strong>{html.escape(confiabilidade.capitalize())}</strong><div class="top2-confidence-track"><i style="width:{'92' if confiabilidade == 'alta' else '68' if confiabilidade == 'média' else '42'}%;"></i></div></div>
                 </div>
                 <div class="top2-metrics">
                     <div><span>Conversão prevista</span><strong>{html.escape(conversao)}</strong></div>
@@ -1047,6 +1062,54 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 line-height: 1.1;
                 overflow-wrap: anywhere;
             }}
+            .top2-score {{
+                display: grid;
+                grid-template-columns: 1fr 1.35fr;
+                gap: 10px;
+                margin: 0 0 12px 0;
+            }}
+            .top2-score > div {{
+                border: 1px solid #E2F0E6;
+                border-radius: 10px;
+                background: #FFFFFF;
+                padding: 10px;
+            }}
+            .top2-score span,
+            .top2-confidence span {{
+                display: block;
+                color: #334155;
+                font-size: 0.72rem;
+                font-weight: 750;
+                margin-bottom: 4px;
+            }}
+            .top2-score strong {{
+                color: #007A32;
+                font-size: 1.45rem;
+                font-weight: 900;
+            }}
+            .top2-score em {{
+                color: #64748B;
+                font-size: 0.8rem;
+                font-style: normal;
+                margin-left: 4px;
+            }}
+            .top2-confidence strong {{
+                color: #14213D;
+                font-size: 0.9rem;
+            }}
+            .top2-confidence-track {{
+                height: 7px;
+                margin-top: 7px;
+                border-radius: 99px;
+                background: #E2E8F0;
+                overflow: hidden;
+            }}
+            .top2-confidence-track i {{
+                display: block;
+                height: 100%;
+                border-radius: inherit;
+                background: #007A32;
+            }}
             .top2-metrics {{
                 display: grid;
                 grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1112,6 +1175,9 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                     grid-template-columns: 1fr;
                 }}
                 .top2-metrics {{
+                    grid-template-columns: 1fr;
+                }}
+                .top2-score {{
                     grid-template-columns: 1fr;
                 }}
             }}
