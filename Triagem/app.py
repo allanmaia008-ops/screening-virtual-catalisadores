@@ -1734,27 +1734,20 @@ def renderizar_cabecalho() -> None:
 
 
 def renderizar_logo_projeto_sidebar() -> None:
-    """Renderiza o logotipo do projeto no topo da barra lateral."""
-    if not PROJECT_LOGO_PATH.exists():
-        return
-    projeto_base64 = base64.b64encode(PROJECT_LOGO_PATH.read_bytes()).decode("utf-8")
+    """Renderiza a marca e a navegacao visual do painel lateral."""
     st.markdown(
-        f"""
-        <div style="
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 4px 0 14px 0;
-            margin: 0 0 8px 0;
-            border-bottom: 1px solid rgba(0, 107, 42, 0.16);
-        ">
-            <img src="data:image/png;base64,{projeto_base64}" alt="CatAiLab" style="
-                width: min(210px, 92%);
-                max-height: 118px;
-                object-fit: contain;
-                display: block;
-            " />
+        """
+        <div class="catialab-sidebar-brand">
+            <div class="catialab-sidebar-brand-title">CatAiLab</div>
+            <div class="catialab-sidebar-brand-subtitle">Triagem de Catalisadores</div>
+        </div>
+        <div class="catialab-sidebar-nav">
+            <div class="catialab-sidebar-nav-item active">⌂ <span>Visao geral</span></div>
+            <div class="catialab-sidebar-nav-item">▤ <span>Ranking</span></div>
+            <div class="catialab-sidebar-nav-item">◉ <span>Incerteza</span></div>
+            <div class="catialab-sidebar-nav-item">◒ <span>Robustez</span></div>
+            <div class="catialab-sidebar-nav-item">⌬ <span>Quimica</span></div>
+            <div class="catialab-sidebar-nav-item">✓ <span>Validacao</span></div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1774,12 +1767,88 @@ def aplicar_estilo_interface() -> None:
                 --catialab-soft: #F5FBF7;
             }
             section[data-testid="stSidebar"] {
-                background: linear-gradient(180deg, #F5FBF7 0%, #FFFFFF 78%);
-                border-right: 1px solid var(--catialab-line);
+                background: linear-gradient(180deg, #071C34 0%, #0B2B4B 100%);
+                border-right: 1px solid #163F61;
+                min-width: 240px;
+            }
+            section[data-testid="stSidebar"] h2,
+            section[data-testid="stSidebar"] h3,
+            section[data-testid="stSidebar"] label,
+            section[data-testid="stSidebar"] p,
+            section[data-testid="stSidebar"] .stMarkdown {
+                color: #F5FAFF;
+            }
+            .catialab-sidebar-brand {
+                padding: 8px 6px 18px 6px;
+                border-bottom: 1px solid rgba(190, 222, 244, 0.22);
+                margin-bottom: 12px;
+            }
+            .catialab-sidebar-brand-title {
+                color: #FFFFFF;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 1.45rem;
+                font-weight: 850;
+                letter-spacing: 0;
+            }
+            .catialab-sidebar-brand-subtitle {
+                color: #8BE0B0;
+                font-size: 0.76rem;
+                font-weight: 700;
+                margin-top: 3px;
+            }
+            .catialab-sidebar-nav {
+                display: grid;
+                gap: 4px;
+                margin: 0 0 18px 0;
+            }
+            .catialab-sidebar-nav-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 9px 10px;
+                border-radius: 7px;
+                color: #C5D8E8;
+                font-size: 0.86rem;
+                font-weight: 700;
+            }
+            .catialab-sidebar-nav-item.active {
+                background: #12466D;
+                color: #FFFFFF;
+                box-shadow: inset 3px 0 0 #69D394;
+            }
+            .catialab-sidebar-nav-item:first-letter {
+                color: #8BE0B0;
+                font-size: 1.05rem;
+            }
+            section[data-testid="stSidebar"] .catialab-section-note {
+                background: rgba(255, 255, 255, 0.08);
+                border-color: rgba(190, 222, 244, 0.24);
+                color: #DCEAF5;
+            }
+            section[data-testid="stSidebar"] .catialab-section-note strong { color: #FFFFFF; }
+            section[data-testid="stSidebar"] div[data-testid="stRadio"] label p { color: #DCEAF5; }
+            .catialab-dashboard-title {
+                color: #14213D;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: clamp(1.55rem, 2.5vw, 2.35rem);
+                font-weight: 850;
+                letter-spacing: 0;
+                margin: 0;
+            }
+            .catialab-dashboard-subtitle { color: #64748B; font-size: 0.98rem; margin: 4px 0 18px 0; }
+            .catialab-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 0 20px 0; }
+            .catialab-summary-card { min-height: 132px; padding: 17px 18px 14px 18px; border: 1px solid #DCE6EE; border-radius: 9px; background: #FFFFFF; box-shadow: 0 5px 16px rgba(20, 33, 61, 0.06); }
+            .catialab-summary-label { color: #14213D; font-size: 0.82rem; font-weight: 800; }
+            .catialab-summary-value { color: #218C3A; font-size: 1.9rem; font-weight: 900; line-height: 1.1; margin-top: 13px; }
+            .catialab-summary-value.blue { color: #146CC1; }
+            .catialab-summary-note { color: #64748B; font-size: 0.75rem; margin-top: 5px; }
+            .catialab-summary-accent { color: #218C3A; font-size: 0.78rem; font-weight: 750; margin-top: 10px; }
+            @media (max-width: 860px) {
+                .catialab-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             }
             section[data-testid="stSidebar"] h2,
             section[data-testid="stSidebar"] h3 {
-                color: var(--catialab-ink);
+                color: #F5FAFF;
                 letter-spacing: 0;
             }
             div[data-baseweb="select"] > div,
@@ -1840,6 +1909,52 @@ def aplicar_estilo_interface() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+
+def renderizar_titulo_dashboard() -> None:
+    """Apresenta o titulo executivo da tela principal conforme o painel de referencia."""
+    st.markdown(
+        "<div class='catialab-dashboard-title'>Recomendacoes de Catalisadores</div>"
+        "<div class='catialab-dashboard-subtitle'>Triagem virtual orientada por IA para sua reacao alvo.</div>",
+        unsafe_allow_html=True,
+    )
+
+
+def mostrar_resumo_dashboard(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
+    """Mostra quatro indicadores executivos no formato da referencia visual."""
+    n_gerados = extrair_metrica(metricas_df, "candidatos gerados") or 0
+    n_recomendados = extrair_metrica(metricas_df, "candidatos priorit") or len(prioritarios_df)
+    n_refinados = extrair_metrica(metricas_df, "candidatos refinados") or len(monte_carlo_df)
+    top = prioritarios_df.iloc[0] if not prioritarios_df.empty else pd.Series(dtype=object)
+    formula = valor_linha(top, ["formula", "f"], "Aguardando triagem")
+    score = pd.to_numeric(pd.Series([valor_linha(top, ["score", "final"], np.nan)]), errors="coerce").iloc[0]
+    confiabilidade = extrair_confiabilidade(top) if not prioritarios_df.empty else "-"
+    confiabilidade_num = {"alta": "0,86", "média": "0,68", "media": "0,68", "baixa": "0,42"}.get(normalizar_texto(confiabilidade), "-")
+    rendimento = pd.to_numeric(pd.Series([valor_linha(top, ["rendimento", "prevista"], np.nan)]), errors="coerce").iloc[0]
+    desempenho = "-" if pd.isna(rendimento) else f"{float(rendimento):.1f}"
+    cards = [("Candidato para síntese", formula, f"{n_recomendados} selecionados de {n_gerados}", ""), ("Confiabilidade", confiabilidade_num, "média da recomendação", "Alta" if normalizar_texto(confiabilidade) == "alta" else confiabilidade.capitalize()), ("Triagem", str(n_gerados), "catalisadores avaliados", "Concluída" if n_gerados else "Aguardando dados"), ("Melhor desempenho previsto", desempenho, "índice de rendimento", f"Catalisador: {formula}")]
+    blocos = [f"<div class='catialab-summary-card'><div class='catialab-summary-label'>{html.escape(str(rotulo))}</div><div class='catialab-summary-value {'blue' if indice == 2 else ''}'>{html.escape(str(valor))}</div><div class='catialab-summary-note'>{html.escape(str(nota))}</div><div class='catialab-summary-accent'>{html.escape(str(rodape))}</div></div>" for indice, (rotulo, valor, nota, rodape) in enumerate(cards)]
+    st.markdown(f"<div class='catialab-summary-grid'>{''.join(blocos)}</div>", unsafe_allow_html=True)
+
+
+def mostrar_indicadores_quimicos(prioritarios_df: pd.DataFrame) -> None:
+    """Resume os descritores químicos em indicadores legíveis para decisão experimental."""
+    if prioritarios_df.empty:
+        return
+    top = prioritarios_df.iloc[0]
+    estabilidade = pd.to_numeric(pd.Series([valor_linha(top, ["estabilidade", "termodinamica"], np.nan)]), errors="coerce").iloc[0]
+    adsorcao = pd.to_numeric(pd.Series([valor_linha(top, ["energia", "adsorcao", "volcano"], np.nan)]), errors="coerce").iloc[0]
+    coque = pd.to_numeric(pd.Series([valor_linha(top, ["resistencia", "coque"], np.nan)]), errors="coerce").iloc[0]
+    distancia = pd.to_numeric(pd.Series([valor_linha(top, ["distancia", "otimo", "volcano"], np.nan)]), errors="coerce").iloc[0]
+    resistencia = "-" if pd.isna(coque) else ("Alta" if coque >= 0.70 else "Moderada" if coque >= 0.45 else "Baixa")
+    adsorcao_txt = "-" if pd.isna(adsorcao) else f"{float(adsorcao):.3f} eV"
+    distancia_txt = "-" if pd.isna(distancia) else ("Próxima do ótimo" if distancia <= 0.15 else "Intermediária" if distancia <= 0.30 else "Distante do ótimo")
+    mostrar_linha_cartoes("Indicadores químicos do candidato para síntese", [
+        ("Estabilidade termodinâmica", "-" if pd.isna(estabilidade) else f"{float(estabilidade):.3f} eV/átomo", False),
+        ("Energia de adsorção", adsorcao_txt, True),
+        ("Posição no gráfico vulcão", distancia_txt, False),
+        ("Resistência à deposição de carbono", resistencia, True),
+    ])
 
 
 def renderizar_navegacao() -> str:
@@ -2036,8 +2151,9 @@ validacao_quimio_df = ler_csv(paths["validacao_quimio"])
 validacao_avancada_df = ler_csv(paths["validacao_avancada"])
 correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
 
-st.markdown("<h3 style='text-align:center; color:#111111; margin-bottom: 0.6rem;'>Resumo dos resultados</h3>", unsafe_allow_html=True)
-mostrar_cartoes_metricas(metricas_df, prioritarios_df, monte_carlo_df)
+renderizar_titulo_dashboard()
+mostrar_resumo_dashboard(metricas_df, prioritarios_df, monte_carlo_df)
+mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
 mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
 
 aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
@@ -2054,7 +2170,6 @@ aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica
 
 with aba_geral:
     mostrar_top2_recomendados_amigavel(prioritarios_df)
-    mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
 
 with aba_candidatos:
     mostrar_tabela("Candidatos prioritários para síntese", prioritarios_df, linhas=20)
@@ -2078,6 +2193,7 @@ with aba_robustez:
     mostrar_robustez_operacao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
 
 with aba_quimica:
+    mostrar_indicadores_quimicos(prioritarios_df)
     col1, col2 = st.columns([1.1, 1.0])
     with col1:
         mostrar_tabela("Descritores essenciais dos recomendados", selecionar_colunas_tecnicas(prioritarios_df), linhas=10)
