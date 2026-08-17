@@ -25,7 +25,7 @@ PROJECT_ROOT = APP_DIR.parent
 NOTEBOOK_PATH = APP_DIR / "notebook_disciplina_triagem_virtual_fluxo_proposto.ipynb"
 DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs"
 BRASAO_PATH = APP_DIR / "assets" / "logo_ufrn_header.png"
-PROJECT_LOGO_PATH = APP_DIR / "assets" / "logo_triagem_catalitica.png"
+PROJECT_LOGO_PATH = APP_DIR / "assets" / "logo_triagem_catalitica_v2.png"
 LABTAM_LOGO_PATH = APP_DIR / "assets" / "logo_labtam.png"
 
 PERFIL_PESQUISADOR = {
