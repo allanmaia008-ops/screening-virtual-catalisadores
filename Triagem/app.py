@@ -1857,6 +1857,7 @@ def aplicar_estilo_interface() -> None:
                 font-weight: 800;
                 box-shadow: 0 5px 12px rgba(30, 136, 229, 0.18);
             }
+            section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] { display: block; width: min(190px, 100%); margin-left: auto; margin-right: auto; }
             div[data-testid="stButton"] > button[kind="primary"]:hover {
                 background: #1565C0;
                 border-color: #1565C0;
