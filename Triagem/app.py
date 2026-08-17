@@ -2056,7 +2056,7 @@ if pagina_atual != "triagem":
 
 with st.sidebar:
     renderizar_logo_projeto_sidebar()
-    st.caption("Selecione um ícone para configurar cada item.")
+    st.caption("Configurações da Triagem")
 
     with st.popover("Reação", icon=":material/science:", width="stretch"):
         reacao = st.selectbox("Reação-alvo", ["metanacao", "reforma", "rwgs"], index=None, placeholder="Selecione a reação", format_func=lambda x: {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}[x], key="config_reacao")
