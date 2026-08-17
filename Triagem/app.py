@@ -436,7 +436,12 @@ def mostrar_painel_decisao(
 ) -> None:
     """Mostra indicadores interpretativos para tomada de decisao."""
     if prioritarios_df.empty:
-        st.info("Execute a triagem para visualizar o painel de decis\u00e3o.")
+        st.markdown(
+            "<div class='catialab-empty'><strong>A triagem ainda não foi executada</strong>"
+            "Configure a reação, os metais ativos e o promotor na barra lateral. "
+            "Depois execute a triagem para visualizar candidatos, scores, confiabilidade e condições sugeridas.</div>",
+            unsafe_allow_html=True,
+        )
         return
 
     top = prioritarios_df.iloc[0]
@@ -1690,6 +1695,87 @@ def renderizar_logo_projeto_sidebar() -> None:
     )
 
 
+def aplicar_estilo_interface() -> None:
+    """Aplica ajustes visuais globais sem alterar o cabeçalho institucional."""
+    st.markdown(
+        """
+        <style>
+            :root {
+                --catialab-green: #007A32;
+                --catialab-blue: #1E88E5;
+                --catialab-ink: #14213D;
+                --catialab-line: #D8EEDC;
+                --catialab-soft: #F5FBF7;
+            }
+            section[data-testid="stSidebar"] {
+                background: linear-gradient(180deg, #F5FBF7 0%, #FFFFFF 78%);
+                border-right: 1px solid var(--catialab-line);
+            }
+            section[data-testid="stSidebar"] h2,
+            section[data-testid="stSidebar"] h3 {
+                color: var(--catialab-ink);
+                letter-spacing: 0;
+            }
+            div[data-baseweb="select"] > div,
+            div[data-testid="stNumberInput"] input,
+            div[data-testid="stTextInput"] input {
+                border-color: #C9DFD0;
+                border-radius: 8px;
+                min-height: 42px;
+            }
+            div[data-testid="stNumberInput"] input:focus,
+            div[data-testid="stTextInput"] input:focus {
+                border-color: var(--catialab-blue);
+                box-shadow: 0 0 0 1px var(--catialab-blue);
+            }
+            div[data-testid="stButton"] > button[kind="primary"] {
+                min-height: 48px;
+                border-radius: 8px;
+                background: var(--catialab-blue);
+                border: 1px solid var(--catialab-blue);
+                font-weight: 800;
+                box-shadow: 0 5px 12px rgba(30, 136, 229, 0.18);
+            }
+            div[data-testid="stButton"] > button[kind="primary"]:hover {
+                background: #1565C0;
+                border-color: #1565C0;
+            }
+            button[data-baseweb="tab"] {
+                font-weight: 700;
+                color: var(--catialab-ink);
+            }
+            div[data-baseweb="tab-list"] {
+                gap: 4px;
+                border-bottom: 1px solid var(--catialab-line);
+            }
+            .catialab-section-note {
+                padding: 10px 12px;
+                margin: 0 0 12px 0;
+                border: 1px solid var(--catialab-line);
+                border-left: 4px solid var(--catialab-blue);
+                border-radius: 8px;
+                background: #FFFFFF;
+                color: #334155;
+                font-size: 0.86rem;
+                line-height: 1.35;
+            }
+            .catialab-section-note strong {
+                display: block;
+                color: var(--catialab-ink);
+                margin-bottom: 3px;
+            }
+            @media (max-width: 860px) {
+                div[data-baseweb="tab-list"] {
+                    overflow-x: auto;
+                    justify-content: flex-start;
+                }
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def renderizar_navegacao() -> str:
     """Exibe a navegacao principal e o seletor de idioma."""
     if "pagina_atual" not in st.session_state:
@@ -1793,6 +1879,7 @@ def renderizar_pagina_institucional(pagina: str) -> None:
 
 
 st.set_page_config(page_title="CatAiLab", layout="wide")
+aplicar_estilo_interface()
 renderizar_cabecalho()
 pagina_atual = renderizar_navegacao()
 if pagina_atual != "triagem":
@@ -1802,6 +1889,11 @@ if pagina_atual != "triagem":
 with st.sidebar:
     renderizar_logo_projeto_sidebar()
     st.header(t("Configuração"))
+    st.markdown(
+        "<div class='catialab-section-note'><strong>Fluxo de triagem</strong>"
+        "Defina a reação, os metais ativos e o promotor. O sistema gera, filtra e ranqueia os candidatos.</div>",
+        unsafe_allow_html=True,
+    )
     reacao = st.selectbox("Reação", ["metanacao", "reforma", "rwgs"], format_func=lambda x: {"metanacao": "Metanação de CO2", "reforma": "Reforma de CH4", "rwgs": "RWGS"}[x])
     n_metais = st.number_input("Número de metais ativos", min_value=1, max_value=4, value=1, step=1)
     metais_padrao = ["Fe", "Co", "Ni", "Cu"]
@@ -1879,6 +1971,7 @@ validacao_avancada_df = ler_csv(paths["validacao_avancada"])
 correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
 
 st.markdown("<h3 style='text-align:center; color:#111111; margin-bottom: 0.6rem;'>Resumo dos resultados</h3>", unsafe_allow_html=True)
+mostrar_cartoes_metricas(metricas_df, prioritarios_df, monte_carlo_df)
 mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
 
 aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
