@@ -1799,7 +1799,7 @@ def aplicar_estilo_interface() -> None:
                 margin-top: 3px;
             }
             .catialab-sidebar-project-logo { display: flex; justify-content: center; align-items: center; margin: 0 0 10px 0; }
-            .catialab-sidebar-project-logo img { width: min(184px, 92%); max-height: 96px; object-fit: contain; display: block; }
+            .catialab-sidebar-project-logo img { width: min(160px, 82%); max-height: 82px; object-fit: contain; display: block; }
             section[data-testid="stSidebar"] .catialab-section-note {
                 background: rgba(255, 255, 255, 0.72);
                 border-color: #B9DDC7;
