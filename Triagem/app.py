@@ -1736,9 +1736,18 @@ def renderizar_cabecalho() -> None:
 
 def renderizar_logo_projeto_sidebar() -> None:
     """Renderiza a marca do projeto no painel lateral."""
+    logo_html = ""
+    if PROJECT_LOGO_PATH.exists():
+        logo_base64 = base64.b64encode(PROJECT_LOGO_PATH.read_bytes()).decode("utf-8")
+        logo_html = (
+            "<div class='catialab-sidebar-project-logo'>"
+            f"<img src='data:image/png;base64,{logo_base64}' alt='Logotipo CatAiLab'>"
+            "</div>"
+        )
     st.markdown(
-        """
+        f"""
         <div class="catialab-sidebar-brand">
+            {logo_html}
             <div class="catialab-sidebar-brand-title">CatAiLab</div>
             <div class="catialab-sidebar-brand-subtitle">Triagem de Catalisadores</div>
         </div>
@@ -1789,6 +1798,8 @@ def aplicar_estilo_interface() -> None:
                 font-weight: 700;
                 margin-top: 3px;
             }
+            .catialab-sidebar-project-logo { display: flex; justify-content: center; align-items: center; margin: 0 0 10px 0; }
+            .catialab-sidebar-project-logo img { width: min(184px, 92%); max-height: 96px; object-fit: contain; display: block; }
             section[data-testid="stSidebar"] .catialab-section-note {
                 background: rgba(255, 255, 255, 0.72);
                 border-color: #B9DDC7;
@@ -1797,10 +1808,11 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] .catialab-section-note strong { color: #173D2B; }
             section[data-testid="stSidebar"] div[data-testid="stRadio"] label p { color: #315843; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button { width: 100%; min-height: 48px; justify-content: flex-start; border: 1px solid #A8D3B9; border-radius: 8px; background: rgba(255, 255, 255, 0.88); color: #173D2B; font-weight: 800; box-shadow: 0 2px 7px rgba(25, 122, 75, 0.06); }
+            section[data-testid="stSidebar"] div[data-testid="stPopover"] > button *, section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { font-weight: 800 !important; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button:hover { border-color: #197A4B; background: #FFFFFF; color: #145F3B; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
-            .catialab-config-status { margin: 10px 0 12px 0; padding: 10px 11px; border: 1px solid #B9DDC7; border-radius: 8px; background: rgba(255, 255, 255, 0.72); color: #315843; font-size: 0.75rem; line-height: 1.5; }
-            .catialab-config-status strong { color: #173D2B; }
+            .catialab-config-status { margin: 11px 0 13px 0; padding: 0; border: 0; background: transparent; color: #173D2B; font-size: 0.86rem; font-weight: 800; line-height: 1.55; text-align: center; }
+            .catialab-config-status strong { color: #173D2B; font-weight: 850; }
             .catialab-dashboard-title {
                 color: #14213D;
                 font-family: Arial, Helvetica, sans-serif;
