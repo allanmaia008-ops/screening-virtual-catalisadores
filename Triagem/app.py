@@ -1784,6 +1784,7 @@ def aplicar_estilo_interface() -> None:
                 padding: 8px 6px 18px 6px;
                 border-bottom: 1px solid #B9DDC7;
                 margin-bottom: 12px;
+                text-align: center;
             }
             .catialab-sidebar-brand-title {
                 color: #14213D;
@@ -1808,7 +1809,7 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] .catialab-section-note strong { color: #173D2B; }
             section[data-testid="stSidebar"] div[data-testid="stRadio"] label p { color: #315843; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button { width: 100%; min-height: 48px; justify-content: flex-start; border: 1px solid #A8D3B9; border-radius: 8px; background: rgba(255, 255, 255, 0.88); color: #173D2B; font-weight: 800; box-shadow: 0 2px 7px rgba(25, 122, 75, 0.06); }
-            section[data-testid="stSidebar"] div[data-testid="stPopover"] > button *, section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { font-weight: 800 !important; }
+            section[data-testid="stSidebar"] div[data-testid="stPopover"] > button *, section[data-testid="stSidebar"] div[data-testid="stPopover"] > button p, section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { font-weight: 800 !important; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button:hover { border-color: #197A4B; background: #FFFFFF; color: #145F3B; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
             .catialab-config-status { margin: 11px 0 13px 0; padding: 0; border: 0; background: transparent; color: #173D2B; font-size: 0.86rem; font-weight: 800; line-height: 1.55; text-align: center; }
