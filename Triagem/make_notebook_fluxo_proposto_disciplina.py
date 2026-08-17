@@ -812,7 +812,7 @@ if len(metais_usuario) > 2:
     # Adiciona a liga multimetálica ao funil.
     adicionar_candidato(formula_multimetalica, "liga_multimetalica_ativa")
     # Adiciona versões promovidas da liga multimetálica quando o promotor é diferente da fase ativa.
-    if promotor_usuario not in metais_usuario:
+    if promotor_usuario and promotor_usuario not in metais_usuario:
         # Percorre frações moderadas de promotor para manter diversidade química.
         for fracao_promotor in PROPORCOES_PROMOTOR_MULTIMETAL:
             # Calcula a fração total restante para os metais ativos.
@@ -840,14 +840,14 @@ for frac in fracs_promotor_mono:
             # Sai do laço de metais ativos.
             break
         # Evita criar uma composição promovida quando metal ativo e promotor são o mesmo elemento.
-        if metal != promotor_usuario:
+        if promotor_usuario and metal != promotor_usuario:
             # Monta a fórmula metal-promotor.
             formula_promovida = formula_binaria(metal, promotor_usuario, frac)
             # Adiciona o candidato monometálico promovido.
             adicionar_candidato(formula_promovida, "metal_promovido")
 
 # Adiciona ligas binárias promovidas quando há mais de um metal ativo e promotor distinto.
-if len(metais_usuario) > 1 and promotor_usuario not in metais_usuario:
+if promotor_usuario and len(metais_usuario) > 1 and promotor_usuario not in metais_usuario:
     # Percorre frações moderadas de promotor.
     for fracao_promotor in PROPORCOES_PROMOTOR_MULTIMETAL:
         # Interrompe a camada se o funil inicial já estiver completo.
@@ -4596,10 +4596,10 @@ faixas_promotor_doe = globals().get("FAIXAS_PROMOTOR_POR_REACAO", {
 config_promotor_doe = faixas_promotor_doe.get(reacao, {"inicio": 0.02, "fim": 0.20})
 
 # Converte limite inferior do promotor para fracao.
-promotor_min_doe = float(config_promotor_doe.get("inicio", 0.02))
+promotor_min_doe = float(config_promotor_doe.get("inicio", 0.02)) if promotor_usuario else 0.0
 
 # Converte limite superior do promotor para fracao.
-promotor_max_doe = float(config_promotor_doe.get("fim", 0.20))
+promotor_max_doe = float(config_promotor_doe.get("fim", 0.20)) if promotor_usuario else 0.0
 
 # Cria linhas do planejamento DOE.
 linhas_doe = []
@@ -4664,8 +4664,10 @@ for _, row in prioritarios_df.iterrows():
     # Calcula teor de promotor aproximado a partir da formula candidata.
     promotor_base = fracao_promotor_formula(formula_doe)
     # Usa o ponto medio da faixa quando a formula nao contem explicitamente o promotor.
-    if pd.isna(promotor_base) or promotor_base <= 0:
+    if promotor_usuario and (pd.isna(promotor_base) or promotor_base <= 0):
         promotor_base = (promotor_min_doe + promotor_max_doe) / 2.0
+    elif not promotor_usuario:
+        promotor_base = 0.0
     # Limita o teor nominal de promotor a faixa definida para a reacao.
     promotor_base = limitar_nivel_doe(promotor_base, promotor_min_doe, promotor_max_doe)
     # Define niveis baixo, central e alto dos fatores operacionais e composicionais.

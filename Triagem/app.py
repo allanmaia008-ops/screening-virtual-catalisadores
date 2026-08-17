@@ -1317,7 +1317,7 @@ def executar_triagem(reacao: str, metais: list[str], promotor: str, output_dir: 
     notebook = preparar_notebook_parametrizado(reacao, metais, promotor, output_dir)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     metais_slug = slug_texto("_".join(metais))
-    promotor_slug = slug_texto(promotor)
+    promotor_slug = slug_texto(promotor) or "sem_promotor"
     output_notebook = APP_DIR / f"execucao_streamlit_{reacao}_{metais_slug}_{promotor_slug}_{timestamp}.ipynb"
     client = NotebookClient(
         notebook,
@@ -1734,20 +1734,12 @@ def renderizar_cabecalho() -> None:
 
 
 def renderizar_logo_projeto_sidebar() -> None:
-    """Renderiza a marca e a navegacao visual do painel lateral."""
+    """Renderiza a marca do projeto no painel lateral."""
     st.markdown(
         """
         <div class="catialab-sidebar-brand">
             <div class="catialab-sidebar-brand-title">CatAiLab</div>
             <div class="catialab-sidebar-brand-subtitle">Triagem de Catalisadores</div>
-        </div>
-        <div class="catialab-sidebar-nav">
-            <div class="catialab-sidebar-nav-item active">⌂ <span>Visao geral</span></div>
-            <div class="catialab-sidebar-nav-item">▤ <span>Ranking</span></div>
-            <div class="catialab-sidebar-nav-item">◉ <span>Incerteza</span></div>
-            <div class="catialab-sidebar-nav-item">◒ <span>Robustez</span></div>
-            <div class="catialab-sidebar-nav-item">⌬ <span>Quimica</span></div>
-            <div class="catialab-sidebar-nav-item">✓ <span>Validacao</span></div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1767,66 +1759,47 @@ def aplicar_estilo_interface() -> None:
                 --catialab-soft: #F5FBF7;
             }
             section[data-testid="stSidebar"] {
-                background: linear-gradient(180deg, #071C34 0%, #0B2B4B 100%);
-                border-right: 1px solid #163F61;
-                min-width: 240px;
+                background: linear-gradient(180deg, #E7F6ED 0%, #F5FBF7 100%);
+                border-right: 1px solid #B9DDC7;
+                min-width: 270px;
             }
             section[data-testid="stSidebar"] h2,
             section[data-testid="stSidebar"] h3,
             section[data-testid="stSidebar"] label,
             section[data-testid="stSidebar"] p,
             section[data-testid="stSidebar"] .stMarkdown {
-                color: #F5FAFF;
+                color: #173D2B;
             }
             .catialab-sidebar-brand {
                 padding: 8px 6px 18px 6px;
-                border-bottom: 1px solid rgba(190, 222, 244, 0.22);
+                border-bottom: 1px solid #B9DDC7;
                 margin-bottom: 12px;
             }
             .catialab-sidebar-brand-title {
-                color: #FFFFFF;
+                color: #14213D;
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 1.45rem;
                 font-weight: 850;
                 letter-spacing: 0;
             }
             .catialab-sidebar-brand-subtitle {
-                color: #8BE0B0;
+                color: #197A4B;
                 font-size: 0.76rem;
                 font-weight: 700;
                 margin-top: 3px;
             }
-            .catialab-sidebar-nav {
-                display: grid;
-                gap: 4px;
-                margin: 0 0 18px 0;
-            }
-            .catialab-sidebar-nav-item {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 9px 10px;
-                border-radius: 7px;
-                color: #C5D8E8;
-                font-size: 0.86rem;
-                font-weight: 700;
-            }
-            .catialab-sidebar-nav-item.active {
-                background: #12466D;
-                color: #FFFFFF;
-                box-shadow: inset 3px 0 0 #69D394;
-            }
-            .catialab-sidebar-nav-item:first-letter {
-                color: #8BE0B0;
-                font-size: 1.05rem;
-            }
             section[data-testid="stSidebar"] .catialab-section-note {
-                background: rgba(255, 255, 255, 0.08);
-                border-color: rgba(190, 222, 244, 0.24);
-                color: #DCEAF5;
+                background: rgba(255, 255, 255, 0.72);
+                border-color: #B9DDC7;
+                color: #315843;
             }
-            section[data-testid="stSidebar"] .catialab-section-note strong { color: #FFFFFF; }
-            section[data-testid="stSidebar"] div[data-testid="stRadio"] label p { color: #DCEAF5; }
+            section[data-testid="stSidebar"] .catialab-section-note strong { color: #173D2B; }
+            section[data-testid="stSidebar"] div[data-testid="stRadio"] label p { color: #315843; }
+            section[data-testid="stSidebar"] div[data-testid="stPopover"] > button { width: 100%; min-height: 48px; justify-content: flex-start; border: 1px solid #A8D3B9; border-radius: 8px; background: rgba(255, 255, 255, 0.88); color: #173D2B; font-weight: 800; box-shadow: 0 2px 7px rgba(25, 122, 75, 0.06); }
+            section[data-testid="stSidebar"] div[data-testid="stPopover"] > button:hover { border-color: #197A4B; background: #FFFFFF; color: #145F3B; }
+            section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
+            .catialab-config-status { margin: 10px 0 12px 0; padding: 10px 11px; border: 1px solid #B9DDC7; border-radius: 8px; background: rgba(255, 255, 255, 0.72); color: #315843; font-size: 0.75rem; line-height: 1.5; }
+            .catialab-config-status strong { color: #173D2B; }
             .catialab-dashboard-title {
                 color: #14213D;
                 font-family: Arial, Helvetica, sans-serif;
@@ -1848,7 +1821,7 @@ def aplicar_estilo_interface() -> None:
             }
             section[data-testid="stSidebar"] h2,
             section[data-testid="stSidebar"] h3 {
-                color: #F5FAFF;
+                color: #173D2B;
                 letter-spacing: 0;
             }
             div[data-baseweb="select"] > div,
@@ -2069,33 +2042,49 @@ if pagina_atual != "triagem":
 
 with st.sidebar:
     renderizar_logo_projeto_sidebar()
-    st.header(t("Configuração"))
-    st.markdown(
-        "<div class='catialab-section-note'><strong>Fluxo de triagem</strong>"
-        "Defina a reação, os metais ativos e o promotor. O sistema gera, filtra e ranqueia os candidatos.</div>",
-        unsafe_allow_html=True,
-    )
-    reacao = st.selectbox("Reação", ["metanacao", "reforma", "rwgs"], format_func=lambda x: {"metanacao": "Metanação de CO2", "reforma": "Reforma de CH4", "rwgs": "RWGS"}[x])
-    n_metais = st.number_input("Número de metais ativos", min_value=1, max_value=4, value=1, step=1)
-    metais_padrao = ["Fe", "Co", "Ni", "Cu"]
+    st.caption("Selecione um ícone para configurar cada item.")
+
+    with st.popover("Reação", icon=":material/science:", width="stretch"):
+        reacao = st.selectbox("Reação-alvo", ["metanacao", "reforma", "rwgs"], index=None, placeholder="Selecione a reação", format_func=lambda x: {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}[x], key="config_reacao")
+
+    with st.popover("Número de metais ativos", icon=":material/format_list_numbered:", width="stretch"):
+        n_metais_selecionado = st.selectbox("Quantidade de metais ativos", [1, 2, 3, 4], index=None, placeholder="Selecione a quantidade", key="config_n_metais")
+    n_metais = int(n_metais_selecionado or 0)
+
+    opcoes_metais = ["Fe", "Co", "Ni", "Cu", "Ru", "Rh", "Pd", "Pt", "Ir", "Mo", "W", "Re", "V", "Cr", "Mn", "Zn", "Ag", "Au", "In", "Ga", "Sn", "Nb", "Ta", "Zr", "Hf", "Y", "Sc", "Outro"]
     metais = []
-    for indice_metal in range(int(n_metais)):
-        valor_padrao = metais_padrao[indice_metal] if indice_metal < len(metais_padrao) else ""
-        metal_informado = limpar_simbolo_quimico(
-            st.text_input(
-                f"Metal ativo {indice_metal + 1}",
-                value=valor_padrao,
-                key=f"metal_ativo_{indice_metal + 1}",
-            )
-        )
-        if metal_informado:
-            metais.append(metal_informado)
-    promotor = limpar_simbolo_quimico(st.text_input("Promotor", value="La"))
-    destino_saida = st.radio("Local de salvamento", ["Usar pasta padrão", "Escolher outra pasta"], horizontal=False)
-    if destino_saida == "Escolher outra pasta":
-        output_dir_texto = st.text_input("Pasta de destino dos resultados", value="", placeholder="Digite ou cole a pasta de destino")
-    else:
-        output_dir_texto = ""
+    with st.popover("Metais ativos", icon=":material/hub:", width="stretch"):
+        if n_metais == 0:
+            st.caption("Selecione primeiro o número de metais ativos.")
+        for indice_metal in range(n_metais):
+            opcao_metal = st.selectbox(f"Metal ativo {indice_metal + 1}", opcoes_metais, index=None, placeholder="Selecione o elemento", key=f"config_metal_opcao_{indice_metal + 1}")
+            if opcao_metal == "Outro":
+                opcao_metal = st.text_input(f"Símbolo do metal {indice_metal + 1}", value="", max_chars=2, key=f"config_metal_outro_{indice_metal + 1}")
+            metal_normalizado = limpar_simbolo_quimico(opcao_metal or "")
+            if metal_normalizado:
+                metais.append(metal_normalizado)
+
+    with st.popover("Promotor", icon=":material/add_circle:", width="stretch"):
+        modo_promotor = st.radio("Uso de promotor", ["Sem promotor", "Com promotor"], index=None, horizontal=True, key="config_modo_promotor")
+        promotor = ""
+        if modo_promotor == "Com promotor":
+            opcoes_promotores = ["Ce", "La", "Mg", "K", "Na", "Zr", "Sr", "Pr", "Nd", "Ca", "Y", "Outro"]
+            opcao_promotor = st.selectbox("Elemento promotor", opcoes_promotores, index=None, placeholder="Selecione o promotor", key="config_promotor_opcao")
+            if opcao_promotor == "Outro":
+                opcao_promotor = st.text_input("Símbolo do promotor", value="", max_chars=2, key="config_promotor_outro")
+            promotor = limpar_simbolo_quimico(opcao_promotor or "")
+
+    with st.popover("Pasta de saída", icon=":material/folder_open:", width="stretch"):
+        destino_saida = st.radio("Local de salvamento", ["Usar pasta padrão", "Escolher outra pasta"], horizontal=False)
+        if destino_saida == "Escolher outra pasta":
+            output_dir_texto = st.text_input("Pasta de destino dos resultados", value="", placeholder="Digite ou cole a pasta de destino")
+        else:
+            output_dir_texto = ""
+
+    resumo_metais = ", ".join(metais) if metais else "não definidos"
+    resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
+    resumo_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}.get(reacao, "não definida")
+    st.markdown(f"<div class='catialab-config-status'><strong>Configuração atual</strong><br>{html.escape(resumo_reacao)}<br>{html.escape(resumo_metais)}<br>{html.escape(resumo_promotor)}</div>", unsafe_allow_html=True)
     executar = st.button(t("Executar triagem"), type="primary")
 
 metais_unicos = list(dict.fromkeys(metais))
@@ -2105,18 +2094,24 @@ output_dir = Path(output_dir_texto).expanduser().resolve() if output_dir_texto e
 
 if metais_repetidos:
     st.warning("Há metais ativos repetidos. Cada metal ativo deve ser informado apenas uma vez.")
-elif len(metais) != int(n_metais):
+elif n_metais and len(metais) != n_metais:
     st.warning("Preencha todos os campos de metal ativo antes de executar.")
 
 if executar:
-    if not metais:
+    if not reacao:
+        st.error("Selecione a reação-alvo.")
+    elif not n_metais:
+        st.error("Selecione o número de metais ativos.")
+    elif not metais:
         st.error("Informe pelo menos um metal ativo.")
     elif metais_repetidos:
         st.error("Remova metais ativos repetidos antes de executar.")
-    elif len(metais) != int(n_metais):
+    elif len(metais) != n_metais:
         st.error("Preencha todos os campos de metal ativo antes de executar.")
-    elif not promotor:
-        st.error("Informe o promotor.")
+    elif modo_promotor is None:
+        st.error("Informe se a triagem será realizada com ou sem promotor.")
+    elif modo_promotor == "Com promotor" and not promotor:
+        st.error("Selecione ou digite o promotor.")
     else:
         try:
             with st.spinner("Executando consultas, descritores, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
@@ -2131,7 +2126,7 @@ if executar:
             st.session_state["ultimo_notebook"] = str(notebook_executado)
             st.success("Triagem concluída.")
 
-reacao_resultado = st.session_state.get("ultima_reacao", reacao)
+reacao_resultado = st.session_state.get("ultima_reacao") or reacao or "metanacao"
 saida_resultado = Path(st.session_state.get("ultima_saida", str(output_dir)))
 paths = caminhos_resultado(saida_resultado, reacao_resultado)
 
