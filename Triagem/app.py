@@ -1748,8 +1748,6 @@ def renderizar_logo_projeto_sidebar() -> None:
         f"""
         <div class="catialab-sidebar-brand">
             {logo_html}
-            <div class="catialab-sidebar-brand-title">CatAiLab</div>
-            <div class="catialab-sidebar-brand-subtitle">Triagem de Catalisadores</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -1809,7 +1807,8 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] .catialab-section-note strong { color: #173D2B; }
             section[data-testid="stSidebar"] div[data-testid="stRadio"] label p { color: #315843; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button { width: 100%; min-height: 48px; justify-content: flex-start; border: 1px solid #A8D3B9; border-radius: 8px; background: rgba(255, 255, 255, 0.88); color: #173D2B; font-weight: 800; box-shadow: 0 2px 7px rgba(25, 122, 75, 0.06); }
-            section[data-testid="stSidebar"] div[data-testid="stPopover"] > button *, section[data-testid="stSidebar"] div[data-testid="stPopover"] > button p, section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { font-weight: 800 !important; }
+            section[data-testid="stSidebar"] div[data-testid="stPopover"] > button *, section[data-testid="stSidebar"] div[data-testid="stPopover"] > button p, section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { font-weight: 850 !important; }
+            section[data-testid="stSidebar"] button[kind="secondary"], section[data-testid="stSidebar"] button[kind="secondary"] p, section[data-testid="stSidebar"] button[kind="secondary"] span { font-weight: 850 !important; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button:hover { border-color: #197A4B; background: #FFFFFF; color: #145F3B; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
             .catialab-config-status { margin: 11px 0 13px 0; padding: 0; border: 0; background: transparent; color: #173D2B; font-size: 0.86rem; font-weight: 800; line-height: 1.55; text-align: center; }
@@ -2100,7 +2099,9 @@ with st.sidebar:
     resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
     resumo_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}.get(reacao, "não definida")
     st.markdown(f"<div class='catialab-config-status'><strong>Configuração atual</strong><br>{html.escape(resumo_reacao)}<br>{html.escape(resumo_metais)}<br>{html.escape(resumo_promotor)}</div>", unsafe_allow_html=True)
-    executar = st.button(t("Executar triagem"), type="primary")
+    espaco_esquerdo, coluna_executar, espaco_direito = st.columns([0.35, 1.8, 0.35])
+    with coluna_executar:
+        executar = st.button(t("Executar triagem"), type="primary", width="stretch")
 
 metais_unicos = list(dict.fromkeys(metais))
 metais_repetidos = len(metais_unicos) != len(metais)
