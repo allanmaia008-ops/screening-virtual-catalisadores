@@ -1811,6 +1811,8 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p { text-align: center; }
             section[data-testid="stSidebar"] button[kind="secondary"], section[data-testid="stSidebar"] button[kind="secondary"] p, section[data-testid="stSidebar"] button[kind="secondary"] span { font-weight: 850 !important; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] > button:hover { border-color: #197A4B; background: #FFFFFF; color: #145F3B; }
+            section[data-testid="stSidebar"] [data-testid="stPopoverBody"] div[data-testid="stColumn"] div[data-testid="stButton"] > button { min-height: 30px; min-width: 0; padding: 2px 0; border-radius: 4px; font-size: 0.68rem; line-height: 1; }
+            section[data-testid="stSidebar"] [data-testid="stPopoverBody"] div[data-testid="stColumn"] div[data-testid="stButton"] > button[kind="primary"] { background: #197A4B; border-color: #197A4B; color: #FFFFFF; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
             .catialab-config-status { margin: 11px 0 13px 0; padding: 0; border: 0; background: transparent; color: #173D2B; font-size: 0.86rem; font-weight: 800; line-height: 1.55; text-align: center; }
             .catialab-config-status strong { color: #173D2B; font-weight: 850; }
@@ -2047,6 +2049,54 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             st.link_button("Curriculo Lattes", dados["lattes"], width="stretch")
 
 
+TABELA_PERIODICA = [
+    ["H", None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, "He"],
+    ["Li", "Be", None, None, None, None, None, None, None, None, None, None, "B", "C", "N", "O", "F", "Ne"],
+    ["Na", "Mg", None, None, None, None, None, None, None, None, None, None, "Al", "Si", "P", "S", "Cl", "Ar"],
+    ["K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge", "As", "Se", "Br", "Kr"],
+    ["Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I", "Xe"],
+    ["Cs", "Ba", None, "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn"],
+    ["Fr", "Ra", None, "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og"],
+    [None, None, None, "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"],
+    [None, None, None, "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"],
+]
+
+
+def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
+    """Exibe uma tabela periódica clicável e retorna os metais ativos selecionados."""
+    chave_selecao = "config_metal_selecionados"
+    selecionados = list(dict.fromkeys(st.session_state.get(chave_selecao, [])))
+    if n_metais <= 0:
+        st.caption("Selecione primeiro o número de metais ativos.")
+        return []
+
+    selecionados = selecionados[:n_metais]
+    st.session_state[chave_selecao] = selecionados
+    st.caption(f"Selecione até {n_metais} elemento(s). Clique novamente para remover.")
+    for linha, elementos in enumerate(TABELA_PERIODICA):
+        colunas = st.columns(18, gap="small")
+        for coluna, elemento in enumerate(elementos):
+            if elemento is None:
+                continue
+            selecionado = elemento in selecionados
+            if colunas[coluna].button(elemento, key=f"periodica_{linha}_{elemento}", type="primary" if selecionado else "secondary", help=f"Selecionar {elemento}", width="stretch"):
+                if selecionado:
+                    selecionados.remove(elemento)
+                elif len(selecionados) < n_metais:
+                    selecionados.append(elemento)
+                else:
+                    st.warning(f"Selecione no máximo {n_metais} elemento(s).")
+                st.session_state[chave_selecao] = selecionados
+                st.rerun()
+
+    if selecionados:
+        st.markdown(f"**Seleção atual:** {', '.join(selecionados)}")
+        if st.button("Limpar seleção", key="limpar_metais_periodica", width="stretch"):
+            st.session_state[chave_selecao] = []
+            st.rerun()
+    return selecionados
+
+
 st.set_page_config(page_title="CatAiLab", layout="wide")
 aplicar_estilo_interface()
 renderizar_cabecalho()
@@ -2066,18 +2116,8 @@ with st.sidebar:
         n_metais_selecionado = st.selectbox("Quantidade de metais ativos", [1, 2, 3, 4], index=None, placeholder="Selecione a quantidade", key="config_n_metais")
     n_metais = int(n_metais_selecionado or 0)
 
-    opcoes_metais = ["Fe", "Co", "Ni", "Cu", "Ru", "Rh", "Pd", "Pt", "Ir", "Mo", "W", "Re", "V", "Cr", "Mn", "Zn", "Ag", "Au", "In", "Ga", "Sn", "Nb", "Ta", "Zr", "Hf", "Y", "Sc", "Outro"]
-    metais = []
     with st.popover("Metais ativos", icon=":material/hub:", width="stretch"):
-        if n_metais == 0:
-            st.caption("Selecione primeiro o número de metais ativos.")
-        for indice_metal in range(n_metais):
-            opcao_metal = st.selectbox(f"Metal ativo {indice_metal + 1}", opcoes_metais, index=None, placeholder="Selecione o elemento", key=f"config_metal_opcao_{indice_metal + 1}")
-            if opcao_metal == "Outro":
-                opcao_metal = st.text_input(f"Símbolo do metal {indice_metal + 1}", value="", max_chars=2, key=f"config_metal_outro_{indice_metal + 1}")
-            metal_normalizado = limpar_simbolo_quimico(opcao_metal or "")
-            if metal_normalizado:
-                metais.append(metal_normalizado)
+        metais = selecionar_metais_tabela_periodica(n_metais)
 
     with st.popover("Promotor", icon=":material/add_circle:", width="stretch"):
         modo_promotor = st.radio("Uso de promotor", ["Sem promotor", "Com promotor"], index=None, horizontal=True, key="config_modo_promotor")
