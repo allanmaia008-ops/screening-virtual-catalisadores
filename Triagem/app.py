@@ -1203,7 +1203,9 @@ def formatar_numero_linha(row: pd.Series, termos: list[str], unidade: str = "", 
     if casas is None:
         texto = formatar_valor(numero)
     else:
-        texto = f"{numero:.{casas}f}".rstrip("0").rstrip(".")
+        texto = f"{numero:.{casas}f}"
+        if casas > 0:
+            texto = texto.rstrip("0").rstrip(".")
     return f"{texto} {unidade}".strip()
 
 
