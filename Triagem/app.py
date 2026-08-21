@@ -628,7 +628,7 @@ def mostrar_robustez_operacao(
     mostrar_tabela("Desempenho por faixa de condi\u00e7\u00e3o", desempenho_df, linhas=30)
 
 def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
-    """Mostra a triagem como um fluxo vertical com criterios e retencao."""
+    """Mostra a triagem como um funil horizontal de quatro níveis."""
     n_gerados = float(extrair_metrica(metricas_df, "candidatos gerados") or 0)
     n_viaveis = float(extrair_metrica(metricas_df, "candidatos vi") or 0)
     n_refinados_metricas = extrair_metrica(metricas_df, "candidatos refinados")
@@ -650,56 +650,64 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             return "-"
         return formatar_valor(valor / anterior, percentual=True)
 
-    maior_valor = max(n_gerados, n_viaveis, n_refinados, n_recomendados, 1.0)
     etapas = [
         {
-            "rotulo": "Candidatos gerados",
+            "rotulo": "Espaço químico inicial",
             "valor": n_gerados,
-            "criterio": "Combina\u00e7\u00f5es de fase ativa, promotor e suporte definidas pela gera\u00e7\u00e3o de candidatos.",
+            "criterio": "Combinações de metais ativos, promotor e composições geradas.",
             "retencao": retencao(n_gerados, None),
-            "cor": "#168AC8",
+            "cor": "#087CE5",
+            "texto": "#FFFFFF",
+            "largura": "100%",
+            "icone": "◉",
         },
         {
-            "rotulo": "Candidatos vi\u00e1veis",
+            "rotulo": "Filtros aplicados",
             "valor": n_viaveis,
-            "criterio": "Filtro de estabilidade termodin\u00e2mica, viabilidade qu\u00edmica e descritores iniciais.",
+            "criterio": "Estabilidade termodinâmica, composição e regras químicas.",
             "retencao": retencao(n_viaveis, n_gerados),
-            "cor": "#2FA7B2",
+            "cor": "#B9DCFF",
+            "texto": "#126CC0",
+            "largura": "90%",
+            "icone": "▽",
         },
         {
-            "rotulo": "Candidatos refinados",
+            "rotulo": "Predição de desempenho",
             "valor": n_refinados,
-            "criterio": "Refinamento por descritores catal\u00edticos, dados DFT ou proxies e penaliza\u00e7\u00e3o de incerteza.",
+            "criterio": "Descritores catalíticos, DFT ou proxy e incerteza do modelo.",
             "retencao": retencao(n_refinados, n_viaveis),
-            "cor": "#0B6F8F",
+            "cor": "#DDF4E3",
+            "texto": "#198443",
+            "largura": "80%",
+            "icone": "◌",
         },
         {
-            "rotulo": "Recomendados para s\u00edntese",
+            "rotulo": "Candidatos para síntese",
             "valor": n_recomendados,
-            "criterio": "Sele\u00e7\u00e3o final por score multicrit\u00e9rio, robustez Monte Carlo e condi\u00e7\u00f5es desej\u00e1veis de s\u00edntese.",
+            "criterio": "Desempenho, robustez Monte Carlo e viabilidade de síntese.",
             "retencao": retencao(n_recomendados, n_refinados),
-            "cor": "#C7A548",
+            "cor": "#E9F8ED",
+            "texto": "#218C3A",
+            "largura": "70%",
+            "icone": "✓",
         },
     ]
     blocos = []
     for indice, etapa in enumerate(etapas):
-        largura = max(14.0, 100.0 * float(etapa["valor"]) / maior_valor)
-        conector = "" if indice == len(etapas) - 1 else '<div class="fluxo-seta">&#8595;</div>'
+        conector = "" if indice == len(etapas) - 1 else '<div class="funil-conector"><i></i><b></b></div>'
         blocos.append(
             f"""
-            <div class="fluxo-linha">
-                <div class="fluxo-marcador" style="background:{etapa['cor']};">{indice + 1}</div>
-                <div class="fluxo-conteudo">
-                    <div class="fluxo-cabecalho">
-                        <span>{html.escape(etapa['rotulo'])}</span>
-                        <strong>{html.escape(formatar_valor(etapa['valor']))}</strong>
-                    </div>
-                    <div class="fluxo-barra-externa">
-                        <div class="fluxo-barra-interna" style="width:{largura:.1f}%; background:{etapa['cor']};"></div>
-                    </div>
-                    <div class="fluxo-criterio">{html.escape(etapa['criterio'])}</div>
-                    <div class="fluxo-retencao">Reten\u00e7\u00e3o nesta etapa: <strong>{html.escape(etapa['retencao'])}</strong></div>
+            <div class="funil-linha">
+                <div class="funil-etapa" style="--cor-etapa:{etapa['cor']}; --cor-texto:{etapa['texto']}; --largura:{etapa['largura']};">
+                    <span class="funil-icone">{etapa['icone']}</span>
+                    <span>{html.escape(etapa['rotulo'])}</span>
                 </div>
+                <div class="funil-quantidade">
+                    <strong>{html.escape(formatar_valor(etapa['valor']))}</strong>
+                    <span>catalisadores</span>
+                </div>
+                <div class="funil-criterio">{html.escape(etapa['criterio'])}</div>
+                <div class="funil-retencao"><span>Retenção</span><strong>{html.escape(etapa['retencao'])}</strong></div>
             </div>
             {conector}
             """
@@ -821,9 +829,127 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                     margin-top: 3px;
                 }}
             }}
+            .funil-triagem {{
+                width: 100%;
+                box-sizing: border-box;
+                padding: 18px 18px 16px;
+                border: 1px solid #D7E7F1;
+                border-radius: 10px;
+                background: #FFFFFF;
+            }}
+            .funil-titulo {{
+                color: #122E63;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 1.14rem;
+                font-weight: 800;
+                margin: 0 0 14px 8px;
+            }}
+            .funil-linha {{
+                display: grid;
+                grid-template-columns: minmax(250px, 1.35fr) 130px minmax(190px, 1fr) 92px;
+                gap: 0;
+                min-height: 70px;
+                align-items: stretch;
+            }}
+            .funil-etapa {{
+                align-self: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 14px;
+                width: var(--largura);
+                min-height: 70px;
+                box-sizing: border-box;
+                padding: 12px 34px 12px 28px;
+                clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 16px 100%);
+                background: var(--cor-etapa);
+                color: var(--cor-texto);
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 0.98rem;
+                font-weight: 800;
+                text-align: center;
+            }}
+            .funil-icone {{
+                flex: 0 0 auto;
+                font-size: 1.7rem;
+                line-height: 1;
+            }}
+            .funil-quantidade, .funil-criterio, .funil-retencao {{
+                display: flex;
+                box-sizing: border-box;
+                border: 1px solid #DCE6EF;
+                background: #FBFDFF;
+                font-family: Arial, Helvetica, sans-serif;
+            }}
+            .funil-quantidade {{
+                flex-direction: column;
+                justify-content: center;
+                padding: 10px 14px;
+                color: #182F61;
+            }}
+            .funil-quantidade strong {{
+                font-size: 1.35rem;
+                line-height: 1.1;
+            }}
+            .funil-quantidade span {{
+                font-size: 0.82rem;
+                margin-top: 3px;
+            }}
+            .funil-criterio {{
+                align-items: center;
+                padding: 10px 16px;
+                color: #33486C;
+                font-size: 0.86rem;
+                line-height: 1.28;
+            }}
+            .funil-retencao {{
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 8px;
+                color: #52708C;
+                font-size: 0.72rem;
+                text-align: center;
+            }}
+            .funil-retencao strong {{
+                margin-top: 3px;
+                color: #0B73D6;
+                font-size: 1rem;
+            }}
+            .funil-conector {{
+                position: relative;
+                width: 46%;
+                height: 20px;
+                margin: 0 0 0 22%;
+            }}
+            .funil-conector i {{
+                position: absolute;
+                left: 50%;
+                top: 0;
+                height: 14px;
+                border-left: 2px dotted #187FE4;
+            }}
+            .funil-conector b {{
+                position: absolute;
+                left: calc(50% - 3px);
+                bottom: 0;
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: #187FE4;
+            }}
+            @media (max-width: 840px) {{
+                .funil-linha {{
+                    grid-template-columns: 1fr 110px;
+                    gap: 0;
+                }}
+                .funil-etapa {{ width: 100%; }}
+                .funil-criterio, .funil-retencao {{ display: none; }}
+                .funil-conector {{ width: 100%; margin-left: 0; }}
+            }}
         </style>
-        <div class="fluxo-triagem">
-            <div class="fluxo-titulo">Fluxo vertical da triagem</div>
+        <div class="funil-triagem">
+            <div class="funil-titulo">Triagem de candidatos</div>
             {''.join(blocos)}
         </div>
         """
