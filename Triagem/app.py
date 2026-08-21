@@ -2303,9 +2303,6 @@ def mostrar_indicadores_quimicos(prioritarios_df: pd.DataFrame) -> None:
 
 def renderizar_navegacao() -> str:
     """Exibe a navegacao principal e o seletor de idioma."""
-    idioma_parametro = str(st.query_params.get("lang", "")).lower()
-    if idioma_parametro in {"pt", "en"}:
-        st.session_state["idioma"] = idioma_parametro
     if "pagina_atual" not in st.session_state:
         st.session_state["pagina_atual"] = "triagem"
     if "idioma" not in st.session_state:
@@ -2324,14 +2321,11 @@ def renderizar_navegacao() -> str:
             st.session_state["pagina_atual"] = pagina
             st.rerun()
 
-    destino_idioma = "en" if idioma_atual() == "pt" else "pt"
-    classe_bandeira = "bandeira-eua" if destino_idioma == "en" else "bandeira-brasil"
-    descricao_bandeira = "Translate to English" if destino_idioma == "en" else "Traduzir para português"
-    colunas[-1].markdown(
-        "<style>.botao-bandeira{display:block;width:34px;height:24px;margin:5px auto;border:1px solid #C8D7D2;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.12)}.bandeira-eua{background:linear-gradient(to bottom,#B22234 0 14.3%,#FFF 14.3% 28.6%,#B22234 28.6% 42.9%,#FFF 42.9% 57.2%,#B22234 57.2% 71.5%,#FFF 71.5% 85.8%,#B22234 85.8% 100%);position:relative}.bandeira-eua:before{content:'';position:absolute;inset:0 auto auto 0;width:14px;height:13px;background:#3C3B6E}.bandeira-brasil{position:relative;background:#009C3B}.bandeira-brasil:before{content:'';position:absolute;left:8px;top:3px;width:16px;height:16px;background:#FFDF00;transform:rotate(45deg)}.bandeira-brasil:after{content:'';position:absolute;left:12px;top:7px;width:10px;height:10px;border-radius:50%;background:#002776}</style>"
-        f"<a class='botao-bandeira {classe_bandeira}' href='?lang={destino_idioma}' aria-label='{descricao_bandeira}' title='{descricao_bandeira}'></a>",
-        unsafe_allow_html=True,
-    )
+    bandeira = "🇺🇸" if idioma_atual() == "pt" else "🇧🇷"
+    ajuda_bandeira = "Translate to English" if idioma_atual() == "pt" else "Traduzir para português"
+    if colunas[-1].button(bandeira, key="nav_idioma", help=ajuda_bandeira, width="stretch"):
+        st.session_state["idioma"] = "en" if idioma_atual() == "pt" else "pt"
+        st.rerun()
     st.divider()
     return st.session_state["pagina_atual"]
 
