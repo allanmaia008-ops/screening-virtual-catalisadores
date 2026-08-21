@@ -855,7 +855,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 min-height: 70px;
                 box-sizing: border-box;
                 padding: 12px 30px;
-                clip-path: polygon(24px 0, calc(100% - 24px) 0, 100% 100%, 0 100%);
+                clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 24px 100%);
                 background: var(--cor-etapa);
                 color: var(--cor-texto);
                 font-family: Arial, Helvetica, sans-serif;
