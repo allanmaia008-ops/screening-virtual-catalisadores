@@ -326,7 +326,7 @@ def extrair_confiabilidade(row: pd.Series) -> str:
     return "-"
 
 
-def cartao_html(rotulo: str, valor: str, destaque: bool = False, icone: str = "", nota: str = "") -> str:
+def cartao_html(rotulo: str, valor: str, destaque: bool = False, icone: str = "", nota: str = "", tamanho_valor: str = "clamp(1.35rem, 1.8vw, 1.85rem)") -> str:
     """Cria HTML de cartão centralizado."""
     cor_valor = "#C62828"
     fundo = "#F3FCF6" if destaque else "#F7FCF8"
@@ -357,7 +357,7 @@ def cartao_html(rotulo: str, valor: str, destaque: bool = False, icone: str = ""
         <div style="
             color: #111111;
             font-family: Arial, Helvetica, sans-serif;
-            font-size: clamp(1.35rem, 1.8vw, 1.85rem);
+            font-size: {tamanho_valor};
             font-weight: 900;
             line-height: 1.05;
             margin-bottom: 4px;
@@ -430,12 +430,12 @@ def mostrar_cartoes_metricas(metricas_df: pd.DataFrame, prioritarios_df: pd.Data
         coluna.markdown(cartao_html(rotulo, valor, destaque=destaque, icone=icone, nota=nota), unsafe_allow_html=True)
 
 
-def mostrar_linha_cartoes(titulo: str, cards: list[tuple[str, str, bool]]) -> None:
+def mostrar_linha_cartoes(titulo: str, cards: list[tuple[str, str, bool]], tamanho_valor: str = "clamp(1.35rem, 1.8vw, 1.85rem)") -> None:
     """Mostra uma linha de cartoes de decisao."""
     st.markdown(f"<h4 style='text-align:center;'>{html.escape(t(titulo))}</h4>", unsafe_allow_html=True)
     colunas = st.columns(len(cards))
     for coluna, (rotulo, valor, destaque) in zip(colunas, cards):
-        coluna.markdown(cartao_html(rotulo, valor, destaque=destaque), unsafe_allow_html=True)
+        coluna.markdown(cartao_html(rotulo, valor, destaque=destaque, tamanho_valor=tamanho_valor), unsafe_allow_html=True)
 
 
 def mostrar_painel_decisao(
@@ -505,6 +505,7 @@ def mostrar_painel_decisao(
             ("Suporte sugerido", suporte, False),
             ("Rendimento ou produtividade prevista", percentual(rendimento), True),
         ],
+        tamanho_valor="clamp(1.05rem, 1.25vw, 1.35rem)",
     )
     mostrar_linha_cartoes(
         "Condição e confiança",
@@ -656,46 +657,72 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "valor": n_gerados,
             "criterio": "Combinações de metais ativos, promotor e composições geradas.",
             "retencao": retencao(n_gerados, None),
-            "cor": "#087CE5",
-            "texto": "#FFFFFF",
+            "cor": "#EEF6FF",
+            "texto": "#0C5DB8",
+            "borda": "#2B7FE4",
             "largura": "100%",
+            "icone": "◎",
+            "subtitulo": "Geração combinatória de materiais",
+            "cartao": "Espaço químico inicial",
         },
         {
             "rotulo": "Filtros aplicados",
             "valor": n_viaveis,
             "criterio": "Estabilidade termodinâmica, composição e regras químicas.",
             "retencao": retencao(n_viaveis, n_gerados),
-            "cor": "#B9DCFF",
-            "texto": "#126CC0",
+            "cor": "#EFF9F3",
+            "texto": "#167548",
+            "borda": "#4AAB78",
             "largura": "84%",
+            "icone": "▽",
+            "subtitulo": "Propriedades físico-químicas",
+            "cartao": "Após filtros aplicados",
         },
         {
             "rotulo": "Predição de desempenho",
             "valor": n_refinados,
             "criterio": "Descritores catalíticos, DFT ou proxy e incerteza do modelo.",
             "retencao": retencao(n_refinados, n_viaveis),
-            "cor": "#DDF4E3",
-            "texto": "#198443",
+            "cor": "#FFF8EA",
+            "texto": "#A86400",
+            "borda": "#E3A134",
             "largura": "68%",
+            "icone": "↗",
+            "subtitulo": "Modelo de aprendizagem de máquina",
+            "cartao": "Após predição",
         },
         {
             "rotulo": "Candidatos para síntese",
             "valor": n_recomendados,
             "criterio": "Desempenho, robustez Monte Carlo e viabilidade de síntese.",
             "retencao": retencao(n_recomendados, n_refinados),
-            "cor": "#E9F8ED",
-            "texto": "#218C3A",
+            "cor": "#F5F0FF",
+            "texto": "#7340A3",
+            "borda": "#9A70C8",
             "largura": "52%",
+            "icone": "◉",
+            "subtitulo": "Melhores candidatos priorizados",
+            "cartao": "Candidatos finais",
         },
     ]
+    resumo_cartoes = []
     blocos = []
     for indice, etapa in enumerate(etapas):
         conector = "" if indice == len(etapas) - 1 else '<div class="funil-conector"><i></i><b></b></div>'
+        resumo_cartoes.append(
+            f"""
+            <div class="funil-resumo-cartao">
+                <span class="funil-resumo-icone">{etapa['icone']}</span>
+                <div><span>{html.escape(etapa['cartao'])}</span><strong>{html.escape(formatar_valor(etapa['valor']))}</strong><small>catalisadores</small></div>
+            </div>
+            """
+        )
         blocos.append(
             f"""
             <div class="funil-linha">
-                <div class="funil-etapa" style="--cor-etapa:{etapa['cor']}; --cor-texto:{etapa['texto']}; --largura:{etapa['largura']};">
-                    <span>{html.escape(etapa['rotulo'])}</span>
+                <div class="funil-etapa" style="--cor-etapa:{etapa['cor']}; --cor-texto:{etapa['texto']}; --cor-borda:{etapa['borda']}; --largura:{etapa['largura']};">
+                    <span class="funil-etapa-icone">{etapa['icone']}</span>
+                    <div><strong>{html.escape(etapa['rotulo'])}</strong><small>{html.escape(etapa['subtitulo'])}</small></div>
                 </div>
                 <div class="funil-quantidade">
                     <strong>{html.escape(formatar_valor(etapa['valor']))}</strong>
@@ -873,9 +900,11 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             }}
             .funil-quantidade {{
                 flex-direction: column;
+                align-items: center;
                 justify-content: center;
                 padding: 10px 14px;
                 color: #182F61;
+                text-align: center;
             }}
             .funil-quantidade strong {{
                 font-size: 1.35rem;
@@ -884,6 +913,10 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             .funil-quantidade span {{
                 font-size: 0.82rem;
                 margin-top: 3px;
+            }}
+            .funil-rotulo-longo {{
+                font-size: 0.86rem;
+                line-height: 1.18;
             }}
             .funil-criterio {{
                 align-items: center;
@@ -937,10 +970,130 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 .funil-criterio, .funil-retencao {{ display: none; }}
                 .funil-conector {{ width: 100%; margin-left: 0; }}
             }}
+            .funil-triagem {{
+                padding: 0;
+                border: 0;
+                background: transparent;
+            }}
+            .funil-titulo {{
+                margin: 0 0 16px;
+                color: #132D61;
+                font-size: 1.45rem;
+                font-weight: 850;
+                text-align: center;
+            }}
+            .funil-resumos {{
+                display: grid;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                gap: 12px;
+                margin-bottom: 16px;
+            }}
+            .funil-resumo-cartao {{
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                min-height: 98px;
+                box-sizing: border-box;
+                padding: 14px 16px;
+                border: 1px solid #C9D8E8;
+                border-radius: 8px;
+                background: #FFFFFF;
+                color: #17305F;
+                font-family: Arial, Helvetica, sans-serif;
+            }}
+            .funil-resumo-icone {{
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 54px;
+                height: 54px;
+                border-radius: 8px;
+                background: #EDF5FF;
+                color: #126ACC;
+                font-size: 2rem;
+                font-weight: 700;
+            }}
+            .funil-resumo-cartao div {{ display: flex; flex-direction: column; min-width: 0; }}
+            .funil-resumo-cartao div > span {{ font-size: 0.82rem; font-weight: 750; line-height: 1.18; }}
+            .funil-resumo-cartao strong {{ color: #145DB8; font-size: 1.55rem; line-height: 1.06; margin-top: 5px; }}
+            .funil-resumo-cartao small {{ color: #3D5A86; font-size: 0.78rem; margin-top: 2px; }}
+            .funil-painel {{
+                box-sizing: border-box;
+                padding: 12px 18px 16px;
+                border: 1px solid #D6E2EF;
+                border-radius: 8px;
+                background: #FFFFFF;
+            }}
+            .funil-cabecalho, .funil-linha {{ grid-template-columns: 46% 16% 28% 10%; }}
+            .funil-cabecalho {{
+                display: grid;
+                align-items: center;
+                min-height: 28px;
+                border-bottom: 1px solid #CDDCEB;
+                color: #125FB6;
+                font-family: Arial, Helvetica, sans-serif;
+                font-size: 0.8rem;
+                font-weight: 800;
+                text-align: center;
+            }}
+            .funil-linha {{
+                display: grid;
+                min-height: 82px;
+                align-items: center;
+                border-bottom: 1px dashed #D8E4EF;
+            }}
+            .funil-linha:last-of-type {{ border-bottom: 0; }}
+            .funil-etapa {{
+                align-self: center;
+                justify-self: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 13px;
+                width: var(--largura);
+                min-height: 72px;
+                padding: 10px 28px;
+                border: 1.5px solid var(--cor-borda);
+                clip-path: polygon(0 0, 100% 0, calc(100% - 20px) 100%, 20px 100%);
+                background: var(--cor-etapa);
+                color: var(--cor-texto);
+                font-family: Arial, Helvetica, sans-serif;
+                text-align: center;
+            }}
+            .funil-etapa-icone {{ font-size: 1.8rem; line-height: 1; }}
+            .funil-etapa div {{ display: flex; flex-direction: column; gap: 4px; }}
+            .funil-etapa strong {{ font-size: 0.96rem; line-height: 1.12; }}
+            .funil-etapa small {{ font-size: 0.75rem; line-height: 1.18; }}
+            .funil-quantidade, .funil-criterio, .funil-retencao {{
+                display: flex;
+                box-sizing: border-box;
+                border: 0;
+                background: transparent;
+                font-family: Arial, Helvetica, sans-serif;
+            }}
+            .funil-quantidade {{ align-items: center; justify-content: center; padding: 8px; color: #135FB8; text-align: center; }}
+            .funil-quantidade strong {{ font-size: 1.35rem; line-height: 1; }}
+            .funil-quantidade span {{ display: none; }}
+            .funil-criterio {{ align-items: center; justify-content: center; padding: 8px 12px; color: #344B70; font-size: 0.82rem; line-height: 1.28; text-align: center; }}
+            .funil-retencao {{ align-items: center; justify-content: center; padding: 8px; text-align: center; }}
+            .funil-retencao span {{ display: none; }}
+            .funil-retencao strong {{ margin: 0; color: #135FB8; font-size: 1.08rem; }}
+            .funil-conector {{ display: none; }}
+            @media (max-width: 840px) {{
+                .funil-resumos {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+                .funil-cabecalho {{ display: none; }}
+                .funil-linha {{ grid-template-columns: 1fr 90px; min-height: 76px; }}
+                .funil-etapa {{ width: 100%; }}
+                .funil-criterio, .funil-retencao {{ display: none; }}
+            }}
         </style>
         <div class="funil-triagem">
-            <div class="funil-titulo">Triagem de candidatos</div>
-            {''.join(blocos)}
+            <div class="funil-titulo">Triagem de Catalisadores</div>
+            <div class="funil-resumos">{''.join(resumo_cartoes)}</div>
+            <div class="funil-painel">
+                <div class="funil-cabecalho"><span></span><span>Quantidade de catalisadores</span><span>Critério químico</span><span>Retenção</span></div>
+                {''.join(blocos)}
+            </div>
         </div>
         """
     )
