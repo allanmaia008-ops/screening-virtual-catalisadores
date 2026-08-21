@@ -129,6 +129,37 @@ def t(texto: str) -> str:
     return TRADUCOES_EN.get(texto, texto) if idioma_atual() == "en" else texto
 
 
+def traduzir_texto_exibicao(texto: str) -> str:
+    """Traduz rótulos e mensagens conhecidas que já foram inseridos em cartões HTML."""
+    if idioma_atual() != "en":
+        return texto
+    traducoes = {
+        "Pontuação final": "Final score", "Confiabilidade do modelo": "Model confidence",
+        "Suporte sugerido": "Suggested support", "Condições iniciais": "Initial conditions",
+        "Rota de síntese": "Synthesis route", "Justificativa do suporte": "Support rationale",
+        "Pré-tratamento": "Pretreatment", "Preparação teórica de 100 g": "Theoretical preparation of 100 g",
+        "fase ativa": "active phase", "suporte": "support", "Massas elementares na fase ativa": "Elemental masses in the active phase",
+        "Ponto de atenção": "Point of attention", "Não informado": "Not provided",
+        "Triagem de Catalisadores": "Catalyst screening", "Quantidade de catalisadores": "Number of catalysts",
+        "Critério químico": "Chemical criterion", "Retenção": "Retention", "catalisadores": "catalysts",
+        "Geração combinatória de materiais": "Combinatorial generation of materials",
+        "Propriedades físico-químicas": "Physicochemical properties",
+        "Modelo de aprendizagem de máquina": "Machine-learning model",
+        "Melhores candidatos priorizados": "Best prioritized candidates",
+        "Combinações de metais ativos, promotor e composições geradas.": "Generated combinations of active metals, promoter, and compositions.",
+        "Estabilidade termodinâmica, composição e regras químicas.": "Thermodynamic stability, composition, and chemical rules.",
+        "Descritores catalíticos, DFT ou proxy e incerteza do modelo.": "Catalytic descriptors, DFT or proxy, and model uncertainty.",
+        "Desempenho, robustez Monte Carlo e viabilidade de síntese.": "Performance, Monte Carlo robustness, and synthesis feasibility.",
+        "As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.": "Precursor-salt masses must be recalculated according to the selected salt, purity, and calcination loss.",
+        "impregnacao incipiente do metal ativo em suporte de alta area": "incipient-wetness impregnation of the active metal on a high-surface-area support",
+        "suporte de alta area favorece dispersao da fase ativa em metanacao": "a high-surface-area support favors active-phase dispersion in methanation",
+        "confirmar carga metalica e pH de impregnacao conforme solubilidade dos precursores": "confirm metal loading and impregnation pH according to precursor solubility",
+    }
+    for origem, destino in sorted(traducoes.items(), key=lambda item: len(item[0]), reverse=True):
+        texto = texto.replace(origem, destino)
+    return texto
+
+
 def obter_dado_publico(chave: str, padrao: str = "") -> str:
     """Lê dados públicos do perfil por secrets, ambiente ou valor padrão."""
     try:
@@ -1134,7 +1165,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
         </div>
         """
     )
-    st.html(html_fluxo)
+    st.html(traduzir_texto_exibicao(html_fluxo))
 
 
 def selecionar_colunas_tecnicas(dataframe: pd.DataFrame) -> pd.DataFrame:
@@ -2261,7 +2292,7 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
         condicoes = montar_condicao_operacional(row)
         cor = "#16843C" if posicao == 1 else "#D99A00"
         cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{html.escape(formula)}</div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Confiabilidade do modelo: {confianca}%</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
-    st.markdown(f"<div class='rec-grade'>{''.join(cards)}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='rec-grade'>{traduzir_texto_exibicao(''.join(cards))}</div>", unsafe_allow_html=True)
 
 
 def mostrar_resumo_dashboard(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
