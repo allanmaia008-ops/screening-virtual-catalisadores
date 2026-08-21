@@ -659,7 +659,6 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "cor": "#087CE5",
             "texto": "#FFFFFF",
             "largura": "100%",
-            "icone": "◉",
         },
         {
             "rotulo": "Filtros aplicados",
@@ -669,7 +668,6 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "cor": "#B9DCFF",
             "texto": "#126CC0",
             "largura": "90%",
-            "icone": "▽",
         },
         {
             "rotulo": "Predição de desempenho",
@@ -679,7 +677,6 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "cor": "#DDF4E3",
             "texto": "#198443",
             "largura": "80%",
-            "icone": "◌",
         },
         {
             "rotulo": "Candidatos para síntese",
@@ -689,7 +686,6 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "cor": "#E9F8ED",
             "texto": "#218C3A",
             "largura": "70%",
-            "icone": "✓",
         },
     ]
     blocos = []
@@ -699,7 +695,6 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             f"""
             <div class="funil-linha">
                 <div class="funil-etapa" style="--cor-etapa:{etapa['cor']}; --cor-texto:{etapa['texto']}; --largura:{etapa['largura']};">
-                    <span class="funil-icone">{etapa['icone']}</span>
                     <span>{html.escape(etapa['rotulo'])}</span>
                 </div>
                 <div class="funil-quantidade">
@@ -856,23 +851,17 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                gap: 14px;
                 width: var(--largura);
                 min-height: 70px;
                 box-sizing: border-box;
-                padding: 12px 34px 12px 28px;
-                clip-path: polygon(0 0, 100% 0, calc(100% - 24px) 100%, 16px 100%);
+                padding: 12px 30px;
+                clip-path: polygon(24px 0, calc(100% - 24px) 0, 100% 100%, 0 100%);
                 background: var(--cor-etapa);
                 color: var(--cor-texto);
                 font-family: Arial, Helvetica, sans-serif;
                 font-size: 0.98rem;
                 font-weight: 800;
                 text-align: center;
-            }}
-            .funil-icone {{
-                flex: 0 0 auto;
-                font-size: 1.7rem;
-                line-height: 1;
             }}
             .funil-quantidade, .funil-criterio, .funil-retencao {{
                 display: flex;
