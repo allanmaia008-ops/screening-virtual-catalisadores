@@ -667,7 +667,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "retencao": retencao(n_viaveis, n_gerados),
             "cor": "#B9DCFF",
             "texto": "#126CC0",
-            "largura": "90%",
+            "largura": "84%",
         },
         {
             "rotulo": "Predição de desempenho",
@@ -676,7 +676,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "retencao": retencao(n_refinados, n_viaveis),
             "cor": "#DDF4E3",
             "texto": "#198443",
-            "largura": "80%",
+            "largura": "68%",
         },
         {
             "rotulo": "Candidatos para síntese",
@@ -685,7 +685,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "retencao": retencao(n_recomendados, n_refinados),
             "cor": "#E9F8ED",
             "texto": "#218C3A",
-            "largura": "70%",
+            "largura": "52%",
         },
     ]
     blocos = []
@@ -841,13 +841,14 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             }}
             .funil-linha {{
                 display: grid;
-                grid-template-columns: minmax(250px, 1.35fr) 130px minmax(190px, 1fr) 92px;
+                grid-template-columns: 40% 16% 33% 11%;
                 gap: 0;
                 min-height: 70px;
                 align-items: stretch;
             }}
             .funil-etapa {{
                 align-self: center;
+                justify-self: center;
                 display: flex;
                 align-items: center;
                 justify-content: center;
@@ -907,9 +908,9 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             }}
             .funil-conector {{
                 position: relative;
-                width: 46%;
+                width: 40%;
                 height: 20px;
-                margin: 0 0 0 22%;
+                margin: 0;
             }}
             .funil-conector i {{
                 position: absolute;
