@@ -651,6 +651,12 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             return "-"
         return formatar_valor(valor / anterior, percentual=True)
 
+    # Ícones científicos em SVG mantêm a leitura visual do funil sem depender de fontes externas.
+    icone_espaco = '<svg viewBox="0 0 48 36" aria-hidden="true"><path d="M5 10 11 5h8l6 5v8l-6 5h-8l-6-5zM20 10l6-5h8l6 5v8l-6 5h-8l-6-5zM12.5 23l6-5h8l6 5v8l-6 5h-8l-6-5z"/></svg>'
+    icone_filtro = '<svg viewBox="0 0 36 36" aria-hidden="true"><path d="M4 5h28L21 18v10l-6 3V18z"/><path d="M15 31h6"/></svg>'
+    icone_predicao = '<svg viewBox="0 0 42 36" aria-hidden="true"><path d="M17 5c-5 0-8 4-8 9-3 1-5 4-5 8 0 5 4 9 9 9h5V5zM25 5c5 0 8 4 8 9 3 1 5 4 5 8 0 5-4 9-9 9h-5V5zM13 14h8M21 20h8M15 26h6"/></svg>'
+    icone_alvo = '<svg viewBox="0 0 42 36" aria-hidden="true"><circle cx="17" cy="19" r="12"/><circle cx="17" cy="19" r="7"/><circle cx="17" cy="19" r="2"/><path d="m23 13 13-9M29 4h7v7"/></svg>'
+
     etapas = [
         {
             "rotulo": "Espaço químico inicial",
@@ -661,7 +667,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "texto": "#0C5DB8",
             "borda": "#2B7FE4",
             "largura": "100%",
-            "icone": "◎",
+            "icone": icone_espaco,
             "subtitulo": "Geração combinatória de materiais",
             "cartao": "Espaço químico inicial",
         },
@@ -674,7 +680,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "texto": "#167548",
             "borda": "#4AAB78",
             "largura": "84%",
-            "icone": "▽",
+            "icone": icone_filtro,
             "subtitulo": "Propriedades físico-químicas",
             "cartao": "Após filtros aplicados",
         },
@@ -687,7 +693,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "texto": "#A86400",
             "borda": "#E3A134",
             "largura": "68%",
-            "icone": "↗",
+            "icone": icone_predicao,
             "subtitulo": "Modelo de aprendizagem de máquina",
             "cartao": "Após predição",
         },
@@ -700,7 +706,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             "texto": "#7340A3",
             "borda": "#9A70C8",
             "largura": "52%",
-            "icone": "◉",
+            "icone": icone_alvo,
             "subtitulo": "Melhores candidatos priorizados",
             "cartao": "Candidatos finais",
         },
@@ -1013,6 +1019,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-size: 2rem;
                 font-weight: 700;
             }}
+            .funil-resumo-icone svg {{ width: 34px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }}
             .funil-resumo-cartao div {{ display: flex; flex-direction: column; min-width: 0; }}
             .funil-resumo-cartao div > span {{ font-size: 0.82rem; font-weight: 750; line-height: 1.18; }}
             .funil-resumo-cartao strong {{ color: #145DB8; font-size: 1.55rem; line-height: 1.06; margin-top: 5px; }}
@@ -1060,7 +1067,8 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-family: Arial, Helvetica, sans-serif;
                 text-align: center;
             }}
-            .funil-etapa-icone {{ font-size: 1.8rem; line-height: 1; }}
+            .funil-etapa-icone {{ display: flex; align-items: center; justify-content: center; width: 38px; height: 34px; line-height: 1; }}
+            .funil-etapa-icone svg {{ width: 38px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }}
             .funil-etapa div {{ display: flex; flex-direction: column; gap: 4px; }}
             .funil-etapa strong {{ font-size: 0.96rem; line-height: 1.12; }}
             .funil-etapa small {{ font-size: 0.75rem; line-height: 1.18; }}
@@ -2173,10 +2181,55 @@ def aplicar_estilo_interface() -> None:
 def renderizar_titulo_dashboard() -> None:
     """Apresenta o titulo executivo da tela principal conforme o painel de referencia."""
     st.markdown(
-        "<div class='catialab-dashboard-title'>Recomendacoes de Catalisadores</div>"
-        "<div class='catialab-dashboard-subtitle'>Triagem virtual orientada por IA para sua reacao alvo.</div>",
+        "<div class='catialab-dashboard-title'>Principais recomendações</div>"
+        "<div class='catialab-dashboard-subtitle'>Candidatos priorizados para validação experimental, ordenados pela pontuação final prevista.</div>",
         unsafe_allow_html=True,
     )
+
+
+MASSAS_ATOMICAS_G_MOL = {"Al": 26.982, "Ce": 140.116, "Co": 58.933, "Cu": 63.546, "Fe": 55.845, "La": 138.905, "Mg": 24.305, "Mo": 95.950, "Ni": 58.693, "Pd": 106.420, "Pt": 195.084, "Rh": 102.906, "Ru": 101.070, "Ti": 47.867, "W": 183.840, "Y": 88.906, "Zn": 65.380, "Zr": 91.224}
+
+
+def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
+    """Apresenta os dois candidatos prioritários com os dados de síntese essenciais."""
+    if prioritarios_df.empty:
+        st.info("Execute a triagem para gerar recomendações de síntese.")
+        return
+
+    def texto(row: pd.Series, opcoes: list[list[str]], padrao: str = "Não informado") -> str:
+        coluna = encontrar_coluna_por_opcoes(pd.DataFrame(columns=row.index), opcoes)
+        valor = row.get(coluna, padrao) if coluna else padrao
+        return padrao if valor is None or pd.isna(valor) or str(valor).strip() == "" else str(valor)
+
+    def numero(row: pd.Series, opcoes: list[list[str]]) -> float | None:
+        coluna = encontrar_coluna_por_opcoes(pd.DataFrame(columns=row.index), opcoes)
+        valor = pd.to_numeric(pd.Series([row.get(coluna)]), errors="coerce").iloc[0] if coluna else np.nan
+        return None if pd.isna(valor) else float(valor)
+
+    def massas_formula(formula: str, massa_ativa: float) -> str:
+        partes = [(e, float(q or 1)) for e, q in re.findall(r"([A-Z][a-z]?)([0-9]*\.?[0-9]*)", formula) if e in MASSAS_ATOMICAS_G_MOL]
+        massa_molar = sum(MASSAS_ATOMICAS_G_MOL[e] * q for e, q in partes)
+        if not massa_molar:
+            return "Não foi possível converter a fórmula automaticamente."
+        return " · ".join(f"{e}: {massa_ativa * MASSAS_ATOMICAS_G_MOL[e] * q / massa_molar:.2f} g" for e, q in partes)
+
+    st.markdown("""<style>
+    .rec-grade{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:16px 0 26px}.rec-card{border:1px solid #CBD9D3;border-left:4px solid var(--rec);border-radius:9px;overflow:hidden;background:#fff;box-shadow:0 5px 16px rgba(20,33,61,.06)}.rec-head{display:flex;align-items:center;gap:12px;padding:17px 21px 12px}.rec-rank{display:grid;place-items:center;width:35px;height:35px;border-radius:50%;background:var(--rec);color:#fff;font-weight:800}.rec-name{color:#112446;font-size:1.15rem;font-weight:850}.rec-dot{width:16px;height:16px;margin-left:auto;border-radius:50%;background:var(--rec)}.rec-main{display:grid;grid-template-columns:1fr .88fr;gap:13px;padding:0 21px 15px}.rec-formula{display:grid;place-items:center;min-height:90px;padding:10px;background:#F1F9F4;color:var(--rec);border-radius:7px;font-family:Georgia,serif;font-size:1.55rem;font-weight:800;text-align:center;word-break:break-word}.rec-score{padding:14px;border:1px solid #DFE8E4;border-radius:7px}.rec-score span,.rec-score small{color:#4A5B73;font-size:.77rem}.rec-score strong{display:block;margin:7px 0;color:var(--rec);font-size:1.65rem}.rec-bar{height:7px;margin-top:7px;background:#E5ECE8;border-radius:8px;overflow:hidden}.rec-bar i{display:block;height:100%;width:var(--conf);background:var(--rec);border-radius:8px}.rec-list{margin:0 21px 20px;border:1px solid #E1E9E5;border-radius:7px;overflow:hidden}.rec-item{display:grid;grid-template-columns:145px 1fr;gap:10px;padding:10px 12px;border-bottom:1px solid #E5ECE8;color:#35465E;font-size:.83rem;line-height:1.38}.rec-item:last-child{border-bottom:0}.rec-item b{color:#163259}.rec-batch{padding:11px 12px;background:#F7FBF8;color:#2B405B;font-size:.8rem;line-height:1.42}.rec-note{margin:0 21px 20px;padding:10px 12px;background:#FFF8E9;border-radius:6px;color:#6D5516;font-size:.78rem;line-height:1.38}@media(max-width:900px){.rec-grade{grid-template-columns:1fr}}@media(max-width:520px){.rec-main,.rec-item{grid-template-columns:1fr;gap:4px}}</style>""", unsafe_allow_html=True)
+    cards = []
+    for posicao, (_, row) in enumerate(prioritarios_df.head(2).iterrows(), 1):
+        formula = texto(row, [["formula"], ["f"]], "Composição não informada")
+        suporte = texto(row, [["suporte", "sugerido"], ["suporte"]])
+        rota = texto(row, [["rota", "sintese"], ["rota"]])
+        justificativa = texto(row, [["justificativa", "suporte"], ["justificativa"]])
+        pretratamento = texto(row, [["pretratamento"]])
+        observacao = texto(row, [["observacao", "sintese"], ["observacao"]])
+        score = numero(row, [["score", "final"], ["score"]])
+        confianca = {"alta": 86, "média": 68, "media": 68, "baixa": 42}.get(normalizar_texto(extrair_confiabilidade(row)), 55)
+        carga = float(np.clip(numero(row, [["teor", "fase", "ativa"], ["carga", "metal"], ["loading"]]) or 15, 1, 90))
+        condicoes = montar_condicao_operacional(row)
+        cor = "#16843C" if posicao == 1 else "#D99A00"
+        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{html.escape(formula)}</div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Confiabilidade do modelo: {confianca}%</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
+    st.markdown(f"<div class='rec-grade'>{''.join(cards)}</div>", unsafe_allow_html=True)
 
 
 def mostrar_resumo_dashboard(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
@@ -2473,9 +2526,9 @@ validacao_avancada_df = ler_csv(paths["validacao_avancada"])
 correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
 
 renderizar_titulo_dashboard()
-mostrar_resumo_dashboard(metricas_df, prioritarios_df, monte_carlo_df)
+mostrar_recomendacoes_sintese(prioritarios_df)
 mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
-mostrar_painel_decisao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
+# O detalhamento dos prioritários é exibido acima, nos cartões de síntese.
 
 aba_geral, aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
     "Visão geral",
