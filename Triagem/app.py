@@ -2153,6 +2153,10 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] [data-testid="stPopoverBody"] div[data-testid="stColumn"] div[data-testid="stButton"] > button { min-height: 30px; min-width: 0; padding: 2px 0; border-radius: 4px; font-size: 0.68rem; line-height: 1; }
             section[data-testid="stSidebar"] [data-testid="stPopoverBody"] div[data-testid="stColumn"] div[data-testid="stButton"] > button[kind="primary"] { background: #197A4B; border-color: #197A4B; color: #FFFFFF; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
+            .catialab-config-preview { margin: -2px 0 12px 0; padding: 0 8px 12px 8px; border-bottom: 1px solid #B9DDC7; color: #173D2B; font-size: 0.86rem; font-weight: 700; line-height: 1.45; text-align: left; }
+            .catialab-config-preview .reaction-name { color: #173D2B; font-weight: 800; }
+            .catialab-config-preview .reaction-equation { color: #3E5872; font-size: 0.9rem; font-weight: 700; margin-top: 2px; }
+            .catialab-metal-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 31px; min-height: 27px; margin: 2px 4px 0 0; padding: 0 8px; border: 1px solid #78B99A; border-radius: 999px; background: rgba(255, 255, 255, 0.72); color: #197A4B; font-size: 0.83rem; font-weight: 850; }
             .catialab-config-status { margin: 11px 0 13px 0; padding: 0; border: 0; background: transparent; color: #173D2B; font-size: 0.86rem; font-weight: 800; line-height: 1.55; text-align: center; }
             .catialab-config-status strong { color: #173D2B; font-weight: 850; }
             .catialab-dashboard-title {
@@ -2494,8 +2498,13 @@ with st.sidebar:
     renderizar_logo_projeto_sidebar()
     st.caption("Configurações da Triagem")
 
+    nomes_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}
+    equacoes_reacao = {"metanacao": "CO₂ + 4H₂ → CH₄ + 2H₂O", "reforma": "CH₄ + CO₂ → 2CO + 2H₂", "rwgs": "CO₂ + H₂ → CO + H₂O"}
+
     with st.popover("Reação", icon=":material/science:", width="stretch"):
         reacao = st.selectbox("Reação-alvo", ["metanacao", "reforma", "rwgs"], index=None, placeholder="Selecione a reação", format_func=lambda x: {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}[x], key="config_reacao")
+    if reacao:
+        st.markdown("<div class='catialab-config-preview'>" f"<div class='reaction-name'>{nomes_reacao[reacao]}</div>" f"<div class='reaction-equation'>{equacoes_reacao[reacao]}</div>" "</div>", unsafe_allow_html=True)
 
     with st.popover("Número de metais ativos", icon=":material/format_list_numbered:", width="stretch"):
         n_metais_selecionado = st.selectbox("Quantidade de metais ativos", [1, 2, 3, 4], index=None, placeholder="Selecione a quantidade", key="config_n_metais")
@@ -2503,6 +2512,9 @@ with st.sidebar:
 
     with st.popover("Metais ativos", icon=":material/hub:", width="stretch"):
         metais = selecionar_metais_tabela_periodica(n_metais)
+    if metais:
+        chips_metais = "".join(f"<span class='catialab-metal-chip'>{html.escape(metal)}</span>" for metal in metais)
+        st.markdown(f"<div class='catialab-config-preview'>{chips_metais}</div>", unsafe_allow_html=True)
 
     with st.popover("Promotor", icon=":material/add_circle:", width="stretch"):
         modo_promotor = st.radio("Uso de promotor", ["Sem promotor", "Com promotor"], index=None, horizontal=True, key="config_modo_promotor")
@@ -2523,7 +2535,7 @@ with st.sidebar:
 
     resumo_metais = ", ".join(metais) if metais else "não definidos"
     resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
-    resumo_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}.get(reacao, "não definida")
+    resumo_reacao = nomes_reacao.get(reacao, "não definida")
     st.markdown(f"<div class='catialab-config-status'><strong>Configuração atual</strong><br>{html.escape(resumo_reacao)}<br>{html.escape(resumo_metais)}<br>{html.escape(resumo_promotor)}</div>", unsafe_allow_html=True)
     espaco_esquerdo, coluna_executar, espaco_direito = st.columns([0.35, 1.8, 0.35])
     with coluna_executar:
