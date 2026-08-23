@@ -709,6 +709,68 @@ def mostrar_robustez_operacao(
 
     mostrar_tabela("Desempenho por faixa de condi\u00e7\u00e3o", desempenho_df, linhas=30)
 
+def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_df: pd.DataFrame) -> None:
+    """Renderiza um simulador de resposta operacional baseado nos resultados da triagem."""
+    st.markdown("""<style>
+    .operation-title{margin:8px 0 4px;color:#14213D;font-size:clamp(1.6rem,2.4vw,2.2rem);font-weight:850;letter-spacing:0}.operation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:12px 0 14px}.operation-kpi,.operation-risk-card,.operation-note{border:1px solid #DCE6EE;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.04)}.operation-kpi{min-height:104px;padding:15px 17px}.operation-kpi b{display:block;color:#14213D;font-size:.79rem}.operation-kpi strong{display:block;margin:9px 0 3px;color:#087A3B;font-size:1.48rem;line-height:1}.operation-kpi span,.operation-risk-card span{color:#64748B;font-size:.74rem;line-height:1.35}.operation-risk-card{min-height:280px;padding:17px;color:#14213D}.operation-risk-card h3{margin:0 0 16px;color:#087A3B;font-size:.92rem;line-height:1.25}.operation-risk-card b{display:block;color:#14213D;font-size:.76rem}.operation-risk-card strong{display:block;margin:5px 0 2px;color:#146CC1;font-size:1.32rem}.operation-risk-card hr{border:0;border-top:1px solid #E7EDF2;margin:14px 0}.operation-note{min-height:132px;padding:16px;color:#334155;font-size:.83rem;line-height:1.55;background:#F7FCF8;border-color:#C9DFD0}@media(max-width:900px){.operation-kpis{grid-template-columns:repeat(2,minmax(0,1fr)}}
+    </style>""", unsafe_allow_html=True)
+    if prioritarios_df.empty and classificacao_df.empty:
+        st.info("Execute a triagem para visualizar o simulador operacional.")
+        return
+    candidatos = (prioritarios_df if not prioritarios_df.empty else classificacao_df).copy().head(10).reset_index(drop=True)
+    coluna_formula = encontrar_coluna(candidatos, ["formula"]) or candidatos.columns[0]
+    opcoes = candidatos[coluna_formula].astype(str).tolist()
+    formula = st.selectbox("Candidato simulado", opcoes, key="simulador_operacional_candidato")
+    candidato = candidatos.loc[candidatos[coluna_formula].astype(str) == formula].iloc[0]
+    def numero(row, termos, padrao):
+        coluna = encontrar_coluna(pd.DataFrame(columns=row.index), termos)
+        valor = pd.to_numeric(pd.Series([row.get(coluna, padrao) if coluna else padrao]), errors="coerce").iloc[0]
+        return float(valor) if pd.notna(valor) else padrao
+    temperatura_base, pressao_base, razao_base = float(np.clip(numero(candidato,["temperatura"],400),200,800)), float(np.clip(numero(candidato,["pressao"],10),1,30)), float(np.clip(numero(candidato,["razao"],3),1,6))
+    conversao_base, seletividade_base = float(np.clip(numero(candidato,["conversao","prevista"],55),1,98)), float(np.clip(numero(candidato,["seletividade","prevista"],80),1,99))
+    score_material, resistencia_coque = float(np.clip(numero(candidato,["score","final"],.6),0,1)), float(np.clip(numero(candidato,["resistencia","coque"],.55),0,1))
+    def resposta(temperatura_c, pressao_bar, razao_h2_co2):
+        temperatura_c, pressao_bar, razao_h2_co2 = np.asarray(temperatura_c,dtype=float), np.asarray(pressao_bar,dtype=float), np.asarray(razao_h2_co2,dtype=float)
+        fator_t = .42 + .58*np.exp(-((temperatura_c-temperatura_base)/190)**2); fator_p = .68 + .32*(1-np.exp(-pressao_bar/max(pressao_base,4)))/(1-np.exp(-30/max(pressao_base,4))); fator_r = .70 + .30*np.exp(-((razao_h2_co2-razao_base)/2.1)**2)
+        conversao = np.clip(conversao_base*fator_t*fator_p*fator_r,0,100); seletividade = np.clip(seletividade_base*(.93+.07*fator_r)*(1.02-.00016*np.maximum(temperatura_c-temperatura_base,0)),0,100); rendimento = np.clip(conversao*seletividade/100,0,100)
+        risco = np.clip((1-resistencia_coque)*(.55+.25*np.clip((temperatura_c-350)/450,0,1)+.20*np.clip((3-razao_h2_co2)/2,0,1)),0,1); robustez = np.clip(.55*rendimento/100+.25*score_material+.20*(1-risco),0,1)
+        return conversao,seletividade,rendimento,robustez,risco
+    st.markdown(f"<h2 class='operation-title'>{html.escape(t('Robustez e operação'))}</h2>",unsafe_allow_html=True)
+    st.caption("Simulador operacional proxy: compara tendências previstas a partir dos descritores e do ranking. Não substitui ensaios cinéticos, balanço de massa ou validação experimental.")
+    with st.container(border=True):
+        st.markdown("#### Condições operacionais exploradas"); c1,c2,c3=st.columns(3)
+        with c1: temperatura=st.slider("Temperatura (°C)",200,800,int(round(temperatura_base)),10,key="simulador_operacional_temperatura")
+        with c2: pressao=st.slider("Pressão (bar)",1,30,int(round(pressao_base)),1,key="simulador_operacional_pressao")
+        with c3: razao=st.slider("Razão H₂/CO₂ (mol/mol)",1.0,6.0,round(razao_base,1),.1,key="simulador_operacional_razao")
+    conversao,seletividade,rendimento,score_robustez,risco_coque=resposta(temperatura,pressao,razao); k_desativacao=.0004+.006*float(risco_coque); tempo_10_pct=.105/k_desativacao
+    cards=[("Temperatura recomendada",f"{temperatura} °C",f"janela: {max(200,temperatura-60)}–{min(800,temperatura+60)} °C"),("Pressão recomendada",f"{pressao} bar",f"janela: {max(1,pressao-5)}–{min(30,pressao+5)} bar"),("Razão H₂/CO₂ recomendada",f"{razao:.1f} mol/mol",f"janela: {max(1.,razao-.7):.1f}–{min(6.,razao+.7):.1f} mol/mol"),("Rendimento previsto",f"{float(rendimento):.1f}%",f"conversão {float(conversao):.1f}% · seletividade {float(seletividade):.1f}%")]
+    st.markdown("<div class='operation-kpis'>"+"".join(f"<div class='operation-kpi'><b>{html.escape(a)}</b><strong>{html.escape(b)}</strong><span>{html.escape(c)}</span></div>" for a,b,c in cards)+"</div>",unsafe_allow_html=True)
+    temperaturas=np.arange(200,801,25); fig_atividade=go.Figure()
+    for indice,(_,linha) in enumerate(candidatos.head(5).iterrows(),1):
+        atividade=np.clip(100*(.42+.58*np.exp(-((temperaturas-numero(linha,["temperatura"],temperatura_base))/190)**2))*numero(linha,["conversao","prevista"],conversao_base)/max(conversao_base,1),0,120); fig_atividade.add_trace(go.Scatter(x=temperaturas,y=atividade,mode="lines+markers",name=f"{indice}. {linha[coluna_formula]}"))
+    fig_atividade.add_vline(x=temperatura,line_dash="dash",line_color="#64748B"); fig_atividade.update_layout(title="Atividade relativa versus temperatura",xaxis_title="Temperatura (°C)",yaxis_title="Atividade relativa (%)",height=335,margin=dict(l=35,r=15,t=50,b=35),legend=dict(font=dict(size=10)))
+    grade_t,grade_p=np.linspace(200,800,51),np.linspace(1,30,31); tm,pm=np.meshgrid(grade_t,grade_p); _,_,grade_rendimento,grade_robustez,_=resposta(tm,pm,razao)
+    fig_superficie=go.Figure(go.Contour(x=grade_t,y=grade_p,z=grade_rendimento,colorscale="YlGnBu",contours=dict(showlabels=True),colorbar=dict(title="Rendimento (%)"))); fig_superficie.add_trace(go.Scatter(x=[temperatura],y=[pressao],mode="markers",marker=dict(size=12,color="#14213D",symbol="star"),name="Condição simulada")); fig_superficie.update_layout(title="Superfície de resposta: rendimento previsto",xaxis_title="Temperatura (°C)",yaxis_title="Pressão (bar)",height=335,margin=dict(l=35,r=15,t=50,b=35))
+    ca,cb,cc=st.columns([1.05,1.15,.8])
+    with ca: st.plotly_chart(fig_atividade,width="stretch")
+    with cb: st.plotly_chart(fig_superficie,width="stretch")
+    with cc:
+        nivel="Baixo" if risco_coque<.33 else "Moderado" if risco_coque<.66 else "Alto"; st.markdown("<div class='operation-risk-card'><h3>Resistência à deposição de carbono e desativação</h3>"+f"<b>Resistência estimada</b><strong>{resistencia_coque:.2f}</strong><span>(0 = baixa | 1 = alta)</span><hr><b>Tendência de formação de coque</b><strong>{nivel}</strong><span>índice proxy: {float(risco_coque):.2f}</span><hr><b>Taxa de desativação (proxy)</b><strong>{k_desativacao:.2e} h⁻¹</strong><span>tempo estimado para queda de 10%: {tempo_10_pct:.0f} h</span></div>",unsafe_allow_html=True)
+    st.markdown("#### Avalie o desempenho em diferentes condições operacionais"); linhas_pressao=sorted(set([max(1,pressao-5),pressao,min(30,pressao+5)])); fig_conversao,fig_rendimento=go.Figure(),go.Figure()
+    for p in linhas_pressao:
+        conv,_,rend,_,_=resposta(temperaturas,p,razao); fig_conversao.add_trace(go.Scatter(x=temperaturas,y=conv,mode="lines+markers",name=f"Pressão: {p} bar")); fig_rendimento.add_trace(go.Scatter(x=temperaturas,y=rend,mode="lines+markers",name=f"Pressão: {p} bar"))
+    for figura,titulo,eixo in [(fig_conversao,"Conversão de CO₂ prevista","Conversão de CO₂ (%)"),(fig_rendimento,"Rendimento previsto","Rendimento (%)")]: figura.add_vline(x=temperatura,line_dash="dash",line_color="#64748B"); figura.update_layout(title=titulo,xaxis_title="Temperatura (°C)",yaxis_title=eixo,height=315,margin=dict(l=35,r=15,t=50,b=35),legend=dict(orientation="h",y=1.12))
+    mapa=go.Figure(go.Heatmap(x=grade_t,y=grade_p,z=grade_robustez,colorscale="RdYlGn",zmin=0,zmax=1,colorbar=dict(title="Score"))); mapa.add_trace(go.Scatter(x=[temperatura],y=[pressao],mode="markers",marker=dict(size=10,color="#14213D",symbol="star"),name="Condição simulada")); mapa.update_layout(title="Mapa de robustez operacional",xaxis_title="Temperatura (°C)",yaxis_title="Pressão (bar)",height=315,margin=dict(l=35,r=15,t=50,b=35))
+    g1,g2,g3=st.columns(3)
+    with g1: st.plotly_chart(fig_conversao,width="stretch")
+    with g2: st.plotly_chart(fig_rendimento,width="stretch")
+    with g3: st.plotly_chart(mapa,width="stretch")
+    pontos=pd.DataFrame({"Temperatura (°C)":tm.ravel(),"Pressão (bar)":pm.ravel(),"Rendimento (%)":grade_rendimento.ravel(),"Score de robustez":grade_robustez.ravel()}); janelas=pontos.sort_values(["Score de robustez","Rendimento (%)"],ascending=False).drop_duplicates(subset=["Temperatura (°C)"],keep="first").head(3).reset_index(drop=True); janelas.insert(0,"Janela",["Ótima","Alta","Boa"][:len(janelas)]); janelas["Razão H₂/CO₂"]=f"{razao:.1f}"; janelas["Conversão de CO₂ (%)"]=[float(resposta(r["Temperatura (°C)"],r["Pressão (bar)"],razao)[0]) for _,r in janelas.iterrows()]; janelas=janelas[["Janela","Temperatura (°C)","Pressão (bar)","Razão H₂/CO₂","Conversão de CO₂ (%)","Rendimento (%)","Score de robustez"]].round(2)
+    tabela,nota=st.columns([1.25,.75])
+    with tabela: st.markdown("#### Principais janelas operacionais"); st.dataframe(janelas,hide_index=True,width="stretch")
+    with nota: st.markdown("#### Interpretação da simulação"); st.markdown(f"<div class='operation-note'><b>Candidato:</b> {html.escape(formula)}<br><b>Condição avaliada:</b> {temperatura} °C, {pressao} bar, H₂/CO₂ = {razao:.1f}.<br><b>Score operacional:</b> {float(score_robustez):.2f}.<br><br>Os indicadores de coque e desativação são proxies relativos. Confirme-os por ensaios de tempo em operação.</div>",unsafe_allow_html=True)
+
+
 def mostrar_painel_incerteza(monte_carlo_df: pd.DataFrame, dominio_df: pd.DataFrame, validacao_df: pd.DataFrame) -> None:
     """Exibe incerteza preditiva e ranking Monte Carlo em um painel científico."""
     if monte_carlo_df.empty:
@@ -2782,7 +2844,7 @@ with aba_incerteza:
     mostrar_painel_incerteza(monte_carlo_df, dominio_df, validacao_quimio_df)
 
 with aba_robustez:
-    mostrar_robustez_operacao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
+    mostrar_simulador_operacional(prioritarios_df, classificacao_df)
 
 with aba_quimica:
     mostrar_indicadores_quimicos(prioritarios_df)
