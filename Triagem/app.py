@@ -28,6 +28,10 @@ DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "outputs"
 BRASAO_PATH = APP_DIR / "assets" / "logo_ufrn_header.png"
 PROJECT_LOGO_PATH = APP_DIR / "assets" / "logo_triagem_catalitica_v3.png"
 LABTAM_LOGO_PATH = APP_DIR / "assets" / "logo_labtam.png"
+ESTRUTURAS_CATALITICAS = [
+    APP_DIR / "assets" / "estrutura_catalitica_verde_roxa.png",
+    APP_DIR / "assets" / "estrutura_catalitica_azul_amarela.png",
+]
 
 PERFIL_PESQUISADOR = {
     "nome": "Allan Maia",
@@ -2510,6 +2514,18 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
     .rec-formula{border:1px solid #EDF1F3}.rec-formula{box-shadow:inset 0 -1px 0 rgba(20,33,61,.04)}.rec-score{background:linear-gradient(180deg,#F5FCF7 0%,#FFFFFF 52%)}
     </style>""", unsafe_allow_html=True)
     st.markdown("<style>.rec-formula::before,.rec-formula::after{z-index:0!important}</style>", unsafe_allow_html=True)
+    st.markdown("""<style>
+    .rec-formula{flex-direction:column;gap:7px;align-items:center;justify-content:flex-end;background:#F8FAFB}.rec-formula::before,.rec-formula::after{display:none!important}.rec-formula img.rec-catalyst-image{width:100%;height:145px;object-fit:contain;display:block;mix-blend-mode:multiply}.rec-formula{font-size:.82rem;color:#112446}
+    </style>""", unsafe_allow_html=True)
+
+    def imagem_estrutura(posicao: int) -> str:
+        """Retorna a imagem ilustrativa correspondente à composição colorida do card."""
+        caminho = ESTRUTURAS_CATALITICAS[(posicao - 1) % len(ESTRUTURAS_CATALITICAS)]
+        if not caminho.exists():
+            return ""
+        imagem = base64.b64encode(caminho.read_bytes()).decode("utf-8")
+        return f"<img class='rec-catalyst-image' src='data:image/png;base64,{imagem}' alt='Representação esquemática do catalisador'>"
+
     cards = []
     for posicao, (_, row) in enumerate(prioritarios_df.head(2).iterrows(), 1):
         formula = texto(row, [["formula"], ["f"]], "Composição não informada")
@@ -2523,7 +2539,8 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
         carga = float(np.clip(numero(row, [["teor", "fase", "ativa"], ["carga", "metal"], ["loading"]]) or 15, 1, 90))
         condicoes = montar_condicao_operacional(row)
         cor = "#16843C" if posicao == 1 else "#D99A00"
-        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{html.escape(formula)}</div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Confiabilidade do modelo: {confianca}%</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
+        estrutura = imagem_estrutura(posicao)
+        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Confiabilidade do modelo: {confianca}%</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
     st.markdown(f"<div class='rec-grade'>{traduzir_texto_exibicao(''.join(cards))}</div>", unsafe_allow_html=True)
 
 
