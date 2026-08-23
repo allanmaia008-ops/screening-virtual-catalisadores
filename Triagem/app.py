@@ -16,6 +16,7 @@ import nbformat
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 from nbclient import NotebookClient
 
@@ -707,6 +708,54 @@ def mostrar_robustez_operacao(
         mostrar_tabela("M\u00e9tricas de robustez e opera\u00e7\u00e3o", metricas_operacao_df, linhas=30)
 
     mostrar_tabela("Desempenho por faixa de condi\u00e7\u00e3o", desempenho_df, linhas=30)
+
+def mostrar_painel_incerteza(monte_carlo_df: pd.DataFrame, dominio_df: pd.DataFrame, validacao_df: pd.DataFrame) -> None:
+    """Exibe incerteza preditiva e ranking Monte Carlo em um painel científico."""
+    if monte_carlo_df.empty:
+        st.info("Execute a triagem para calcular a incerteza do modelo.")
+        return
+    formula = encontrar_coluna(monte_carlo_df, ["formula"]) or monte_carlo_df.columns[0]
+    prob = encontrar_coluna(monte_carlo_df, ["probabilidade", "top"])
+    media = encontrar_coluna(monte_carlo_df, ["media", "monte", "score"])
+    desvio = encontrar_coluna(monte_carlo_df, ["desvio", "monte", "score"])
+    inf = encontrar_coluna(monte_carlo_df, ["limite", "inferior", "top"])
+    sup = encontrar_coluna(monte_carlo_df, ["limite", "superior", "top"])
+    dados = pd.DataFrame({"Catalisador": monte_carlo_df[formula].astype(str), "Probabilidade": pd.to_numeric(monte_carlo_df[prob], errors="coerce") if prob else np.nan, "Score médio": pd.to_numeric(monte_carlo_df[media], errors="coerce") if media else np.nan, "Desvio MC": pd.to_numeric(monte_carlo_df[desvio], errors="coerce") if desvio else np.nan, "LI 95%": pd.to_numeric(monte_carlo_df[inf], errors="coerce") if inf else np.nan, "LS 95%": pd.to_numeric(monte_carlo_df[sup], errors="coerce") if sup else np.nan}).sort_values("Probabilidade", ascending=False).head(10)
+    cobertura = None
+    if not dominio_df.empty:
+        coluna = encontrar_coluna(dominio_df, ["dominio"]) or encontrar_coluna(dominio_df, ["status"])
+        if coluna:
+            cobertura = dominio_df[coluna].astype(str).map(normalizar_texto).str.contains("dentro|aceit", regex=True).mean()
+    r2 = extrair_metrica(validacao_df, "r2") or extrair_metrica(validacao_df, "r²")
+    cards = [("Incerteza média (desvio MC)", "-" if dados["Desvio MC"].isna().all() else f"{dados['Desvio MC'].mean():.3f}", "unid. do score"), ("Cobertura do domínio", "N/D" if cobertura is None else f"{100*cobertura:.0f}%", "dos candidatos"), ("Fora do domínio", "N/D" if cobertura is None else f"{100*(1-cobertura):.0f}%", "dos candidatos"), ("R² (validação)", "N/D" if r2 is None else formatar_valor(r2), "validação disponível")]
+    html_cards = "".join(f"<div class='uncertainty-metric'><b>{a}</b><strong>{b}</strong><span>{c}</span></div>" for a,b,c in cards)
+    st.markdown("<h3 class='uncertainty-title'>Confiança do modelo</h3>" + f"<div class='uncertainty-metrics'>{html_cards}</div>", unsafe_allow_html=True)
+    a, b, c = st.columns([1.05, 1.2, .8])
+    with a:
+        st.markdown("#### Distribuição Monte Carlo")
+        top = dados.iloc[0]
+        if pd.notna(top["Score médio"]) and pd.notna(top["Desvio MC"]) and top["Desvio MC"] > 0:
+            x = np.linspace(top["Score médio"]-4*top["Desvio MC"], top["Score médio"]+4*top["Desvio MC"], 100); y = np.exp(-.5*((x-top["Score médio"])/top["Desvio MC"])**2)/(top["Desvio MC"]*np.sqrt(2*np.pi))
+            fig=go.Figure(go.Scatter(x=x,y=y,fill="tozeroy",line={"color":"#146CC1"})); fig.add_vline(x=top["Score médio"],line_dash="dash",line_color="#16843C"); fig.update_layout(height=280,margin=dict(l=5,r=5,t=5,b=5),xaxis_title="Score final",yaxis_title="Densidade",showlegend=False); st.plotly_chart(fig,width="stretch")
+        else: st.info("Média e desvio Monte Carlo indisponíveis.")
+    with b:
+        st.markdown("#### Intervalos de probabilidade (95%)")
+        tabela=dados[["Catalisador","Probabilidade","LI 95%","LS 95%"]].copy()
+        for col in ["Probabilidade","LI 95%","LS 95%"]: tabela[col]=tabela[col].map(lambda v:"-" if pd.isna(v) else f"{100*v:.1f}%")
+        st.dataframe(tabela,hide_index=True,width="stretch")
+    with c:
+        st.markdown("#### Probabilidade de estar no Top 5")
+        fig=px.bar(dados.head(5).sort_values("Probabilidade"),x="Probabilidade",y="Catalisador",orientation="h",color_discrete_sequence=["#16843C"]); fig.update_layout(height=280,margin=dict(l=5,r=5,t=5,b=5),xaxis_tickformat=".0%",showlegend=False); st.plotly_chart(fig,width="stretch")
+    a,b=st.columns([1.05,.95])
+    with a:
+        st.markdown("#### Incerteza versus score predito")
+        fig=px.scatter(dados,x="Score médio",y="Desvio MC",color="Probabilidade",hover_name="Catalisador",color_continuous_scale="Viridis"); fig.update_layout(height=310,margin=dict(l=5,r=5,t=5,b=5)); st.plotly_chart(fig,width="stretch")
+    with b:
+        texto="O domínio de aplicabilidade não foi calculado nesta execução." if cobertura is None else f"{100*(1-cobertura):.0f}% dos candidatos estão fora do domínio de aplicabilidade."
+        st.markdown(f"<div class='uncertainty-alert'><h4>Alerta de extrapolação</h4><strong>{html.escape(texto)}</strong><p>Priorize candidatos com menor dispersão Monte Carlo e maior probabilidade de Top 5. A confirmação experimental continua necessária.</p></div><div class='uncertainty-note'><h4>Nota importante</h4><p>A incerteza quantifica a dispersão das previsões do ensemble e da simulação de Monte Carlo. Ela não substitui a validação experimental.</p></div>",unsafe_allow_html=True)
+    st.markdown("#### Ranking de candidatos com incerteza (Monte Carlo + ensemble)")
+    st.dataframe(dados,hide_index=True,width="stretch")
+
 
 def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
     """Mostra a triagem como um funil horizontal de quatro níveis."""
@@ -2279,6 +2328,7 @@ def aplicar_estilo_interface() -> None:
             .candidate-legend { display: flex; justify-content: space-between; gap: 10px; padding: 12px 5px 0; color: #64748B; font-size: 0.72rem; } .candidate-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 3px; border: 2px solid currentColor; border-radius: 50%; vertical-align: -1px; } .candidate-legend .high { color: #087A3B; } .candidate-legend .medium { color: #B56400; } .candidate-legend .low { color: #C53939; }
             .candidate-mcda-panel { padding: 14px; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; color: #14213D; } .candidate-mcda-panel h4 { margin: 0 0 9px; color: #087A3B; font-size: 0.9rem; text-align: center; } .candidate-donut { display: grid; width: 126px; height: 126px; margin: 0 auto 12px; place-items: center; border-radius: 50%; background: conic-gradient(#0D5EBA 0 40%, #3E85CF 40% 70%, #77ADE2 70% 90%, #BCD9F5 90%); } .candidate-donut::before { content: ''; grid-area: 1 / 1; width: 63px; height: 63px; border-radius: 50%; background: #FFFFFF; } .candidate-donut span { z-index: 1; grid-area: 1 / 1; color: #14213D; font-size: 0.72rem; font-weight: 850; line-height: 1.25; text-align: center; } .candidate-mcda-item { margin-top: 9px; padding-left: 10px; border-left: 5px solid #0D5EBA; } .candidate-mcda-item:nth-of-type(3) { border-color: #3E85CF; } .candidate-mcda-item:nth-of-type(4) { border-color: #77ADE2; } .candidate-mcda-item:nth-of-type(5) { border-color: #BCD9F5; } .candidate-mcda-item b { display: block; font-size: 0.76rem; } .candidate-mcda-item span { display: block; margin-top: 2px; color: #4A5B73; font-size: 0.69rem; line-height: 1.28; } .candidate-mcda-panel p { margin: 12px 0 0; padding: 8px; border-radius: 6px; background: #FFF8E9; color: #6D5516; font-size: 0.7rem; line-height: 1.35; }
             @media (max-width: 1080px) { .candidate-results-layout { grid-template-columns: 1fr; } .candidate-mcda-panel { max-width: none; } } @media (max-width: 900px) { .candidate-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-legend { display: grid; } }
+            .uncertainty-title { margin: 6px 0 12px; color: #14213D; font-size: 1rem; font-weight: 850; text-transform: uppercase; } .uncertainty-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; } .uncertainty-metric { min-height:98px; padding:14px; border:1px solid #DCE6EE; border-radius:8px; background:#FFF; box-shadow:0 3px 10px rgba(20,33,61,.04); } .uncertainty-metric b{display:block;color:#14213D;font-size:.78rem}.uncertainty-metric strong{display:block;margin:9px 0 3px;color:#146CC1;font-size:1.45rem}.uncertainty-metric span{color:#64748B;font-size:.74rem}.uncertainty-alert{min-height:130px;padding:18px;border:1px solid #F2CD72;border-radius:8px;background:#FFF9EA;color:#5F4A11}.uncertainty-alert h4{margin:0 0 9px;color:#4E3A00;font-size:1rem;text-transform:uppercase}.uncertainty-alert strong{color:#B84B16}.uncertainty-alert p,.uncertainty-note p{font-size:.82rem;line-height:1.45}.uncertainty-note{margin-top:12px;padding:18px;border:1px solid #C9DFD0;border-radius:8px;background:#F7FCF8;color:#253D50}.uncertainty-note h4{margin:0;color:#087A3B;font-size:1rem}@media(max-width:900px){.uncertainty-metrics{grid-template-columns:repeat(2,minmax(0,1fr)}}
             .catialab-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 0 20px 0; }
             .catialab-summary-card { min-height: 132px; padding: 17px 18px 14px 18px; border: 1px solid #DCE6EE; border-radius: 9px; background: #FFFFFF; box-shadow: 0 5px 16px rgba(20, 33, 61, 0.06); }
             .catialab-summary-label { color: #14213D; font-size: 0.82rem; font-weight: 800; }
@@ -2729,15 +2779,7 @@ with aba_candidatos:
     mostrar_candidatos_prioritarios(metricas_df, [prioritarios_df, classificacao_df, ranking_df])
 
 with aba_incerteza:
-    col1, col2 = st.columns([1.0, 1.0])
-    with col1:
-        mostrar_tabela(t("Incerteza Monte Carlo"), monte_carlo_df, linhas=30)
-    with col2:
-        metricas_confianca_df = filtrar_metricas_por_termos(
-            metricas_df,
-            ["confianca", "confiabilidade", "incerteza", "monte carlo", "ic95"],
-        )
-        mostrar_tabela(t("Métricas de confiança"), metricas_confianca_df, linhas=30)
+    mostrar_painel_incerteza(monte_carlo_df, dominio_df, validacao_quimio_df)
 
 with aba_robustez:
     mostrar_robustez_operacao(metricas_df, prioritarios_df, classificacao_df, monte_carlo_df, desempenho_df)
