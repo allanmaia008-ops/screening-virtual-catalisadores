@@ -1745,9 +1745,21 @@ def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.D
     n_viaveis = extrair_metrica(metricas_df, "candidatos vi") or len(candidatos_df)
     n_refinados = extrair_metrica(metricas_df, "candidatos refinados") or len(candidatos_df)
     n_finais = len(candidatos_df)
+    def formatar_contagem(valor) -> str:
+        """Exibe contagens inteiras em padrão brasileiro."""
+        try:
+            return f"{int(round(float(valor))):,}".replace(",", ".")
+        except (TypeError, ValueError):
+            return "-"
+    def formatar_decimal(valor) -> str:
+        """Exibe métricas adimensionais e energéticas com três casas decimais."""
+        try:
+            return f"{float(valor):.3f}".replace(".", ",")
+        except (TypeError, ValueError):
+            return "-"
     st.markdown("<h3 class='candidate-title'>Candidatos prioritários para síntese</h3>", unsafe_allow_html=True)
     st.markdown("<p class='candidate-subtitle'>Triagem computacional multiobjetivo combinando estabilidade, desempenho e síntese.</p>", unsafe_allow_html=True)
-    cards = [("Gerados", formatar_valor(n_gerados), "candidatos", "base"), ("Viáveis", formatar_valor(n_viaveis), "candidatos", "shield"), ("Refinados", formatar_valor(n_refinados), "candidatos", "target"), ("Finais (Top 10)", formatar_valor(n_finais), "candidatos", "trophy")]
+    cards = [("Gerados", formatar_contagem(n_gerados), "candidatos", "base"), ("Viáveis", formatar_contagem(n_viaveis), "candidatos", "shield"), ("Refinados", formatar_contagem(n_refinados), "candidatos", "target"), ("Finais (Top 10)", formatar_contagem(n_finais), "candidatos", "trophy")]
     cards_html = "".join(f"<div class='candidate-metric'><div class='candidate-icon {icone}'></div><div><b>{html.escape(rotulo)}</b><strong>{html.escape(valor)}</strong><span>{html.escape(nota)}</span></div></div>" for rotulo, valor, nota, icone in cards)
     st.markdown(f"<div class='candidate-metrics'>{cards_html}</div>", unsafe_allow_html=True)
     if candidatos_df.empty:
@@ -1755,9 +1767,9 @@ def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.D
         return
     linhas_html = []
     for posicao, (_, linha) in enumerate(candidatos_df.iterrows(), start=1):
-        estabilidade = linha["Estabilidade termodinâmica (eV/átomo)"]
-        score = linha["Pontuação final (0-1)"]
-        incerteza = linha["Incerteza (desvio Monte Carlo)"]
+        estabilidade = formatar_decimal(linha["Estabilidade termodinâmica (eV/átomo)"])
+        score = formatar_decimal(linha["Pontuação final (0-1)"])
+        incerteza = formatar_decimal(linha["Incerteza (desvio Monte Carlo)"])
         confianca = linha["Confiança"]
         classe_confianca = "high" if normalizar_texto(confianca) == "alta" else "medium" if normalizar_texto(confianca) == "media" else "low"
         linhas_html.append("<tr>" f"<td>{posicao}</td><td><b>{html.escape(str(linha['Fórmula']))}</b></td>" f"<td>{html.escape(str(linha['Suporte sugerido']))}</td>" f"<td class='candidate-stability'>{html.escape(str(estabilidade))}</td>" f"<td class='candidate-score'>{html.escape(str(score))}</td>" f"<td class='candidate-uncertainty'>{html.escape(str(incerteza))}</td>" f"<td>{html.escape(str(linha['Rota de síntese']))}</td>" f"<td><span class='candidate-confidence {classe_confianca}'>{html.escape(str(confianca).capitalize())}</span></td>" "</tr>")
