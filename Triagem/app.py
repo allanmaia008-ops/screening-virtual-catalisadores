@@ -282,6 +282,26 @@ def normalizar_texto(valor: str) -> str:
     return texto.lower().replace("�", "").replace("ï¿½", "").strip()
 
 
+def corrigir_texto_portugues(texto: str) -> str:
+    """Corrige termos recorrentes dos arquivos de resultados antes da exibição."""
+    if idioma_atual() == "en":
+        return texto
+    correcoes = {
+        "impregnacao": "impregnação", "calcinacao": "calcinação", "reducao": "redução",
+        "oxidacao": "oxidação", "sintese": "síntese", "condicoes": "condições",
+        "metanacao": "metanação", "adsorcao": "adsorção", "dessorcao": "dessorção",
+        "formacao": "formação", "deposicao": "deposição", "avaliacao": "avaliação",
+        "analise": "análise", "simulacao": "simulação", "recomendacao": "recomendação",
+        "confianca": "confiança", "operacao": "operação", "decisao": "decisão",
+        "quimicos": "químicos", "quimica": "química", "termica": "térmica",
+        "metalica": "metálica", "area": "área", "razao": "razão",
+    }
+    resultado = str(texto)
+    for origem, destino in correcoes.items():
+        resultado = re.sub(rf"\b{origem}\b", destino, resultado, flags=re.IGNORECASE)
+    return resultado
+
+
 def encontrar_coluna(dataframe: pd.DataFrame, termos: list[str]) -> str | None:
     """Encontra a primeira coluna cujo nome contenha todos os termos informados."""
     termos_norm = [normalizar_texto(termo) for termo in termos]
@@ -1724,11 +1744,11 @@ def montar_tabela_candidatos(fontes: list[pd.DataFrame], linhas: int = 10) -> pd
             formulas_vistas.add(chave)
             registros.append({
                 "Fórmula": formula,
-                "Suporte sugerido": valor_linha(linha, ["suporte", "sugerido"]),
+                "Suporte sugerido": corrigir_texto_portugues(valor_linha(linha, ["suporte", "sugerido"])),
                 "Estabilidade termodinâmica (eV/átomo)": valor_linha(linha, ["estabilidade", "termodinamica"]),
                 "Pontuação final (0-1)": valor_linha(linha, ["score", "final"]),
                 "Incerteza (desvio Monte Carlo)": valor_linha(linha, ["desvio", "monte", "carlo"]),
-                "Rota de síntese": valor_linha(linha, ["rota", "sintese"]),
+                "Rota de síntese": corrigir_texto_portugues(valor_linha(linha, ["rota", "sintese"])),
                 "Confiança": valor_linha(linha, ["confiabilidade"]),
             })
             if len(registros) >= linhas:
@@ -2366,11 +2386,11 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
     cards = []
     for posicao, (_, row) in enumerate(prioritarios_df.head(2).iterrows(), 1):
         formula = texto(row, [["formula"], ["f"]], "Composição não informada")
-        suporte = texto(row, [["suporte", "sugerido"], ["suporte"]])
-        rota = texto(row, [["rota", "sintese"], ["rota"]])
-        justificativa = texto(row, [["justificativa", "suporte"], ["justificativa"]])
-        pretratamento = texto(row, [["pretratamento"]])
-        observacao = texto(row, [["observacao", "sintese"], ["observacao"]])
+        suporte = corrigir_texto_portugues(texto(row, [["suporte", "sugerido"], ["suporte"]]))
+        rota = corrigir_texto_portugues(texto(row, [["rota", "sintese"], ["rota"]]))
+        justificativa = corrigir_texto_portugues(texto(row, [["justificativa", "suporte"], ["justificativa"]]))
+        pretratamento = corrigir_texto_portugues(texto(row, [["pretratamento"]]))
+        observacao = corrigir_texto_portugues(texto(row, [["observacao", "sintese"], ["observacao"]]))
         score = numero(row, [["score", "final"], ["score"]])
         confianca = {"alta": 86, "média": 68, "media": 68, "baixa": 42}.get(normalizar_texto(extrair_confiabilidade(row)), 55)
         carga = float(np.clip(numero(row, [["teor", "fase", "ativa"], ["carga", "metal"], ["loading"]]) or 15, 1, 90))
@@ -2469,15 +2489,15 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             titulo_finalidade, titulo_desenvolvimento = "Purpose", "Development"
         else:
             finalidade = (
-                "CatAiLab e uma plataforma de triagem virtual para priorizar catalisadores e condicoes "
-                "de sintese para metanacao de CO2, reforma de CH4 e RWGS. Ela apoia a decisao "
-                "experimental com estabilidade termodinamica, descritores quimicos, dados ou proxies "
-                "DFT, robustez operacional, incerteza e criterios de sintese."
+                "CatAiLab é uma plataforma de triagem virtual para priorizar catalisadores e condições "
+                "de síntese para metanação de CO₂, reforma de CH₄ e RWGS. Ela apoia a decisão "
+                "experimental com estabilidade termodinâmica, descritores químicos, dados ou proxies "
+                "DFT, robustez operacional, incerteza e critérios de síntese."
             )
             desenvolvimento = (
                 "O desenvolvimento integra Materials Project, OQMD e Catalysis-Hub com descritores "
-                "do matminer e pymatgen, avaliacao de estabilidade, analise tipo volcano, simulacao "
-                "de Monte Carlo, quimiometria e recomendacao de suporte e rota de sintese."
+                "do matminer e pymatgen, avaliação de estabilidade, análise tipo vulcão, simulação "
+                "de Monte Carlo, quimiometria e recomendação de suporte e rota de síntese."
             )
             titulo_finalidade, titulo_desenvolvimento = "Finalidade", "Desenvolvimento"
         col1, col2 = st.columns(2)
@@ -2495,28 +2515,28 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "Available at: https://triagemufrn.streamlit.app/."
             )
         else:
-            perfil = f"{dados['nome']} e o pesquisador e desenvolvedor responsavel pelo CatAiLab."
-            titulo_perfil, titulo_citacao = "Pesquisador e desenvolvedor", "Forma de citacao"
+            perfil = f"{dados['nome']} é o pesquisador e desenvolvedor responsável pelo CatAiLab."
+            titulo_perfil, titulo_citacao = "Pesquisador e desenvolvedor", "Forma de citação"
             citacao = (
-                "MAIA, Allan. CatAiLab: triagem virtual de catalisadores e condicoes de sintese. "
-                "Software cientifico. Universidade Federal do Rio Grande do Norte, 2026. "
-                "Disponivel em: https://triagemufrn.streamlit.app/."
+                "MAIA, Allan. CatAiLab: triagem virtual de catalisadores e condições de síntese. "
+                "Software científico. Universidade Federal do Rio Grande do Norte, 2026. "
+                "Disponível em: https://triagemufrn.streamlit.app/."
             )
         col1, col2 = st.columns(2)
         col1.markdown(cartao_texto_html(titulo_perfil, perfil), unsafe_allow_html=True)
         col2.markdown(cartao_texto_html(titulo_citacao, citacao), unsafe_allow_html=True)
-        st.link_button("Curriculum Lattes" if idioma_atual() == "en" else "Curriculo Lattes", dados["lattes"])
+        st.link_button("Curriculum Lattes" if idioma_atual() == "en" else "Currículo Lattes", dados["lattes"])
 
     elif pagina == "contato":
         st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Contato'))}</h2>", unsafe_allow_html=True)
         titulo = "Contact" if idioma_atual() == "en" else "Contato profissional"
-        texto = f"Email: {dados['email']}\n\nTelefone: {dados['telefone']}\n\nCurriculo Lattes: {dados['lattes']}"
+        texto = f"E-mail: {dados['email']}\n\nTelefone: {dados['telefone']}\n\nCurrículo Lattes: {dados['lattes']}"
         col1, col2 = st.columns([1.2, 0.8])
         col1.markdown(cartao_texto_html(titulo, texto), unsafe_allow_html=True)
         with col2:
             st.link_button("Email", f"mailto:{dados['email']}", width="stretch")
             st.link_button("WhatsApp / telefone", f"tel:{telefone_link}", width="stretch")
-            st.link_button("Curriculo Lattes", dados["lattes"], width="stretch")
+            st.link_button("Currículo Lattes", dados["lattes"], width="stretch")
 
 
 TABELA_PERIODICA = [
@@ -2652,8 +2672,8 @@ if executar:
             with st.spinner("Executando consultas, descritores, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
                 notebook_executado = executar_triagem(reacao, metais, promotor, output_dir)
         except Exception as erro_execucao:
-            st.error("A triagem nao foi concluida. Verifique os detalhes tecnicos abaixo.")
-            with st.expander("Detalhes tecnicos do erro"):
+            st.error("A triagem não foi concluída. Verifique os detalhes técnicos abaixo.")
+            with st.expander("Detalhes técnicos do erro"):
                 st.code("".join(traceback.format_exception(erro_execucao))[-6000:])
         else:
             st.session_state["ultima_reacao"] = reacao
@@ -2686,9 +2706,8 @@ mostrar_recomendacoes_sintese(prioritarios_df)
 mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
 # O detalhamento dos prioritários é exibido acima, nos cartões de síntese.
 
-aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
+aba_candidatos, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
     t("Candidatos"),
-    t("Classificação"),
     t("Incerteza"),
     "Robustez e opera\u00e7\u00e3o",
     t("Química"),
@@ -2699,10 +2718,6 @@ aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica, aba_valid
 
 with aba_candidatos:
     mostrar_candidatos_prioritarios(metricas_df, [prioritarios_df, classificacao_df, ranking_df])
-
-with aba_ranking:
-    top10_df = montar_classificacao_top10([classificacao_df, monte_carlo_df, ranking_df], linhas=10)
-    mostrar_classificacao_centralizada(t("Classificação dos 10 primeiros"), top10_df)
 
 with aba_incerteza:
     col1, col2 = st.columns([1.0, 1.0])
