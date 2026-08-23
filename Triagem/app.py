@@ -29,8 +29,11 @@ BRASAO_PATH = APP_DIR / "assets" / "logo_ufrn_header.png"
 PROJECT_LOGO_PATH = APP_DIR / "assets" / "logo_triagem_catalitica_v3.png"
 LABTAM_LOGO_PATH = APP_DIR / "assets" / "logo_labtam.png"
 ESTRUTURAS_CATALITICAS = [
-    APP_DIR / "assets" / "estrutura_catalitica_verde_roxa.png",
-    APP_DIR / "assets" / "estrutura_catalitica_azul_amarela.png",
+    APP_DIR / "assets" / "estrutura_catalitica_padrao_1.png",
+    APP_DIR / "assets" / "estrutura_catalitica_padrao_2.png",
+    APP_DIR / "assets" / "estrutura_catalitica_padrao_3.png",
+    APP_DIR / "assets" / "estrutura_catalitica_padrao_4.png",
+    APP_DIR / "assets" / "estrutura_catalitica_padrao_5.png",
 ]
 
 PERFIL_PESQUISADOR = {
@@ -1904,6 +1907,54 @@ def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.D
     if candidatos_df.empty:
         st.info(t("Tabela ainda não disponível."))
         return
+    assinatura_triagem = "|".join(
+        candidatos_df[["Fórmula", "Suporte sugerido"]]
+        .head(3)
+        .fillna("")
+        .astype(str)
+        .agg("~".join, axis=1)
+    )
+    deslocamento_paleta = sum(
+        (indice + 1) * ord(caractere)
+        for indice, caractere in enumerate(assinatura_triagem)
+    ) % len(ESTRUTURAS_CATALITICAS)
+    ordem_visual_podio = [1, 0, 2]
+    classes_posicao = {0: "first", 1: "second", 2: "third"}
+    rotulos_posicao = {0: "1", 1: "2", 2: "3"}
+    podio_html = []
+    for indice_candidato in ordem_visual_podio:
+        if indice_candidato >= len(candidatos_df):
+            continue
+        linha_podio = candidatos_df.iloc[indice_candidato]
+        caminho_imagem = ESTRUTURAS_CATALITICAS[
+            (deslocamento_paleta + indice_candidato) % len(ESTRUTURAS_CATALITICAS)
+        ]
+        imagem_html = ""
+        if caminho_imagem.exists():
+            imagem_base64 = base64.b64encode(caminho_imagem.read_bytes()).decode("utf-8")
+            imagem_html = (
+                "<img src='data:image/png;base64,"
+                f"{imagem_base64}' alt='Representação esquemática do catalisador'>"
+            )
+        podio_html.append(
+            f"<article class='candidate-podium-card {classes_posicao[indice_candidato]}'>"
+            f"<span class='candidate-podium-medal'>{rotulos_posicao[indice_candidato]}</span>"
+            f"<div class='candidate-podium-image'>{imagem_html}</div>"
+            f"<h4>{html.escape(str(linha_podio['Fórmula']))}</h4>"
+            "<span class='candidate-podium-label'>Suporte sugerido</span>"
+            f"<p>{html.escape(str(linha_podio['Suporte sugerido']))}</p>"
+            "<div class='candidate-podium-score'><span>Pontuação final</span>"
+            f"<strong>{html.escape(formatar_decimal(linha_podio['Pontuação final (0-1)']))}</strong></div>"
+            "</article>"
+        )
+    st.markdown(
+        "<section class='candidate-podium-section'>"
+        f"<div class='candidate-podium'>{''.join(podio_html)}</div>"
+        "<p class='candidate-podium-note'>Representações esquemáticas: as cores distinguem visualmente "
+        "os candidatos e suas fases; não correspondem a geometrias estruturais calculadas por DFT.</p>"
+        "</section>",
+        unsafe_allow_html=True,
+    )
     linhas_html = []
     for posicao, (_, linha) in enumerate(candidatos_df.iterrows(), start=1):
         estabilidade = formatar_decimal(linha["Estabilidade termodinâmica (eV/átomo)"])
@@ -2387,13 +2438,30 @@ def aplicar_estilo_interface() -> None:
             .candidate-icon { width: 45px; height: 45px; flex: 0 0 45px; border: 3px solid #087A3B; border-radius: 8px; position: relative; }
             .candidate-icon.base::before, .candidate-icon.base::after { content: ''; position: absolute; left: 8px; right: 8px; height: 9px; border: 3px solid #087A3B; border-radius: 50%; } .candidate-icon.base::before { top: 7px; } .candidate-icon.base::after { bottom: 7px; }
             .candidate-icon.shield { clip-path: polygon(50% 0, 92% 16%, 86% 71%, 50% 100%, 14% 71%, 8% 16%); border-radius: 0; } .candidate-icon.target { border-radius: 50%; } .candidate-icon.target::before { content: ''; position: absolute; inset: 9px; border: 3px solid #087A3B; border-radius: 50%; } .candidate-icon.trophy { border-radius: 0 0 14px 14px; border-top-width: 4px; } .candidate-icon.trophy::after { content: ''; position: absolute; width: 18px; height: 3px; background: #087A3B; bottom: -9px; left: 10px; }
+            .candidate-podium-section { margin: 34px 0 22px; padding-bottom: 8px; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; }
+            .candidate-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; align-items: end; padding: 22px 18px 0; border-bottom: 1px solid #DCE6EE; background: linear-gradient(180deg, #F7FCF8, #FFFFFF); }
+            .candidate-podium-card { --podium-color: #9AA4B2; position: relative; display: grid; min-height: 260px; grid-template-columns: minmax(120px, 46%) 1fr; grid-template-rows: auto auto auto 1fr; column-gap: 14px; align-items: center; padding: 18px 18px 22px; border: 1px solid color-mix(in srgb, var(--podium-color) 55%, #DCE6EE); border-radius: 10px 10px 0 0; background: #FFFFFF; box-shadow: 0 7px 18px rgba(20, 33, 61, 0.06); }
+            .candidate-podium-card::after { content: ''; position: absolute; right: -12px; bottom: -2px; left: -12px; height: 14px; border-radius: 3px 3px 0 0; background: linear-gradient(90deg, color-mix(in srgb, var(--podium-color) 72%, #FFFFFF), var(--podium-color), color-mix(in srgb, var(--podium-color) 72%, #FFFFFF)); }
+            .candidate-podium-card.first { --podium-color: #E5A600; min-height: 294px; transform: translateY(-16px); }
+            .candidate-podium-card.second { --podium-color: #919AA7; }
+            .candidate-podium-card.third { --podium-color: #C46F3C; }
+            .candidate-podium-medal { position: absolute; z-index: 2; top: -16px; left: -9px; display: grid; width: 42px; height: 42px; place-items: center; border: 3px solid color-mix(in srgb, var(--podium-color) 70%, #FFFFFF); border-radius: 50%; background: var(--podium-color); color: #FFFFFF; box-shadow: 0 3px 7px rgba(20, 33, 61, 0.16); font-size: 1.18rem; font-weight: 850; }
+            .candidate-podium-image { grid-row: 1 / 5; display: grid; min-height: 170px; place-items: center; overflow: hidden; border-radius: 8px; background: #FBFCFD; }
+            .candidate-podium-image img { width: 100%; height: 170px; object-fit: contain; mix-blend-mode: multiply; }
+            .candidate-podium-card h4 { align-self: end; margin: 0; color: #14213D; font-size: 0.8rem; line-height: 1.25; text-align: left; white-space: nowrap; }
+            .candidate-podium-label { align-self: end; margin-top: 9px; color: #718096; font-size: 0.73rem; }
+            .candidate-podium-card p { align-self: start; margin: 2px 0 10px; color: #087A3B; font-size: 0.8rem; font-weight: 750; line-height: 1.25; }
+            .candidate-podium-score { align-self: end; padding: 8px 10px; border: 1px solid #CFE4D5; border-radius: 7px; background: #F5FBF7; text-align: center; }
+            .candidate-podium-score span { display: block; color: #355D47; font-size: 0.7rem; }
+            .candidate-podium-score strong { display: block; margin-top: 2px; color: #087A3B; font-size: 1.18rem; }
+            .candidate-podium-note { margin: 9px 0 0; color: #64748B; font-size: 0.7rem; line-height: 1.35; text-align: center; }
             .candidate-table-wrap { overflow-x: auto; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; } .candidate-table { width: 100%; min-width: 960px; border-collapse: collapse; color: #14213D; font-size: 0.8rem; } .candidate-table th { padding: 12px 9px; border-bottom: 1px solid #DCE6EE; background: #FAFCFD; font-weight: 850; text-align: center; } .candidate-table td { padding: 10px 9px; border-bottom: 1px solid #E7EDF2; text-align: center; vertical-align: middle; } .candidate-table tr:last-child td { border-bottom: 0; } .candidate-table td:nth-child(7) { max-width: 260px; text-align: left; }
             .candidate-results-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 14px; align-items: start; }
             .candidate-stability, .candidate-score { color: #2267C6; font-weight: 850; } .candidate-uncertainty { color: #B56400; font-weight: 850; } .candidate-confidence { display: inline-block; min-width: 61px; padding: 3px 8px; border: 1px solid currentColor; border-radius: 999px; font-weight: 850; } .candidate-confidence.high { color: #087A3B; background: #F1FBF4; } .candidate-confidence.medium { color: #B56400; background: #FFF9EC; } .candidate-confidence.low { color: #C53939; background: #FFF5F5; }
             .candidate-score-stack { display: grid; grid-template-columns: repeat(4, 1fr); min-width: 170px; overflow: hidden; border: 1px solid #B6D2F0; border-radius: 4px; } .candidate-score-stack span { padding: 3px 2px; border-right: 1px solid #FFFFFF; background: #D6E9FB; color: #173D2B; font-size: 0.69rem; font-weight: 850; } .candidate-score-stack span:nth-child(1) { background: #0D5EBA; color: #FFFFFF; } .candidate-score-stack span:nth-child(2) { background: #3E85CF; color: #FFFFFF; } .candidate-score-stack span:nth-child(3) { background: #77ADE2; color: #FFFFFF; } .candidate-score-stack span:nth-child(4) { border-right: 0; }
             .candidate-legend { display: flex; justify-content: space-between; gap: 10px; padding: 12px 5px 0; color: #64748B; font-size: 0.72rem; } .candidate-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 3px; border: 2px solid currentColor; border-radius: 50%; vertical-align: -1px; } .candidate-legend .high { color: #087A3B; } .candidate-legend .medium { color: #B56400; } .candidate-legend .low { color: #C53939; }
             .candidate-mcda-panel { padding: 14px; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; color: #14213D; } .candidate-mcda-panel h4 { margin: 0 0 9px; color: #087A3B; font-size: 0.9rem; text-align: center; } .candidate-donut { display: grid; width: 126px; height: 126px; margin: 0 auto 12px; place-items: center; border-radius: 50%; background: conic-gradient(#0D5EBA 0 40%, #3E85CF 40% 70%, #77ADE2 70% 90%, #BCD9F5 90%); } .candidate-donut::before { content: ''; grid-area: 1 / 1; width: 63px; height: 63px; border-radius: 50%; background: #FFFFFF; } .candidate-donut span { z-index: 1; grid-area: 1 / 1; color: #14213D; font-size: 0.72rem; font-weight: 850; line-height: 1.25; text-align: center; } .candidate-mcda-item { margin-top: 9px; padding-left: 10px; border-left: 5px solid #0D5EBA; } .candidate-mcda-item:nth-of-type(3) { border-color: #3E85CF; } .candidate-mcda-item:nth-of-type(4) { border-color: #77ADE2; } .candidate-mcda-item:nth-of-type(5) { border-color: #BCD9F5; } .candidate-mcda-item b { display: block; font-size: 0.76rem; } .candidate-mcda-item span { display: block; margin-top: 2px; color: #4A5B73; font-size: 0.69rem; line-height: 1.28; } .candidate-mcda-panel p { margin: 12px 0 0; padding: 8px; border-radius: 6px; background: #FFF8E9; color: #6D5516; font-size: 0.7rem; line-height: 1.35; }
-            @media (max-width: 1080px) { .candidate-results-layout { grid-template-columns: 1fr; } .candidate-mcda-panel { max-width: none; } } @media (max-width: 900px) { .candidate-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-legend { display: grid; } }
+            @media (max-width: 1080px) { .candidate-results-layout { grid-template-columns: 1fr; } .candidate-mcda-panel { max-width: none; } } @media (max-width: 900px) { .candidate-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-podium { grid-template-columns: 1fr; gap: 26px; } .candidate-podium-card, .candidate-podium-card.first { min-height: 240px; transform: none; } .candidate-podium-card.first { order: -1; } .candidate-legend { display: grid; } } @media (max-width: 560px) { .candidate-podium-card { grid-template-columns: 1fr; text-align: center; } .candidate-podium-image { grid-row: auto; min-height: 145px; } .candidate-podium-image img { height: 145px; } .candidate-podium-card h4, .candidate-podium-label { text-align: center; } }
             .uncertainty-title { margin: 6px 0 12px; color: #14213D; font-size: 1rem; font-weight: 850; text-transform: uppercase; } .uncertainty-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; } .uncertainty-metric { min-height:98px; padding:14px; border:1px solid #DCE6EE; border-radius:8px; background:#FFF; box-shadow:0 3px 10px rgba(20,33,61,.04); } .uncertainty-metric b{display:block;color:#14213D;font-size:.78rem}.uncertainty-metric strong{display:block;margin:9px 0 3px;color:#146CC1;font-size:1.45rem}.uncertainty-metric span{color:#64748B;font-size:.74rem}.uncertainty-alert{min-height:130px;padding:18px;border:1px solid #F2CD72;border-radius:8px;background:#FFF9EA;color:#5F4A11}.uncertainty-alert h4{margin:0 0 9px;color:#4E3A00;font-size:1rem;text-transform:uppercase}.uncertainty-alert strong{color:#B84B16}.uncertainty-alert p,.uncertainty-note p{font-size:.82rem;line-height:1.45}.uncertainty-note{margin-top:12px;padding:18px;border:1px solid #C9DFD0;border-radius:8px;background:#F7FCF8;color:#253D50}.uncertainty-note h4{margin:0;color:#087A3B;font-size:1rem}@media(max-width:900px){.uncertainty-metrics{grid-template-columns:repeat(2,minmax(0,1fr)}}
             .catialab-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 0 20px 0; }
             .catialab-summary-card { min-height: 132px; padding: 17px 18px 14px 18px; border: 1px solid #DCE6EE; border-radius: 9px; background: #FFFFFF; box-shadow: 0 5px 16px rgba(20, 33, 61, 0.06); }
