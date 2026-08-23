@@ -1708,6 +1708,63 @@ def mostrar_tabela(titulo: str, dataframe: pd.DataFrame, linhas: int = 20) -> No
     st.dataframe(tabela_centralizada, width="stretch", hide_index=True)
 
 
+def montar_tabela_candidatos(fontes: list[pd.DataFrame], linhas: int = 10) -> pd.DataFrame:
+    """Consolida candidatos distintos em uma tabela científica curta para decisão."""
+    registros = []
+    formulas_vistas = set()
+    for dataframe in fontes:
+        if dataframe.empty:
+            continue
+        coluna_formula = encontrar_coluna(dataframe, ["formula"]) or dataframe.columns[0]
+        for _, linha in dataframe.iterrows():
+            formula = str(linha.get(coluna_formula, "")).strip()
+            chave = normalizar_texto(formula)
+            if not formula or chave in formulas_vistas:
+                continue
+            formulas_vistas.add(chave)
+            registros.append({
+                "Fórmula": formula,
+                "Suporte sugerido": valor_linha(linha, ["suporte", "sugerido"]),
+                "Estabilidade termodinâmica (eV/átomo)": valor_linha(linha, ["estabilidade", "termodinamica"]),
+                "Pontuação final (0-1)": valor_linha(linha, ["score", "final"]),
+                "Incerteza (desvio Monte Carlo)": valor_linha(linha, ["desvio", "monte", "carlo"]),
+                "Rota de síntese": valor_linha(linha, ["rota", "sintese"]),
+                "Confiança": valor_linha(linha, ["confiabilidade"]),
+            })
+            if len(registros) >= linhas:
+                break
+        if len(registros) >= linhas:
+            break
+    return pd.DataFrame(registros)
+
+
+def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.DataFrame]) -> None:
+    """Renderiza a aba de candidatos no formato resumido da referência visual."""
+    candidatos_df = montar_tabela_candidatos(fontes, linhas=10)
+    n_gerados = extrair_metrica(metricas_df, "candidatos gerados") or len(candidatos_df)
+    n_viaveis = extrair_metrica(metricas_df, "candidatos vi") or len(candidatos_df)
+    n_refinados = extrair_metrica(metricas_df, "candidatos refinados") or len(candidatos_df)
+    n_finais = len(candidatos_df)
+    st.markdown("<h3 class='candidate-title'>Candidatos prioritários para síntese</h3>", unsafe_allow_html=True)
+    st.markdown("<p class='candidate-subtitle'>Triagem computacional multiobjetivo combinando estabilidade, desempenho e síntese.</p>", unsafe_allow_html=True)
+    cards = [("Gerados", formatar_valor(n_gerados), "candidatos", "base"), ("Viáveis", formatar_valor(n_viaveis), "candidatos", "shield"), ("Refinados", formatar_valor(n_refinados), "candidatos", "target"), ("Finais (Top 10)", formatar_valor(n_finais), "candidatos", "trophy")]
+    cards_html = "".join(f"<div class='candidate-metric'><div class='candidate-icon {icone}'></div><div><b>{html.escape(rotulo)}</b><strong>{html.escape(valor)}</strong><span>{html.escape(nota)}</span></div></div>" for rotulo, valor, nota, icone in cards)
+    st.markdown(f"<div class='candidate-metrics'>{cards_html}</div>", unsafe_allow_html=True)
+    if candidatos_df.empty:
+        st.info(t("Tabela ainda não disponível."))
+        return
+    linhas_html = []
+    for posicao, (_, linha) in enumerate(candidatos_df.iterrows(), start=1):
+        estabilidade = linha["Estabilidade termodinâmica (eV/átomo)"]
+        score = linha["Pontuação final (0-1)"]
+        incerteza = linha["Incerteza (desvio Monte Carlo)"]
+        confianca = linha["Confiança"]
+        classe_confianca = "high" if normalizar_texto(confianca) == "alta" else "medium" if normalizar_texto(confianca) == "media" else "low"
+        linhas_html.append("<tr>" f"<td>{posicao}</td><td><b>{html.escape(str(linha['Fórmula']))}</b></td>" f"<td>{html.escape(str(linha['Suporte sugerido']))}</td>" f"<td class='candidate-stability'>{html.escape(str(estabilidade))}</td>" f"<td class='candidate-score'>{html.escape(str(score))}</td>" f"<td class='candidate-uncertainty'>{html.escape(str(incerteza))}</td>" f"<td>{html.escape(str(linha['Rota de síntese']))}</td>" f"<td><span class='candidate-confidence {classe_confianca}'>{html.escape(str(confianca).capitalize())}</span></td>" "</tr>")
+    tabela_html = "".join(linhas_html)
+    st.markdown("<div class='candidate-table-wrap'><table class='candidate-table'><thead><tr>" "<th>#</th><th>Fórmula</th><th>Suporte sugerido</th>" "<th>Estabilidade termodinâmica<br>(eV/átomo) ↓</th><th>Pontuação final<br>(0-1) ↑</th>" "<th>Incerteza<br>(desvio MC)</th><th>Rota de síntese</th><th>Confiança</th>" f"</tr></thead><tbody>{tabela_html}</tbody></table></div>" "<div class='candidate-legend'><span>↓ Valores mais negativos indicam maior estabilidade termodinâmica.</span>" "<span>↑ Valores mais altos indicam melhor desempenho global.</span>" "<span><i class='high'></i> Alta &nbsp; <i class='medium'></i> Média &nbsp; <i class='low'></i> Baixa</span></div>", unsafe_allow_html=True)
+
+
 def selecionar_classificacao_formula(dataframe: pd.DataFrame, linhas: int = 10) -> pd.DataFrame:
     """Cria uma tabela curta com classificacao e formula."""
     if dataframe.empty:
@@ -2169,6 +2226,18 @@ def aplicar_estilo_interface() -> None:
                 text-align: center;
             }
             .catialab-dashboard-subtitle { color: #64748B; font-size: 0.9rem; margin: 4px 0 18px 0; text-align: center; }
+            .candidate-title { margin: 4px 0 3px; color: #14213D; font-size: 1.45rem; font-weight: 850; text-align: center; }
+            .candidate-subtitle { margin: 0 0 16px; color: #64748B; font-size: 0.92rem; text-align: center; }
+            .candidate-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+            .candidate-metric { display: flex; min-height: 102px; align-items: center; gap: 13px; padding: 14px; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; box-shadow: 0 3px 10px rgba(20, 33, 61, 0.04); }
+            .candidate-metric b { display: block; color: #14213D; font-size: 0.8rem; } .candidate-metric strong { display: block; color: #087A3B; font-size: 1.55rem; line-height: 1.1; margin-top: 7px; } .candidate-metric span { color: #64748B; font-size: 0.76rem; }
+            .candidate-icon { width: 45px; height: 45px; flex: 0 0 45px; border: 3px solid #087A3B; border-radius: 8px; position: relative; }
+            .candidate-icon.base::before, .candidate-icon.base::after { content: ''; position: absolute; left: 8px; right: 8px; height: 9px; border: 3px solid #087A3B; border-radius: 50%; } .candidate-icon.base::before { top: 7px; } .candidate-icon.base::after { bottom: 7px; }
+            .candidate-icon.shield { clip-path: polygon(50% 0, 92% 16%, 86% 71%, 50% 100%, 14% 71%, 8% 16%); border-radius: 0; } .candidate-icon.target { border-radius: 50%; } .candidate-icon.target::before { content: ''; position: absolute; inset: 9px; border: 3px solid #087A3B; border-radius: 50%; } .candidate-icon.trophy { border-radius: 0 0 14px 14px; border-top-width: 4px; } .candidate-icon.trophy::after { content: ''; position: absolute; width: 18px; height: 3px; background: #087A3B; bottom: -9px; left: 10px; }
+            .candidate-table-wrap { overflow-x: auto; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; } .candidate-table { width: 100%; min-width: 960px; border-collapse: collapse; color: #14213D; font-size: 0.8rem; } .candidate-table th { padding: 12px 9px; border-bottom: 1px solid #DCE6EE; background: #FAFCFD; font-weight: 850; text-align: center; } .candidate-table td { padding: 10px 9px; border-bottom: 1px solid #E7EDF2; text-align: center; vertical-align: middle; } .candidate-table tr:last-child td { border-bottom: 0; } .candidate-table td:nth-child(7) { max-width: 260px; text-align: left; }
+            .candidate-stability, .candidate-score { color: #2267C6; font-weight: 850; } .candidate-uncertainty { color: #B56400; font-weight: 850; } .candidate-confidence { display: inline-block; min-width: 61px; padding: 3px 8px; border: 1px solid currentColor; border-radius: 999px; font-weight: 850; } .candidate-confidence.high { color: #087A3B; background: #F1FBF4; } .candidate-confidence.medium { color: #B56400; background: #FFF9EC; } .candidate-confidence.low { color: #C53939; background: #FFF5F5; }
+            .candidate-legend { display: flex; justify-content: space-between; gap: 10px; padding: 12px 5px 0; color: #64748B; font-size: 0.72rem; } .candidate-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 3px; border: 2px solid currentColor; border-radius: 50%; vertical-align: -1px; } .candidate-legend .high { color: #087A3B; } .candidate-legend .medium { color: #B56400; } .candidate-legend .low { color: #C53939; }
+            @media (max-width: 900px) { .candidate-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-legend { display: grid; } }
             .catialab-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 0 20px 0; }
             .catialab-summary-card { min-height: 132px; padding: 17px 18px 14px 18px; border: 1px solid #DCE6EE; border-radius: 9px; background: #FFFFFF; box-shadow: 0 5px 16px rgba(20, 33, 61, 0.06); }
             .catialab-summary-label { color: #14213D; font-size: 0.82rem; font-weight: 800; }
@@ -2617,7 +2686,7 @@ aba_candidatos, aba_ranking, aba_incerteza, aba_robustez, aba_quimica, aba_valid
 ])
 
 with aba_candidatos:
-    mostrar_tabela(t("Candidatos prioritários para síntese"), prioritarios_df, linhas=20)
+    mostrar_candidatos_prioritarios(metricas_df, [prioritarios_df, classificacao_df, ranking_df])
 
 with aba_ranking:
     top10_df = montar_classificacao_top10([classificacao_df, monte_carlo_df, ranking_df], linhas=10)
