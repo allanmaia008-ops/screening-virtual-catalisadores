@@ -216,6 +216,12 @@ def traduzir_texto_exibicao(texto: str) -> str:
         "Estabilidade termodinâmica": "Thermodynamic stability", "Score final": "Final score",
         "Catalisador": "Catalyst", "Promotor": "Promoter", "Suporte": "Support",
         "eV/átomo": "eV/atom",
+        "Fortalecimento da ligação M–S": "M–S bond strengthening",
+        "Ligação eletrônica": "Electronic bonding", "Doação de elétrons": "Electron donation",
+        "Retirada de elétrons": "Electron withdrawal", "Efeito estrutural": "Structural effect",
+        "Dispersão": "Dispersion", "Transferência de carga": "Charge transfer",
+        "Estimativas proxy derivadas dos descritores da triagem; confirmar por DFT de interface.": "Proxy estimates derived from the screening descriptors; confirm by interface DFT.",
+        "Valores calculados de interface disponíveis na base local.": "Calculated interface values available in the local database.",
     }
     for origem, destino in sorted(traducoes.items(), key=lambda item: len(item[0]), reverse=True):
         texto = texto.replace(origem, destino)
@@ -2725,7 +2731,26 @@ def mostrar_painel_quimica(
         unsafe_allow_html=True,
     )
 
-    st.markdown("<style>.chem-support-card em{display:block;margin:-3px 0 7px;color:#087A3B;font-size:.6rem;font-style:normal;font-weight:800;text-align:center}</style>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <style>
+        .chem-support-card em{display:block;margin:-3px 0 7px;color:#087A3B;font-size:.6rem;font-style:normal;font-weight:800;text-align:center}
+        .chem-interaction-stage{display:block;position:relative;min-height:310px;padding:10px 12px 8px;background:linear-gradient(180deg,#FFF 0%,#FBFDFC 100%)}
+        .chem-bond-strength{position:absolute;top:9px;left:50%;width:150px;transform:translateX(-50%);color:#153A70;font-size:.66rem;font-weight:800;line-height:1.35;text-align:center}.chem-bond-strength span{display:block;margin-top:2px}
+        .chem-effect{position:absolute;z-index:3;width:82px;font-size:.57rem;line-height:1.38}.chem-effect b,.chem-effect span{display:block}.chem-effect span{margin-top:3px;font-weight:750}
+        .chem-effect.electronic{top:90px;left:8px;text-align:left;color:#07823F}.chem-effect.structural{top:90px;right:4px;text-align:left;color:#1667B8}
+        .chem-sphere{position:absolute;z-index:4;display:grid;place-items:center;border-radius:50%;color:#FFF;font-weight:900;box-shadow:inset -10px -12px 18px rgba(0,0,0,.18),0 7px 14px rgba(20,33,61,.17)}
+        .chem-sphere.promoter{top:73px;left:24%;width:50px;height:50px;background:#45A85A}.chem-sphere.metal{top:67px;left:50%;width:82px;height:82px;transform:translateX(-50%);background:#174A93;font-size:1.12rem}.chem-sphere.support{top:73px;right:24%;width:50px;height:50px;background:#19A2B8}
+        .chem-link{position:absolute;z-index:2;height:0;border-top:2px dashed currentColor;transform-origin:left center}.chem-link.e1{top:101px;left:36%;width:15%;color:#45A85A;transform:rotate(14deg)}.chem-link.e2{top:121px;left:36%;width:18%;color:#45A85A;transform:rotate(31deg)}.chem-link.s1{top:102px;left:62%;width:14%;color:#258DD0;transform:rotate(166deg)}.chem-link.s2{top:122px;left:63%;width:18%;color:#258DD0;transform:rotate(149deg)}
+        .chem-anchor-links{position:absolute;z-index:2;top:144px;left:50%;width:150px;height:75px;transform:translateX(-50%)}.chem-anchor-links i{position:absolute;top:0;left:50%;height:72px;border-left:2px dashed #F07822;transform-origin:top center}.chem-anchor-links i:nth-child(1){transform:rotate(0deg)}.chem-anchor-links i:nth-child(2){transform:rotate(17deg)}.chem-anchor-links i:nth-child(3){transform:rotate(-17deg)}.chem-anchor-links i:nth-child(4){transform:rotate(32deg)}.chem-anchor-links i:nth-child(5){transform:rotate(-32deg)}
+        .chem-support-lattice{position:absolute;right:18px;bottom:49px;left:18px;display:grid;grid-template-columns:repeat(13,18px);justify-content:center;gap:1px 3px}.chem-support-lattice i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F7F8F9,#8B959D 65%,#59636B);box-shadow:0 2px 4px rgba(20,33,61,.18)}.chem-support-lattice i:nth-child(3n){background:radial-gradient(circle at 35% 30%,#FF7B6A,#C62828 70%)}
+        .chem-charge-transfer{position:absolute;right:10px;bottom:8px;left:10px;color:#D65B13;font-size:.63rem;font-weight:800;line-height:1.35;text-align:center}.chem-charge-transfer span{display:block}
+        .chem-proxy-note{margin:0;padding:7px 12px 9px;border-top:1px solid #EDF2EF;color:#6A7688;font-size:.59rem;line-height:1.35;text-align:center}
+        @media(max-width:620px){.chem-interaction-stage{min-height:335px}.chem-effect{width:78px;font-size:.54rem}.chem-effect.electronic{left:4px}.chem-effect.structural{right:2px}.chem-sphere.promoter{left:25%}.chem-sphere.support{right:25%}.chem-support-lattice{grid-template-columns:repeat(9,18px)}}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     def numero_quimico(row: pd.Series, opcoes: list[list[str]], padrao: float = np.nan) -> float:
         """Converte a primeira coluna compatível em número sem inventar valores ausentes."""
@@ -2782,6 +2807,30 @@ def mostrar_painel_quimica(
     score_coque = numero_quimico(top, [["score", "resistencia", "coque"]], 0.0)
     score_robustez = numero_quimico(top, [["score", "faixa", "condicao"]], 0.0)
     score_confianca = numero_quimico(top, [["score", "confianca"]], 0.0)
+
+    # Prioriza grandezas de interface calculadas e usa proxies apenas quando elas ainda não existem na base.
+    delta_e_ms = numero_quimico(top, [["energia", "interacao", "metal", "suporte"], ["energia", "ancoragem"]], np.nan)
+    delta_q = numero_quimico(top, [["delta", "q", "eletron"], ["transferencia", "eletron"]], np.nan)
+    delta_d = numero_quimico(top, [["variacao", "distancia", "metal", "suporte"], ["distorcao", "estrutural"]], np.nan)
+    delta_rho = numero_quimico(top, [["delta", "rho"], ["redistribuicao", "carga"]], np.nan)
+    usa_proxy_interacao = any(pd.isna(valor) for valor in [delta_e_ms, delta_q, delta_d, delta_rho])
+    delta_e_ms = -0.60 * score_interacao if pd.isna(delta_e_ms) else delta_e_ms
+    delta_q = 0.30 * (score_redox - 0.50) if pd.isna(delta_q) else delta_q
+    delta_d = 0.24 * (score_estrutural - 0.50) if pd.isna(delta_d) else delta_d
+    delta_rho = -0.20 * score_interacao if pd.isna(delta_rho) else delta_rho
+
+    def fmt_delta(valor: float, unidade: str) -> str:
+        """Exibe o sinal do efeito calculado para facilitar a interpretação química."""
+        sinal = "+" if valor > 0 else ""
+        return f"{sinal}{valor:.2f}".replace(".", ",") + f" {unidade}"
+
+    # Identifica separadamente o metal principal, o promotor/segundo metal e o cátion do suporte.
+    metal_central = metais_ativos[0] if metais_ativos else metal_principal
+    atomos_suporte = [atomo for atomo in re.findall(r"[A-Z][a-z]?", suporte_sugerido) if atomo != "O"]
+    atomo_suporte = atomos_suporte[0] if atomos_suporte else "S"
+    atomo_lateral = metais_ativos[1] if len(metais_ativos) > 1 else atomo_suporte
+    atomo_promotor = promotor if promotor else (metais_ativos[1] if len(metais_ativos) > 1 else "—")
+    efeito_eletronico = "Doação de elétrons" if delta_q >= 0 else "Retirada de elétrons"
 
     assinatura = sum((indice + 1) * ord(caractere) for indice, caractere in enumerate(formula))
     caminho_estrutura = ESTRUTURAS_CATALITICAS[assinatura % len(ESTRUTURAS_CATALITICAS)]
@@ -2855,15 +2904,18 @@ def mostrar_painel_quimica(
       <div class="chem-column">
         <article class="chem-panel chem-interactions"><h3>Interações metal–suporte–promotor</h3>
           <div class="chem-interaction-stage">
-            <div class="chem-effect electronic"><b>Componente eletrônico</b><span>Índice redox: {fmt(score_redox, 2)}</span></div>
-            <div class="chem-sphere promoter">{html.escape(promotor_exibicao)}</div>
-            <div class="chem-sphere metal">{html.escape(metal_principal)}</div>
-            <div class="chem-sphere support">S</div>
-            <div class="chem-effect structural"><b>Componente estrutural</b><span>Proxy pymatgen: {fmt(score_estrutural, 2)}</span></div>
-            <div class="chem-arrows">⇢ &nbsp; interação eletrônica e estrutural &nbsp; ⇠</div>
-            <div class="chem-support-lattice">{''.join('<i></i>' for _ in range(18))}</div>
-            <div class="chem-anchor"><b>Interação metal–suporte</b><span>DFT/proxy ajustado por Boltzmann: {fmt(score_interacao, 2)}</span></div>
+            <div class="chem-bond-strength">Fortalecimento da ligação M–S<span>ΔE = {fmt_delta(delta_e_ms, 'eV')}</span></div>
+            <div class="chem-effect electronic"><b>Ligação eletrônica</b><span>{efeito_eletronico}</span><span>Δq = {fmt_delta(delta_q, 'e')}</span></div>
+            <div class="chem-sphere promoter">{html.escape(atomo_promotor)}</div>
+            <div class="chem-sphere metal">{html.escape(metal_central)}</div>
+            <div class="chem-sphere support">{html.escape(atomo_lateral)}</div>
+            <div class="chem-effect structural"><b>Efeito estrutural</b><span>Dispersão</span><span>Δd = {fmt_delta(delta_d, 'Å')}</span></div>
+            <i class="chem-link e1"></i><i class="chem-link e2"></i><i class="chem-link s1"></i><i class="chem-link s2"></i>
+            <div class="chem-anchor-links">{''.join('<i></i>' for _ in range(5))}</div>
+            <div class="chem-support-lattice">{''.join('<i></i>' for _ in range(39))}</div>
+            <div class="chem-charge-transfer">Transferência de carga<span>Δρ = {fmt_delta(delta_rho, '|e|')}</span></div>
           </div>
+          <p class="chem-proxy-note">{'Estimativas proxy derivadas dos descritores da triagem; confirmar por DFT de interface.' if usa_proxy_interacao else 'Valores calculados de interface disponíveis na base local.'}</p>
         </article>
         <article class="chem-panel"><h3>Racional do suporte</h3><div class="chem-support-grid">{''.join(cards_suporte)}</div>
           <p class="chem-method-note">O suporte sugerido pela triagem aparece primeiro. O índice heurístico compara dispersão, estabilidade térmica, redox, basicidade, afinidade por CO₂ e risco de SMSI; ele não refaz o ranking global nem substitui DFT explícita da interface.</p>
