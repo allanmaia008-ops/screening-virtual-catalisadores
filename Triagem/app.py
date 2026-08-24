@@ -2642,9 +2642,11 @@ def mostrar_visualizacao_cientifica_plotly(
                     coef = np.polyfit(dados_estabilidade[estabilidade_col], dados_estabilidade[score_col], 1)
                     x_linha = np.linspace(float(dados_estabilidade[estabilidade_col].min()), float(dados_estabilidade[estabilidade_col].max()), 80)
                     figura_estabilidade.add_trace(go.Scatter(x=x_linha, y=coef[0] * x_linha + coef[1], mode="lines", name="Tendência linear", line={"color": "#66758B", "dash": "dash"}, hoverinfo="skip"))
+                figura_estabilidade.add_vline(x=0.10, line_color="#16843C", line_dash="dash", line_width=2, annotation_text="Limiar principal: 0,10 eV/átomo", annotation_position="top left")
+                figura_estabilidade.add_vline(x=0.15, line_color="#C53939", line_dash="dot", line_width=2, annotation_text="Limiar exploratório: 0,15 eV/átomo", annotation_position="top right")
                 figura_estabilidade.update_traces(selector={"mode": "markers"}, marker={"size": 9, "line": {"color": "#FFFFFF", "width": 0.8}}, hovertemplate="<b>%{customdata[0]}</b><br>Estabilidade: %{x:.3f} eV/átomo<br>Score final: %{y:.3f}<br>Suporte: %{customdata[1]}<br>Rota: %{customdata[3]}<extra></extra>")
                 aplicar_estilo(figura_estabilidade)
-                figura_estabilidade.update_xaxes(title_text="Estabilidade termodinâmica (eV/átomo; menor é melhor)")
+                figura_estabilidade.update_xaxes(title_text="Estabilidade termodinâmica (eV/átomo; menor é melhor)", range=[min(float(dados_estabilidade[estabilidade_col].min()) - 0.03, -0.01), max(float(dados_estabilidade[estabilidade_col].max()) + 0.03, 0.16)])
                 figura_estabilidade.update_yaxes(title_text="Score final (0–1)")
                 st.plotly_chart(figura_estabilidade, width="stretch", key="visualizacao_estabilidade")
             else:
@@ -2725,6 +2727,28 @@ def mostrar_visualizacao_cientifica_plotly(
                 st.markdown(f"<article class='science-detail'><div class='science-detail-score'>Score final<strong>{html.escape(score)}</strong></div><h3>{html.escape(str(formula))}</h3><div class='science-detail-grid'>{detalhes_html}</div></article>", unsafe_allow_html=True)
             else:
                 st.info("Selecione um candidato quando os resultados estiverem disponíveis.")
+
+    coluna_cinetica, coluna_leitura_cinetica = st.columns([1.55, .75])
+    dados_cinetica, taxa_cinetica_col, score_cinetica_col = dados_grafico(
+        [["taxa", "relativa", "cinet"], ["score", "cinet"], ["taxa", "relativa", "volcano"], ["score", "volcano"]],
+        [["score", "final"], ["rendimento"]],
+    )
+    with coluna_cinetica:
+        with st.container(border=True):
+            st.markdown("<h3 class='science-card-title'>Cinética simplificada (proxy) vs. score final</h3><p class='science-card-note'>Confronta a taxa relativa estimada pelo modelo simplificado com a pontuação multicritério do candidato.</p>", unsafe_allow_html=True)
+            if not dados_cinetica.empty and taxa_cinetica_col and score_cinetica_col:
+                cor_cinetica = encontrar_coluna_por_opcoes(dados_cinetica, [["score", "final"]]) or score_cinetica_col
+                figura_cinetica = px.scatter(dados_cinetica, x=taxa_cinetica_col, y=score_cinetica_col, color=cor_cinetica, color_continuous_scale="Turbo", custom_data=["_formula", "_suporte", "_score_final", "_rota"])
+                figura_cinetica.update_traces(marker={"size": 9, "line": {"color": "#FFFFFF", "width": 0.8}}, hovertemplate="<b>%{customdata[0]}</b><br>Taxa relativa (proxy): %{x:.3f}<br>Score final: %{y:.3f}<br>Suporte: %{customdata[1]}<br>Rota: %{customdata[3]}<extra></extra>")
+                aplicar_estilo(figura_cinetica, altura=330)
+                figura_cinetica.update_xaxes(title_text="Taxa relativa estimada (proxy)")
+                figura_cinetica.update_yaxes(title_text="Score final (0–1)")
+                st.plotly_chart(figura_cinetica, width="stretch", key="visualizacao_cinetica")
+            else:
+                st.info("Dados de taxa relativa insuficientes para o gráfico cinético simplificado.")
+    with coluna_leitura_cinetica:
+        with st.container(border=True):
+            st.markdown("<h3 class='science-card-title'>Como interpretar</h3><p class='science-card-note'>Este gráfico auxilia a verificar se o ganho de atividade proxy acompanha o score final. Ele não calcula mecanismos elementares, coberturas ou barreiras de ativação completas.</p><p class='science-card-note'><b>Objetivo:</b> destacar candidatos com resposta cinética proxy coerente com estabilidade, seletividade e robustez.</p>", unsafe_allow_html=True)
 
     st.markdown("<p class='science-restored-title'>Gráficos complementares gerados pela execução</p><p class='science-restored-subtitle'>Estas figuras recuperam as análises de ranking, incerteza, operação e quimiometria salvas com a triagem.</p>", unsafe_allow_html=True)
     mostrar_figuras(figuras_df)
