@@ -2571,42 +2571,167 @@ def mostrar_visualizacao_cientifica_plotly(
     classificacao_df: pd.DataFrame,
     ranking_df: pd.DataFrame,
     monte_carlo_df: pd.DataFrame,
+    figuras_df: pd.DataFrame,
 ) -> None:
-    """Mostra graficos interativos para exploracao cientifica sem poluir os pontos."""
-    st.markdown("<h3 style='text-align:center;'>Visualização científica interativa</h3>", unsafe_allow_html=True)
+    """Apresenta os gráficos centrais e a ficha de leitura científica dos candidatos."""
+    st.markdown(
+        """<style>
+        .science-page-title{margin:4px 0 2px;color:#14213D;font-size:clamp(1.55rem,2.25vw,2.25rem)!important;font-weight:850;text-align:center}.science-page-subtitle{margin:0 0 16px;color:#64748B;font-size:.88rem!important;text-align:center}.science-card-title{margin:0 0 3px;color:#153A70;font-size:.88rem!important;font-weight:850!important;line-height:1.28!important}.science-card-note{margin:0 0 10px;color:#66758B;font-size:.70rem!important;line-height:1.38}.science-detail{min-height:100%;padding:16px;border-left:4px solid #16843C;border-radius:7px;background:#F8FCF9}.science-detail h3{margin:0 0 13px;color:#14213D;font-size:1.18rem!important}.science-detail-score{float:right;margin-left:10px;padding:7px 9px;border-radius:6px;background:#E4F5E9;color:#087A3B;font-size:.72rem;font-weight:850;text-align:center}.science-detail-score strong{display:block;font-size:1.35rem}.science-detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:13px 0}.science-detail-grid span{display:block;color:#64748B;font-size:.68rem}.science-detail-grid b{display:block;margin-top:2px;color:#153A70;font-size:.79rem;overflow-wrap:anywhere}.science-model-image{width:100%;height:245px;object-fit:contain;display:block;mix-blend-mode:multiply}.science-model-note{margin:5px 0 0;color:#66758B;font-size:.69rem;line-height:1.35}.science-restored-title{margin:26px 0 3px;color:#14213D;font-size:1.2rem!important;font-weight:850}.science-restored-subtitle{margin:0 0 13px;color:#66758B;font-size:.8rem!important}.science-figure-card{min-height:100%;padding:10px;border:1px solid #DCE6E0;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.035)}.science-figure-card h4{margin:5px 0 3px;color:#153A70;font-size:.85rem!important}.science-figure-card p{margin:0;color:#66758B;font-size:.72rem!important;line-height:1.38}.science-figure-card img{border:1px solid #E3ECE6;border-radius:6px}@media(max-width:780px){.science-detail-grid{grid-template-columns:1fr}.science-model-image{height:205px}}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+    st.markdown("<h2 class='science-page-title'>Visualização científica</h2><p class='science-page-subtitle'>Explore as relações entre estabilidade, atividade prevista, descritores e viabilidade de síntese.</p>", unsafe_allow_html=True)
+
     fontes = [classificacao_df, ranking_df, prioritarios_df, monte_carlo_df]
 
-    fonte_volcano = escolher_fonte_plotly(
-        fontes,
-        [["energia", "adsor"], ["adsorcao"], ["adsorção"]],
-        [["score", "vulc"], ["score", "volcano"], ["taxa", "relativa"]],
-    )
-    gerou_volcano = renderizar_scatter_plotly(
-        "Volcano plot interativo",
-        fonte_volcano,
-        [["energia", "adsor"], ["adsorcao"], ["adsorção"]],
-        [["score", "vulc"], ["score", "volcano"], ["taxa", "relativa"]],
-    )
+    def dados_grafico(opcoes_x: list[list[str]], opcoes_y: list[list[str]]) -> tuple[pd.DataFrame, str | None, str | None]:
+        fonte = escolher_fonte_plotly(fontes, opcoes_x, opcoes_y)
+        if fonte.empty:
+            return pd.DataFrame(), None, None
+        x_col = encontrar_coluna_por_opcoes(fonte, opcoes_x)
+        y_col = encontrar_coluna_por_opcoes(fonte, opcoes_y)
+        if x_col is None or y_col is None:
+            return pd.DataFrame(), None, None
+        dados = preparar_dados_plotly(fonte, limite=350)
+        dados[x_col] = pd.to_numeric(dados[x_col], errors="coerce")
+        dados[y_col] = pd.to_numeric(dados[y_col], errors="coerce")
+        return dados.dropna(subset=[x_col, y_col]).copy(), x_col, y_col
 
-    fonte_dispersao = escolher_fonte_plotly(
-        fontes,
+    def aplicar_estilo(figura: go.Figure, altura: int = 360) -> None:
+        figura.update_layout(height=altura, margin={"l": 42, "r": 22, "t": 14, "b": 42}, paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", font={"color": "#14213D", "size": 11}, coloraxis_colorbar={"title": "Score"})
+        figura.update_xaxes(showgrid=True, gridcolor="#E7EDF0", zeroline=False, automargin=True)
+        figura.update_yaxes(showgrid=True, gridcolor="#E7EDF0", zeroline=False, automargin=True)
+
+    coluna_volcano, coluna_estabilidade, coluna_modelo = st.columns([1, 1, 1])
+    dados_volcano, energia_col, taxa_col = dados_grafico(
+        [["energia", "adsor"], ["adsorcao"], ["adsorção"]],
+        [["score", "vulc"], ["score", "volcano"], ["taxa", "relativa", "volcano"]],
+    )
+    with coluna_volcano:
+        with st.container(border=True):
+            st.markdown("<h3 class='science-card-title'>Diagrama de vulcão: atividade vs. energia de adsorção</h3><p class='science-card-note'>Avalia o princípio de Sabatier: a atividade tende a ser maior quando a adsorção do intermediário-chave é moderada.</p>", unsafe_allow_html=True)
+            if not dados_volcano.empty and energia_col and taxa_col:
+                score_col = encontrar_coluna_por_opcoes(dados_volcano, [["score", "final"]])
+                cor = score_col if score_col else taxa_col
+                figura_volcano = px.scatter(dados_volcano, x=energia_col, y=taxa_col, color=cor, color_continuous_scale="Turbo", custom_data=["_formula", "_suporte", "_score_final", "_rota"])
+                x_min, x_max = float(dados_volcano[energia_col].min()), float(dados_volcano[energia_col].max())
+                x_otimo = float(dados_volcano.loc[dados_volcano[taxa_col].idxmax(), energia_col])
+                largura = max((x_max - x_min) / 3, 0.15)
+                x_referencia = np.linspace(x_min - 0.05 * largura, x_max + 0.05 * largura, 140)
+                y_referencia = float(dados_volcano[taxa_col].max()) * np.exp(-((x_referencia - x_otimo) / largura) ** 2)
+                figura_volcano.add_trace(go.Scatter(x=x_referencia, y=y_referencia, mode="lines", name="Referência de Sabatier", line={"color": "#526071", "dash": "dash", "width": 2}, hoverinfo="skip"))
+                figura_volcano.add_vline(x=x_otimo, line_dash="dot", line_color="#16843C")
+                figura_volcano.update_traces(selector={"mode": "markers"}, marker={"size": 9, "line": {"color": "#FFFFFF", "width": 0.8}}, hovertemplate="<b>%{customdata[0]}</b><br>Energia de adsorção: %{x:.3f} eV<br>Atividade relativa: %{y:.3f}<br>Score final: %{customdata[2]}<br>Suporte: %{customdata[1]}<br>Rota: %{customdata[3]}<extra></extra>")
+                aplicar_estilo(figura_volcano)
+                figura_volcano.update_xaxes(title_text="Energia de adsorção (eV)")
+                figura_volcano.update_yaxes(title_text="Atividade relativa (proxy)")
+                st.plotly_chart(figura_volcano, width="stretch", key="visualizacao_volcano")
+            else:
+                st.info("Dados de adsorção insuficientes para gerar o diagrama de vulcão.")
+
+    dados_estabilidade, estabilidade_col, score_col = dados_grafico(
         [["estabilidade"]],
         [["score", "final"], ["desejabilidade", "global"]],
     )
-    gerou_dispersao = renderizar_scatter_plotly(
-        "Estabilidade termodinâmica vs score final",
-        fonte_dispersao,
-        [["estabilidade"]],
-        [["score", "final"], ["desejabilidade", "global"]],
-    )
+    with coluna_estabilidade:
+        with st.container(border=True):
+            st.markdown("<h3 class='science-card-title'>Estabilidade termodinâmica vs. score final</h3><p class='science-card-note'>Mostra o compromisso entre uma fase mais estável e o desempenho global previsto pela triagem.</p>", unsafe_allow_html=True)
+            if not dados_estabilidade.empty and estabilidade_col and score_col:
+                figura_estabilidade = px.scatter(dados_estabilidade, x=estabilidade_col, y=score_col, color=score_col, color_continuous_scale="Turbo", custom_data=["_formula", "_suporte", "_score_final", "_rota"])
+                if len(dados_estabilidade) > 2 and dados_estabilidade[estabilidade_col].nunique() > 1:
+                    coef = np.polyfit(dados_estabilidade[estabilidade_col], dados_estabilidade[score_col], 1)
+                    x_linha = np.linspace(float(dados_estabilidade[estabilidade_col].min()), float(dados_estabilidade[estabilidade_col].max()), 80)
+                    figura_estabilidade.add_trace(go.Scatter(x=x_linha, y=coef[0] * x_linha + coef[1], mode="lines", name="Tendência linear", line={"color": "#66758B", "dash": "dash"}, hoverinfo="skip"))
+                figura_estabilidade.update_traces(selector={"mode": "markers"}, marker={"size": 9, "line": {"color": "#FFFFFF", "width": 0.8}}, hovertemplate="<b>%{customdata[0]}</b><br>Estabilidade: %{x:.3f} eV/átomo<br>Score final: %{y:.3f}<br>Suporte: %{customdata[1]}<br>Rota: %{customdata[3]}<extra></extra>")
+                aplicar_estilo(figura_estabilidade)
+                figura_estabilidade.update_xaxes(title_text="Estabilidade termodinâmica (eV/átomo; menor é melhor)")
+                figura_estabilidade.update_yaxes(title_text="Score final (0–1)")
+                st.plotly_chart(figura_estabilidade, width="stretch", key="visualizacao_estabilidade")
+            else:
+                st.info("Dados de estabilidade e score insuficientes para o gráfico.")
 
-    if not gerou_volcano and not gerou_dispersao:
-        st.info("Ainda não há colunas numéricas suficientes para gerar gráficos Plotly interativos.")
+    fontes_para_ficha = [dataframe for dataframe in [prioritarios_df, classificacao_df, ranking_df] if not dataframe.empty]
+    base_ficha = pd.concat(fontes_para_ficha, ignore_index=True, sort=False) if fontes_para_ficha else pd.DataFrame()
+    formula_coluna = encontrar_coluna_por_opcoes(base_ficha, [["formula"], ["fórmula"], ["f"]]) if not base_ficha.empty else None
+    if formula_coluna:
+        base_ficha = base_ficha.drop_duplicates(subset=[formula_coluna]).copy()
+    selecionado = None
+    with coluna_modelo:
+        with st.container(border=True):
+            st.markdown("<h3 class='science-card-title'>Modelo estrutural esquemático do catalisador</h3><p class='science-card-note'>Use a ficha para relacionar a composição recomendada aos descritores que sustentam sua priorização.</p>", unsafe_allow_html=True)
+            if formula_coluna and not base_ficha.empty:
+                opcoes_formula = base_ficha[formula_coluna].astype(str).tolist()
+                formula_escolhida = st.selectbox("Candidato em destaque", opcoes_formula, key="visualizacao_candidato")
+                selecionado = base_ficha.loc[base_ficha[formula_coluna].astype(str) == formula_escolhida].iloc[0]
+                indice_estrutura = sum(ord(caractere) for caractere in formula_escolhida) % len(ESTRUTURAS_CATALITICAS)
+                caminho_estrutura = ESTRUTURAS_CATALITICAS[indice_estrutura]
+                if caminho_estrutura.exists():
+                    st.image(str(caminho_estrutura), width="stretch")
+                st.markdown("<p class='science-model-note'>A imagem é uma representação esquemática das fases catalíticas; não substitui uma estrutura relaxada por DFT ou caracterização experimental.</p>", unsafe_allow_html=True)
+            else:
+                st.info("A ficha estrutural será exibida após a geração dos candidatos.")
+
+    coluna_paralelo, coluna_detalhes = st.columns([1.7, .9])
+    with coluna_paralelo:
+        with st.container(border=True):
+            st.markdown("<h3 class='science-card-title'>Paralelo de descritores catalíticos</h3><p class='science-card-note'>Cada linha representa um candidato. O gráfico ajuda a identificar combinações de descritores associadas a maior pontuação.</p>", unsafe_allow_html=True)
+            if not base_ficha.empty:
+                base_paralela = preparar_dados_plotly(base_ficha, limite=180)
+                configuracoes = [
+                    ("Score final", [["score", "final"]]),
+                    ("Energia de adsorção (eV)", [["energia", "adsor"]]),
+                    ("Score vulcão", [["score", "vulc"], ["score", "volcano"]]),
+                    ("Estabilidade (eV/átomo)", [["estabilidade"]]),
+                    ("DFT/proxy DFT", [["score", "dft"], ["score", "gnn"]]),
+                    ("Resistência ao coque", [["score", "resist", "coque"]]),
+                ]
+                dimensoes, score_cor = [], None
+                for rotulo, opcoes in configuracoes:
+                    coluna = encontrar_coluna_por_opcoes(base_paralela, opcoes)
+                    if coluna is None:
+                        continue
+                    valores = pd.to_numeric(base_paralela[coluna], errors="coerce")
+                    if valores.notna().sum() < 3 or valores.nunique(dropna=True) < 2:
+                        continue
+                    dimensoes.append(dict(label=rotulo, values=valores, range=[float(valores.min()), float(valores.max())]))
+                    if rotulo == "Score final":
+                        score_cor = valores
+                if len(dimensoes) >= 3:
+                    cor_linhas = score_cor if score_cor is not None else pd.Series(np.arange(len(base_paralela)), index=base_paralela.index)
+                    figura_paralela = go.Figure(go.Parcoords(line={"color": cor_linhas, "colorscale": "Turbo", "showscale": True, "colorbar": {"title": "Score"}}, dimensions=dimensoes))
+                    figura_paralela.update_layout(height=390, margin={"l": 24, "r": 32, "t": 14, "b": 20}, paper_bgcolor="#FFFFFF", font={"color": "#14213D"})
+                    st.plotly_chart(figura_paralela, width="stretch", key="visualizacao_paralela")
+                else:
+                    st.info("São necessários ao menos três descritores numéricos variáveis para a comparação paralela.")
+            else:
+                st.info("Descritores ainda não disponíveis.")
+
+    with coluna_detalhes:
+        with st.container(border=True):
+            st.markdown("<h3 class='science-card-title'>Detalhes do candidato selecionado</h3><p class='science-card-note'>Resumo dos valores usados para interpretar a recomendação, sem substituir validação experimental.</p>", unsafe_allow_html=True)
+            if selecionado is not None:
+                formula = valor_linha(selecionado, ["formula"], valor_linha(selecionado, ["f"], "-"))
+                suporte = valor_linha(selecionado, ["suporte"], "Não informado")
+                score = formatar_numero_linha(selecionado, ["score", "final"], casas=3)
+                detalhes = [
+                    ("Suporte sugerido", suporte),
+                    ("Energia de adsorção", formatar_numero_linha(selecionado, ["energia", "adsor"], "eV", casas=3)),
+                    ("Estabilidade", formatar_numero_linha(selecionado, ["estabilidade"], "eV/átomo", casas=3)),
+                    ("Score vulcão", formatar_numero_linha(selecionado, ["score", "volcano"], casas=3)),
+                    ("DFT/proxy DFT", formatar_numero_linha(selecionado, ["score", "dft"], casas=3)),
+                    ("Condição inicial", montar_condicao_operacional(selecionado)),
+                ]
+                detalhes_html = "".join(f"<div><span>{html.escape(rotulo)}</span><b>{html.escape(str(valor))}</b></div>" for rotulo, valor in detalhes)
+                st.markdown(f"<article class='science-detail'><div class='science-detail-score'>Score final<strong>{html.escape(score)}</strong></div><h3>{html.escape(str(formula))}</h3><div class='science-detail-grid'>{detalhes_html}</div></article>", unsafe_allow_html=True)
+            else:
+                st.info("Selecione um candidato quando os resultados estiverem disponíveis.")
+
+    st.markdown("<p class='science-restored-title'>Gráficos complementares gerados pela execução</p><p class='science-restored-subtitle'>Estas figuras recuperam as análises de ranking, incerteza, operação e quimiometria salvas com a triagem.</p>", unsafe_allow_html=True)
+    mostrar_figuras(figuras_df)
 
 
 def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
-    """Renderiza as figuras geradas pelo notebook."""
-    st.markdown("<h3 style='text-align:center;'>Figuras</h3>", unsafe_allow_html=True)
+    """Renderiza as figuras geradas com uma explicação para sua leitura científica."""
     if figuras_df.empty:
         st.info("Figuras ainda não disponíveis.")
         return
@@ -2616,10 +2741,33 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
         st.info("A tabela de figuras não contém caminho PNG.")
         return
 
-    for _, row in figuras_df.iterrows():
+    explicacoes = {
+        "ranking": ("Ranking por pontuação final", "Compara os candidatos segundo o score multicritério usado para priorizar a validação experimental."),
+        "estabilidade": ("Estabilidade termodinâmica", "Relaciona a estabilidade prevista à pontuação global para revelar compromissos do ranking."),
+        "volcano": ("Diagrama de vulcão", "Avalia a proximidade ao regime de adsorção moderada associado ao princípio de Sabatier."),
+        "monte_carlo": ("Robustez Monte Carlo", "Mostra como perturbações nos descritores afetam a permanência dos candidatos no ranking."),
+        "desempenho_faixa": ("Desempenho em faixa de condições", "Examina a variação de desempenho previsto ao redor das condições operacionais de interesse."),
+        "sensibilidade": ("Sensibilidade dos descritores", "Indica quais descritores mais influenciam a pontuação calculada."),
+        "pca": ("Diversidade quimiométrica", "Projeta os descritores em componentes principais para visualizar a diversidade química dos candidatos."),
+        "grupos": ("Grupos quimiométricos", "Agrupa candidatos com perfis de descritores semelhantes."),
+        "doe": ("Planejamento experimental", "Mostra combinações de síntese que podem ser avaliadas para explorar o espaço experimental."),
+        "correlacao": ("Correlação entre descritores", "Identifica descritores redundantes ou correlacionados que merecem interpretação conjunta."),
+        "outliers": ("Diagnóstico de outliers", "Sinaliza candidatos com comportamento incomum no espaço de descritores."),
+        "dominio": ("Domínio de aplicabilidade", "Mostra se a previsão está dentro de uma região química representada pelo conjunto de referência."),
+        "pareto": ("Pareto e desejabilidade", "Expõe candidatos não dominados quando objetivos de atividade, estabilidade e síntese competem."),
+        "validacao": ("Validação e robustez", "Resume a consistência interna do ranking e os indicadores de validação disponíveis."),
+        "regressao": ("Regressão quimiométrica", "Compara a resposta do modelo proxy com a tendência de referência usada na avaliação interna."),
+    }
+    colunas = st.columns(2)
+    for indice, (_, row) in enumerate(figuras_df.iterrows()):
         caminho = Path(str(row[coluna_png]))
         if caminho.exists():
-            st.image(str(caminho), caption=caminho.name, width="stretch")
+            identificador = normalizar_texto(str(row.get("figura", caminho.stem)))
+            titulo, explicacao = next((valor for chave, valor in explicacoes.items() if chave in identificador), (caminho.stem.replace("_", " ").capitalize(), "Figura gerada pela execução para apoiar a interpretação do processo de triagem."))
+            with colunas[indice % 2]:
+                st.markdown("<div class='science-figure-card'>", unsafe_allow_html=True)
+                st.image(str(caminho), width="stretch")
+                st.markdown(f"<h4>{html.escape(titulo)}</h4><p>{html.escape(explicacao)}</p></div>", unsafe_allow_html=True)
 
 
 def renderizar_cabecalho() -> None:
@@ -3728,9 +3876,6 @@ with aba_validacao:
     )
 
 with aba_figuras:
-    mostrar_visualizacao_cientifica_plotly(prioritarios_df, classificacao_df, ranking_df, monte_carlo_df)
-    st.divider()
-    mostrar_figuras(figuras_df)
-
+    mostrar_visualizacao_cientifica_plotly(prioritarios_df, classificacao_df, ranking_df, monte_carlo_df, figuras_df)
 with aba_arquivos:
     mostrar_painel_arquivos(paths, metricas_df, classificacao_df, reacao_resultado)
