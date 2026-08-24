@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
+import json
 import os
 import re
 import subprocess
@@ -1109,6 +1111,112 @@ def mostrar_painel_validacao(
         resumo_html = "".join(resumo_modelo + linhas_relatorio) if linhas_relatorio else "".join(resumo_modelo)
         nota = texto("Os painéis acima avaliam coerência interna, domínio e robustez da triagem. Eles não substituem conversão, seletividade, estabilidade temporal ou balanço de massa obtidos em experimento.", "The panels above assess internal consistency, domain, and screening robustness. They do not replace conversion, selectivity, time-on-stream stability, or mass balance obtained experimentally.")
         st.markdown(f"<aside class='validation-note'><h3>{html.escape(texto('Nota científica', 'Scientific note'))}</h3><p>{html.escape(nota)}</p><div class='validation-summary'>{resumo_html}</div></aside>", unsafe_allow_html=True)
+
+
+def mostrar_painel_arquivos(
+    paths: dict[str, Path],
+    metricas_df: pd.DataFrame,
+    classificacao_df: pd.DataFrame,
+    reacao: str,
+) -> None:
+    """Centraliza downloads, metadados da execução e rastreabilidade das fontes do fluxo."""
+    ingles = idioma_atual() == "en"
+
+    def texto(portugues: str, ingles_texto: str) -> str:
+        """Traduz os rótulos do painel sem modificar nomes físicos de arquivos."""
+        return ingles_texto if ingles else portugues
+
+    def tamanho_legivel(caminho: Path) -> str:
+        """Mostra o tamanho real do arquivo sem arredondar artificialmente valores pequenos."""
+        tamanho = caminho.stat().st_size
+        if tamanho < 1024 * 1024:
+            return f"{tamanho / 1024:.1f} KB"
+        return f"{tamanho / (1024 * 1024):.2f} MB"
+
+    def tipo_arquivo(caminho: Path) -> str:
+        """Normaliza a extensão para o selo exibido na lista de arquivos."""
+        return {".xlsx": "XLSX", ".csv": "CSV", ".html": "HTML", ".json": "JSON"}.get(caminho.suffix.lower(), caminho.suffix.lstrip(".").upper() or "ARQ")
+
+    arquivos = [
+        ("resultados", paths["excel"], texto("Resultados completos da triagem com previsões e métricas.", "Complete screening results with predictions and metrics.")),
+        ("ranking", paths["ranking"], texto("Ranking final após filtros, condições e ponderações.", "Final ranking after filters, conditions, and weights.")),
+        ("metricas", paths["metricas"], texto("Métricas de funil, desempenho, robustez e incerteza.", "Funnel, performance, robustness, and uncertainty metrics.")),
+        ("monte_carlo", paths["monte_carlo"], texto("Ranking e dispersão estimados pela simulação Monte Carlo.", "Ranking and dispersion estimated by Monte Carlo simulation.")),
+        ("dominio", paths["dominio"], texto("Diagnóstico de Hotelling T², Q residual e domínio de aplicabilidade.", "Hotelling T², Q-residual, and applicability-domain diagnostic.")),
+        ("pareto", paths["pareto"], texto("Compromissos multicritério e fronteira de Pareto.", "Multi-criteria trade-offs and Pareto frontier.")),
+        ("validacao", paths["validacao_quimio"], texto("PCA, agrupamento, DOE e métricas de validação interna.", "PCA, clustering, DOE, and internal-validation metrics.")),
+        ("relatorio", paths["html"], texto("Relatório HTML com resumo, análises e gráficos.", "HTML report with summary, analyses, and charts.")),
+        ("configuracao", paths["resumo"], texto("Configuração, descritores e artefatos produzidos na execução.", "Configuration, descriptors, and artifacts produced in the run.")),
+        ("figuras", paths["figuras"], texto("Índice dos gráficos e figuras científicas geradas.", "Index of generated scientific charts and figures.")),
+    ]
+    arquivos = [(chave, caminho, descricao) for chave, caminho, descricao in arquivos if caminho.exists()]
+    if not arquivos:
+        st.info(texto("Nenhum arquivo de resultado foi encontrado para esta execução.", "No result file was found for this run."))
+        return
+
+    resumo = {}
+    if paths["resumo"].exists():
+        try:
+            resumo = json.loads(paths["resumo"].read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            resumo = {}
+    referencia_tempo = paths["resumo"] if paths["resumo"].exists() else max((caminho for _, caminho, _ in arquivos), key=lambda caminho: caminho.stat().st_mtime)
+    data_execucao = datetime.fromtimestamp(referencia_tempo.stat().st_mtime)
+    hash_execucao = hashlib.sha256(referencia_tempo.read_bytes()).hexdigest()
+    id_execucao = f"RUN-{data_execucao:%Y%m%d}-{hash_execucao[:6].upper()}"
+    n_avaliados = extrair_metrica(metricas_df, "candidatos gerados") or len(classificacao_df)
+    nome_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}.get(reacao, reacao)
+    reacoes_equacao = {"metanacao": "CO₂ + 4H₂ → CH₄ + 2H₂O", "reforma": "CH₄ + CO₂ → 2CO + 2H₂", "rwgs": "CO₂ + H₂ → CO + H₂O"}
+    primeira_linha = classificacao_df.iloc[0] if not classificacao_df.empty else pd.Series(dtype=object)
+    temperatura = valor_linha(primeira_linha, ["temperatura"])
+    pressao = valor_linha(primeira_linha, ["pressao"])
+    nome_razao = valor_linha(primeira_linha, ["nome", "razao"])
+    valor_razao = valor_linha(primeira_linha, ["valor", "razao"])
+    condicoes = " · ".join(parte for parte in [f"T = {formatar_valor(temperatura)} °C" if temperatura not in ["", "-"] else "", f"P = {formatar_valor(pressao)} bar" if pressao not in ["", "-"] else "", f"{nome_razao} = {formatar_valor(valor_razao)}" if nome_razao not in ["", "-"] and valor_razao not in ["", "-"] else ""] if parte) or texto("Não registradas", "Not recorded")
+
+    st.markdown(
+        """<style>
+        .files-title{margin:6px 0 12px;color:#14213D;font-size:clamp(1.62rem,2.4vw,2.2rem);font-weight:850}.files-main-grid{display:grid;grid-template-columns:minmax(0,1fr) 318px;gap:16px;align-items:start}.files-run-meta{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border:1px solid #DCE6E0;border-radius:9px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.04);overflow:hidden}.files-run-meta div{min-height:82px;padding:14px;border-right:1px solid #E4EBE7}.files-run-meta div:last-child{border-right:0}.files-run-meta b{display:block;color:#263B58;font-size:.70rem}.files-run-meta strong{display:block;margin-top:8px;color:#087A3B;font-size:.91rem;line-height:1.25}.files-run-meta span{display:block;margin-top:7px;color:#244D92;font-size:.79rem;font-weight:800;line-height:1.28}.files-shell{margin-top:12px;padding:12px 14px;border:1px solid #DCE6E0;border-radius:9px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.04)}.files-shell h3{margin:0 0 10px;color:#153A70;font-size:1rem}.files-head{display:grid;grid-template-columns:1.30fr .58fr .90fr 1.90fr .52fr .32fr;gap:8px;padding:8px 10px;border-top:1px solid #E5EDE8;border-bottom:1px solid #E5EDE8;color:#334A69;font-size:.67rem;font-weight:850}.files-row{padding:8px 0;border-bottom:1px solid #E8EFEB}.files-row:last-child{border-bottom:0}.files-row [data-testid='stHorizontalBlock']{align-items:center}.files-file-name{color:#146CC1;font-size:.78rem;font-weight:850;overflow-wrap:anywhere}.files-file-type{display:inline-block;padding:4px 6px;border-radius:5px;background:#E7F5EC;color:#087A3B;font-size:.64rem;font-weight:850}.files-small{color:#455B74;font-size:.67rem;line-height:1.35}.files-repro{padding:17px;border:1px solid #DCE6E0;border-radius:9px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.04)}.files-repro h3{margin:0 0 12px;color:#087A3B;font-size:1rem}.files-repro-item{padding:12px 0;border-bottom:1px solid #E5EDE8}.files-repro-item:last-child{border-bottom:0}.files-repro-item b{display:block;color:#263B58;font-size:.72rem}.files-repro-item span{display:block;margin-top:6px;color:#1E61BC;font-size:.73rem;line-height:1.42;overflow-wrap:anywhere}.files-trace{margin-top:16px;padding:13px;border:1px solid #DCE6E0;border-radius:9px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.04)}.files-trace h3{margin:0;color:#153A70;font-size:1rem}.files-trace-note{margin:6px 0 12px;color:#A46900;font-size:.72rem;font-weight:750}.files-trace-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.files-trace-card{min-height:130px;padding:12px;border:1px solid #DDE8E2;border-radius:7px;background:#FCFDFD}.files-trace-card b{display:block;color:#153A70;font-size:.78rem}.files-trace-card span{display:block;margin-top:8px;color:#465A70;font-size:.68rem;line-height:1.38}.files-trace-card strong{display:block;margin-top:8px;color:#087A3B;font-size:.68rem}.files-available{margin:10px 0 0;color:#66758B;font-size:.67rem}@media(max-width:1350px){.files-run-meta{grid-template-columns:repeat(3,minmax(0,1fr))}.files-run-meta div:nth-child(3){border-right:0}}@media(max-width:1080px){.files-main-grid{grid-template-columns:1fr}.files-trace-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:760px){.files-run-meta{grid-template-columns:repeat(2,minmax(0,1fr))}.files-run-meta div:nth-child(2){border-right:0}.files-trace-grid{grid-template-columns:1fr}.files-head{display:none}}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+    metadados = [
+        (texto("ID da execução", "Run ID"), id_execucao),
+        (texto("Reação", "Reaction"), reacoes_equacao.get(reacao, nome_reacao)),
+        (texto("Data e hora", "Date and time"), data_execucao.strftime("%d/%m/%Y %H:%M:%S")),
+        (texto("Fontes configuradas", "Configured sources"), texto("3 remotas + cache local", "3 remote + local cache")),
+        (texto("Candidatos avaliados", "Candidates evaluated"), formatar_valor(n_avaliados)),
+    ]
+    metadados_html = "".join(f"<div><b>{html.escape(rotulo)}</b><strong>{html.escape(valor)}</strong></div>" for rotulo, valor in metadados)
+    st.markdown(f"<h2 class='files-title'>{html.escape(texto('Resultados e arquivos da triagem', 'Screening results and files'))}</h2><div class='files-main-grid'><section><div class='files-run-meta'>{metadados_html}</div></section><aside class='files-repro'><h3>{html.escape(texto('Reprodutibilidade da triagem', 'Screening reproducibility'))}</h3><div class='files-repro-item'><b>{html.escape(texto('Versão do painel', 'Panel version'))}</b><span>CatAiLab 1.0</span></div><div class='files-repro-item'><b>{html.escape(texto('Semente aleatória', 'Random seed'))}</b><span>42</span></div><div class='files-repro-item'><b>{html.escape(texto('Snapshot dos resultados', 'Results snapshot'))}</b><span>{data_execucao.strftime('%d/%m/%Y %H:%M:%S')}</span></div><div class='files-repro-item'><b>{html.escape(texto('Condições de reação', 'Reaction conditions'))}</b><span>{html.escape(condicoes)}</span></div><div class='files-repro-item'><b>{html.escape(texto('Hash de verificação', 'Verification hash'))}</b><span>{hash_execucao[:24]}</span></div></aside></div>", unsafe_allow_html=True)
+
+    st.markdown(f"<section class='files-shell'><h3>{html.escape(texto('Arquivos gerados', 'Generated files'))}</h3><div class='files-head'><span>{html.escape(texto('Arquivo', 'File'))}</span><span>{html.escape(texto('Tipo', 'Type'))}</span><span>{html.escape(texto('Data de geração', 'Generated at'))}</span><span>{html.escape(texto('Conteúdo de dados', 'Data contents'))}</span><span>{html.escape(texto('Tamanho', 'Size'))}</span><span>{html.escape(texto('Download', 'Download'))}</span></div></section>", unsafe_allow_html=True)
+    for chave, caminho, descricao in arquivos:
+        data_arquivo = datetime.fromtimestamp(caminho.stat().st_mtime).strftime("%d/%m/%Y %H:%M")
+        col_nome, col_tipo, col_data, col_descricao, col_tamanho, col_download = st.columns([1.30, .58, .90, 1.90, .52, .32], gap="small")
+        with col_nome:
+            st.markdown(f"<div class='files-row'><span class='files-file-name'>{html.escape(caminho.name)}</span></div>", unsafe_allow_html=True)
+        with col_tipo:
+            st.markdown(f"<div class='files-row'><span class='files-file-type'>{tipo_arquivo(caminho)}</span></div>", unsafe_allow_html=True)
+        with col_data:
+            st.markdown(f"<div class='files-row'><span class='files-small'>{data_arquivo}</span></div>", unsafe_allow_html=True)
+        with col_descricao:
+            st.markdown(f"<div class='files-row'><span class='files-small'>{html.escape(descricao)}</span></div>", unsafe_allow_html=True)
+        with col_tamanho:
+            st.markdown(f"<div class='files-row'><span class='files-small'>{tamanho_legivel(caminho)}</span></div>", unsafe_allow_html=True)
+        with col_download:
+            st.download_button("⇩", data=caminho.read_bytes(), file_name=caminho.name, mime={".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".html": "text/html", ".json": "application/json"}.get(caminho.suffix.lower(), "text/csv"), key=f"download_{chave}_{slug_texto(caminho.name)}", help=texto("Baixar arquivo", "Download file"), width="stretch")
+    st.markdown(f"<p class='files-available'>{html.escape(texto('Os arquivos listados estão disponíveis para download nesta execução.', 'Listed files are available for download in this run.'))}</p>", unsafe_allow_html=True)
+
+    rastreabilidade = [
+        ("1", "Materials Project", texto("Repositório de materiais", "Materials repository"), texto("Consulta incremental quando não há registro local.", "Incremental lookup when no local record exists."), texto("Fonte configurada", "Configured source")),
+        ("2", "OQMD", texto("Banco de dados de materiais", "Materials database"), texto("Consulta sob demanda para propriedades ausentes.", "On-demand lookup for missing properties."), texto("Fonte configurada", "Configured source")),
+        ("3", "Catalysis-Hub", texto("Dados catalíticos de superfície", "Surface catalytic data"), texto("Evidências DFT de adsorção quando disponíveis.", "DFT adsorption evidence when available."), texto("Fonte configurada", "Configured source")),
+        ("4", texto("Cache local", "Local cache"), texto("Arquivos da execução", "Run files"), texto("CSV e JSON preservam os dados já consultados.", "CSV and JSON preserve data already retrieved."), texto("Fonte local", "Local source")),
+        ("5", texto("Seleção final", "Final selection"), texto("Ranking multicritério", "Multi-criteria ranking"), texto("Filtros, desempenho, incerteza e viabilidade de síntese.", "Filters, performance, uncertainty, and synthesis feasibility."), texto("Candidatos finais", "Final candidates")),
+    ]
+    cards_rastro = "".join(f"<article class='files-trace-card'><b>{numero}. {html.escape(nome)}</b><span>{html.escape(tipo)}<br>{html.escape(descricao)}</span><strong>{html.escape(status)}</strong></article>" for numero, nome, tipo, descricao, status in rastreabilidade)
+    st.markdown(f"<section class='files-trace'><h3>{html.escape(texto('Rastreabilidade', 'Traceability'))}</h3><p class='files-trace-note'>{html.escape(texto('Fontes de dados apoiam a triagem, mas não constituem prova de desempenho experimental.', 'Data sources support screening but do not constitute evidence of experimental performance.'))}</p><div class='files-trace-grid'>{cards_rastro}</div></section>", unsafe_allow_html=True)
 
 
 def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
@@ -3583,40 +3691,4 @@ with aba_figuras:
     mostrar_figuras(figuras_df)
 
 with aba_arquivos:
-    st.markdown("<h3 style='text-align:center;'>Exporta\u00e7\u00f5es</h3>", unsafe_allow_html=True)
-    if paths["excel"].exists():
-        st.download_button(
-            "Baixar resultados em Excel",
-            data=paths["excel"].read_bytes(),
-            file_name=paths["excel"].name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-    else:
-        st.info("O arquivo Excel será disponibilizado após a execução da triagem.")
-    if paths["html"].exists():
-        st.download_button(
-            "Baixar relatório HTML",
-            data=paths["html"].read_bytes(),
-            file_name=paths["html"].name,
-            mime="text/html",
-        )
-    arquivos_disponiveis = [
-        ("Candidatos prioritários", paths["prioritarios"]),
-        ("Ranking completo", paths["ranking"]),
-        ("Métricas", paths["metricas"]),
-        ("Monte Carlo", paths["monte_carlo"]),
-        ("Domínio de aplicabilidade", paths["dominio"]),
-        ("Pareto e desejabilidade", paths["pareto"]),
-        ("Validação quimiométrica", paths["validacao_quimio"]),
-        ("Validação avançada", paths["validacao_avancada"]),
-        ("Correção de temperatura Top 10", paths["correcao_temperatura"]),
-        ("Índice de figuras", paths["figuras"]),
-    ]
-    for rotulo, caminho in arquivos_disponiveis:
-        if caminho.exists():
-            st.download_button(
-                f"Baixar {rotulo} CSV",
-                data=caminho.read_bytes(),
-                file_name=caminho.name,
-                mime="text/csv",
-            )
+    mostrar_painel_arquivos(paths, metricas_df, classificacao_df, reacao_resultado)
