@@ -889,6 +889,228 @@ def mostrar_painel_incerteza(monte_carlo_df: pd.DataFrame, dominio_df: pd.DataFr
     st.dataframe(dados,hide_index=True,width="stretch")
 
 
+def mostrar_painel_validacao(
+    classificacao_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+    dominio_df: pd.DataFrame,
+    pareto_df: pd.DataFrame,
+    validacao_quimio_df: pd.DataFrame,
+    relatorio_validacao_df: pd.DataFrame,
+) -> None:
+    """Apresenta diagnósticos internos do modelo e limites de aplicabilidade da triagem."""
+    if all(dataframe.empty for dataframe in [classificacao_df, ranking_df, dominio_df, pareto_df]):
+        st.info("Execute a triagem para gerar os diagnósticos de validação e domínio de aplicabilidade.")
+        return
+
+    ingles = idioma_atual() == "en"
+
+    def texto(portugues: str, ingles_texto: str) -> str:
+        """Mantém os títulos dos gráficos no idioma selecionado sem alterar os dados científicos."""
+        return ingles_texto if ingles else portugues
+
+    fontes = [classificacao_df, ranking_df, pareto_df, dominio_df]
+    formulas = []
+    for fonte in fontes:
+        coluna_formula = encontrar_coluna(fonte, ["formula"])
+        if coluna_formula:
+            formulas.extend(fonte[coluna_formula].dropna().astype(str).tolist())
+    dados = pd.DataFrame({"formula": list(dict.fromkeys(formulas))})
+
+    def anexar_coluna(nome: str, termos: list[str], numerica: bool = True) -> None:
+        """Une um descritor por fórmula, respeitando a ordem de prioridade dos arquivos do fluxo."""
+        dados[nome] = np.nan if numerica else ""
+        for fonte in fontes:
+            coluna_formula = encontrar_coluna(fonte, ["formula"])
+            coluna_valor = encontrar_coluna(fonte, termos)
+            if coluna_formula is None or coluna_valor is None:
+                continue
+            serie = fonte[[coluna_formula, coluna_valor]].copy()
+            serie[coluna_formula] = serie[coluna_formula].astype(str)
+            if numerica:
+                serie[coluna_valor] = pd.to_numeric(serie[coluna_valor], errors="coerce")
+                mapa = serie.groupby(coluna_formula)[coluna_valor].mean()
+            else:
+                mapa = serie.dropna(subset=[coluna_valor]).drop_duplicates(subset=[coluna_formula]).set_index(coluna_formula)[coluna_valor].astype(str)
+            dados[nome] = dados[nome].where(dados[nome].notna() if numerica else dados[nome].astype(bool), dados["formula"].map(mapa))
+
+    # Os campos abaixo já são produzidos pelo fluxo quimiométrico e não exigem reprocessar a triagem.
+    anexar_coluna("score", ["score", "final"])
+    anexar_coluna("mc_media", ["media", "monte", "score"])
+    anexar_coluna("mc_desvio", ["desvio", "monte", "score"])
+    anexar_coluna("pc1", ["componente", "principal", "1"])
+    anexar_coluna("pc2", ["componente", "principal", "2"])
+    anexar_coluna("grupo", ["grupo", "quimiometrico"], numerica=False)
+    anexar_coluna("t2", ["hotelling", "t"])
+    anexar_coluna("q_residual", ["q", "residual"])
+    anexar_coluna("limiar_t2", ["limiar", "hotelling", "t"])
+    anexar_coluna("limiar_q", ["limiar", "q", "residual"])
+    anexar_coluna("dominio", ["classe", "dominio"], numerica=False)
+    anexar_coluna("score_dominio", ["score", "dominio"])
+    anexar_coluna("pareto", ["fronteira", "pareto"], numerica=False)
+    anexar_coluna("desejabilidade", ["desejabilidade", "global"])
+    anexar_coluna("atividade", ["score", "atividade"])
+    anexar_coluna("seletividade", ["score", "seletividade"])
+
+    dados["dominio"] = dados["dominio"].fillna("não calculado").astype(str)
+    dominio_norm = dados["dominio"].map(normalizar_texto)
+    dados["classe_dominio"] = np.select(
+        [dominio_norm.str.contains("fora"), dominio_norm.str.contains("atencao")],
+        [texto("Fora do domínio", "Outside domain"), texto("Zona de atenção", "Attention zone")],
+        default=texto("Dentro do domínio", "Within domain"),
+    )
+    cores_dominio = {
+        texto("Dentro do domínio", "Within domain"): "#16843C",
+        texto("Zona de atenção", "Attention zone"): "#D88D00",
+        texto("Fora do domínio", "Outside domain"): "#D63B36",
+    }
+    dentro = dados["classe_dominio"].eq(texto("Dentro do domínio", "Within domain"))
+    cobertura = float(dentro.mean()) if len(dados) else np.nan
+    r2_cv = extrair_metrica(validacao_quimio_df, "melhor r2 cv pcr plsr")
+    rmse_cv = extrair_metrica(validacao_quimio_df, "melhor rmse cv pcr plsr")
+    spearman = extrair_metrica(validacao_quimio_df, "correlacao spearman ranking monte carlo")
+    n_descritores = extrair_metrica(validacao_quimio_df, "numero de descritores quimiometricos")
+    variancia_pca = extrair_metrica(validacao_quimio_df, "variancia explicada pc1 pc2")
+    ensaios_doe = extrair_metrica(validacao_quimio_df, "ensaios doe sugeridos")
+    n_dentro = int(dentro.sum())
+    n_total = int(len(dados))
+
+    st.markdown(
+        """<style>
+        .validation-title{margin:6px 0 13px;color:#14213D;font-size:clamp(1.62rem,2.35vw,2.2rem);font-weight:850;text-align:left}.validation-subtitle{margin:-6px 0 16px;color:#66758B;font-size:.84rem}.validation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 14px}.validation-kpi{display:grid;grid-template-columns:52px 1fr;align-items:center;min-height:106px;padding:14px;border:1px solid #D9E5DF;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.05)}.validation-kpi-icon{display:grid;width:42px;height:42px;place-items:center;border-radius:8px;background:#EEF7F1;color:#16843C;font-size:1rem;font-weight:900}.validation-kpi b{display:block;color:#263B58;font-size:.73rem;line-height:1.2}.validation-kpi strong{display:block;margin:5px 0 2px;color:#1262C5;font-size:1.52rem;line-height:1}.validation-kpi span{display:block;color:#64748B;font-size:.68rem;line-height:1.28}.validation-section{margin:15px 0 8px;color:#14213D;font-size:1.02rem;font-weight:850}.validation-panel{min-height:100%;padding:11px 12px 4px;border:1px solid #DCE6E0;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.035)}.validation-panel h3{margin:0 0 5px;color:#153A70;font-size:.91rem;line-height:1.25}.validation-panel p{margin:0 0 7px;color:#6A7688;font-size:.66rem;line-height:1.35}.validation-note{min-height:100%;padding:18px;border:1px solid #7BC29B;border-radius:8px;background:#F5FCF7;color:#273D4B;font-size:.78rem;line-height:1.55}.validation-note h3{margin:0 0 10px;color:#087A3B;font-size:.96rem}.validation-note ul{margin:8px 0 0;padding-left:18px}.validation-summary{display:grid;gap:8px}.validation-summary div{padding:9px 10px;border-left:3px solid #16843C;background:#F7FAF8;color:#41556A;font-size:.73rem;line-height:1.38}.validation-summary b{display:block;color:#153A70;font-size:.76rem}@media(max-width:960px){.validation-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.validation-kpis{grid-template-columns:1fr}}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+    titulo = texto("Validação e domínio de aplicabilidade", "Validation and applicability domain")
+    subtitulo = texto(
+        "Diagnósticos internos da triagem, qualidade do espaço quimiométrico e limites de extrapolação.",
+        "Internal screening diagnostics, chemometric-space quality, and extrapolation limits.",
+    )
+    kpis = [
+        ("R²", texto("R² CV do modelo proxy", "Proxy-model CV R²"), formatar_valor(r2_cv), texto("validação cruzada interna", "internal cross-validation")),
+        ("RMSE", texto("RMSE CV do modelo proxy", "Proxy-model CV RMSE"), formatar_valor(rmse_cv), texto("alvo proxy; não experimental", "proxy target; not experimental")),
+        ("ρ", texto("Robustez do ranking", "Ranking robustness"), formatar_valor(spearman), texto("Spearman: nominal versus Monte Carlo", "Spearman: nominal versus Monte Carlo")),
+        ("AD", texto("Dentro do domínio", "Within applicability domain"), "-" if pd.isna(cobertura) else f"{100 * cobertura:.1f}%", f"{n_dentro} {texto('de', 'of')} {n_total} {texto('candidatos', 'candidates')}"),
+    ]
+    kpis_html = "".join(f"<article class='validation-kpi'><span class='validation-kpi-icon'>{sigla}</span><div><b>{html.escape(nome)}</b><strong>{html.escape(valor)}</strong><span>{html.escape(nota)}</span></div></article>" for sigla, nome, valor, nota in kpis)
+    st.markdown(f"<h2 class='validation-title'>{html.escape(titulo)}</h2><p class='validation-subtitle'>{html.escape(subtitulo)}</p><section class='validation-kpis'>{kpis_html}</section>", unsafe_allow_html=True)
+
+    def configurar_figura(figura: go.Figure, titulo_figura: str, eixo_x: str, eixo_y: str, altura: int = 320) -> go.Figure:
+        """Aplica a mesma identidade visual aos gráficos interativos de validação."""
+        figura.update_layout(template="simple_white", title=titulo_figura, height=altura, margin=dict(l=42, r=14, t=48, b=42), font=dict(color="#24334E", size=11), legend=dict(font=dict(size=9), bgcolor="rgba(255,255,255,.82)"), xaxis_title=eixo_x, yaxis_title=eixo_y)
+        figura.update_xaxes(gridcolor="#E7EDF2", zerolinecolor="#D9E1E8")
+        figura.update_yaxes(gridcolor="#E7EDF2", zerolinecolor="#D9E1E8")
+        return figura
+
+    primeira, segunda, terceira = st.columns(3)
+    with primeira:
+        st.markdown(f"<div class='validation-panel'><h3>1. {html.escape(texto('Consistência do ranking', 'Ranking consistency'))}</h3><p>{html.escape(texto('Score nominal comparado à média da simulação Monte Carlo.', 'Nominal score compared with the Monte Carlo mean.'))}</p></div>", unsafe_allow_html=True)
+        consistencia = dados.dropna(subset=["score", "mc_media"]).copy()
+        if consistencia.empty:
+            st.info(texto("A execução não contém pares de score nominal e Monte Carlo.", "This execution has no nominal-score and Monte Carlo pairs."))
+        else:
+            erro = consistencia["mc_desvio"].fillna(0).clip(lower=0)
+            figura = go.Figure(go.Scatter(x=consistencia["score"], y=consistencia["mc_media"], mode="markers", marker=dict(color="#2168C5", size=9), error_y=dict(type="data", array=erro, visible=bool(erro.gt(0).any())), text=consistencia["formula"], hovertemplate="%{text}<br>Score nominal: %{x:.3f}<br>Média MC: %{y:.3f}<extra></extra>", name=texto("Candidatos", "Candidates")))
+            limite_min = float(np.nanmin(consistencia[["score", "mc_media"]].to_numpy()))
+            limite_max = float(np.nanmax(consistencia[["score", "mc_media"]].to_numpy()))
+            margem = max((limite_max - limite_min) * .08, .03)
+            figura.add_trace(go.Scatter(x=[limite_min - margem, limite_max + margem], y=[limite_min - margem, limite_max + margem], mode="lines", line=dict(color="#48576A", dash="dash"), name="y = x"))
+            st.plotly_chart(configurar_figura(figura, "", texto("Score nominal", "Nominal score"), texto("Média Monte Carlo", "Monte Carlo mean")), width="stretch")
+    with segunda:
+        st.markdown(f"<div class='validation-panel'><h3>2. {html.escape(texto('Domínio de aplicabilidade', 'Applicability domain'))}</h3><p>{html.escape(texto('Hotelling T² e Q residual; linhas tracejadas são os limiares calculados.', 'Hotelling T² and Q residual; dashed lines are calculated thresholds.'))}</p></div>", unsafe_allow_html=True)
+        dominio_plot = dados.dropna(subset=["t2", "q_residual"]).copy()
+        if dominio_plot.empty:
+            st.info(texto("Os diagnósticos T² e Q residual não foram exportados.", "T² and Q-residual diagnostics were not exported."))
+        else:
+            dominio_plot["t2_plot"] = dominio_plot["t2"].clip(lower=1e-4)
+            dominio_plot["q_plot"] = dominio_plot["q_residual"].clip(lower=1e-5)
+            figura = px.scatter(dominio_plot, x="t2_plot", y="q_plot", color="classe_dominio", color_discrete_map=cores_dominio, hover_name="formula", log_x=True, log_y=True)
+            limiar_t2 = dominio_plot["limiar_t2"].dropna().median()
+            limiar_q = dominio_plot["limiar_q"].dropna().median()
+            if pd.notna(limiar_t2):
+                figura.add_vline(x=float(limiar_t2), line_dash="dash", line_color="#E58A19")
+            if pd.notna(limiar_q):
+                figura.add_hline(y=float(limiar_q), line_dash="dot", line_color="#E58A19")
+            st.plotly_chart(configurar_figura(figura, "", "Hotelling T²", "Q residual"), width="stretch")
+    with terceira:
+        st.markdown(f"<div class='validation-panel'><h3>3. {html.escape(texto('Mapa PCA do espaço químico', 'PCA map of chemical space'))}</h3><p>{html.escape(texto('A dispersão mostra a posição multivariada dos candidatos no espaço de descritores.', 'The scatter shows the multivariate position of candidates in descriptor space.'))}</p></div>", unsafe_allow_html=True)
+        pca_plot = dados.dropna(subset=["pc1", "pc2"]).copy()
+        if pca_plot.empty:
+            st.info(texto("Os componentes principais não foram exportados nesta execução.", "Principal components were not exported in this run."))
+        else:
+            figura = px.scatter(pca_plot, x="pc1", y="pc2", color="classe_dominio", color_discrete_map=cores_dominio, symbol="grupo", hover_name="formula", hover_data={"score": ":.3f", "score_dominio": ":.3f"})
+            figura.add_hline(y=0, line_color="#C9D3DF", line_width=1)
+            figura.add_vline(x=0, line_color="#C9D3DF", line_width=1)
+            st.plotly_chart(configurar_figura(figura, "", "PC1", "PC2"), width="stretch")
+
+    pareto_coluna, grupos_coluna = st.columns([1.16, .84])
+    with pareto_coluna:
+        st.markdown(f"<div class='validation-panel'><h3>4. {html.escape(texto('Fronteira de Pareto e desejabilidade', 'Pareto frontier and desirability'))}</h3><p>{html.escape(texto('Candidatos não dominados representam compromissos entre objetivos simultâneos.', 'Non-dominated candidates represent trade-offs between simultaneous objectives.'))}</p></div>", unsafe_allow_html=True)
+        pareto_plot = dados.dropna(subset=["desejabilidade", "score"]).copy()
+        eixo_x, eixo_y = "score", "desejabilidade"
+        titulo_x, titulo_y = texto("Score final", "Final score"), texto("Desejabilidade global", "Global desirability")
+        if dados["atividade"].notna().any() and dados["seletividade"].notna().any():
+            pareto_plot = dados.dropna(subset=["atividade", "seletividade"]).copy()
+            eixo_x, eixo_y = "atividade", "seletividade"
+            titulo_x, titulo_y = texto("Score de atividade", "Activity score"), texto("Score de seletividade", "Selectivity score")
+        if pareto_plot.empty:
+            st.info(texto("Dados insuficientes para a fronteira de Pareto.", "Insufficient data for the Pareto frontier."))
+        else:
+            pareto_plot["pareto_sim"] = pareto_plot["pareto"].astype(str).map(normalizar_texto).isin(["true", "sim", "1"])
+            figura = px.scatter(pareto_plot, x=eixo_x, y=eixo_y, color="pareto_sim", color_discrete_map={True: "#16843C", False: "#BBC7D2"}, hover_name="formula", hover_data={"desejabilidade": ":.3f", "score_dominio": ":.3f"}, labels={"pareto_sim": texto("Fronteira de Pareto", "Pareto frontier")})
+            fronteira = pareto_plot.loc[pareto_plot["pareto_sim"]].sort_values(eixo_x)
+            if len(fronteira) > 1:
+                figura.add_trace(go.Scatter(x=fronteira[eixo_x], y=fronteira[eixo_y], mode="lines", line=dict(color="#4E8BE2", dash="dash"), name=texto("Fronteira", "Frontier")))
+            st.plotly_chart(configurar_figura(figura, "", titulo_x, titulo_y), width="stretch")
+    with grupos_coluna:
+        st.markdown(f"<div class='validation-panel'><h3>{html.escape(texto('Perfil por grupo quimiométrico', 'Chemometric-group profile'))}</h3><p>{html.escape(texto('Média de score e fração dentro do domínio por agrupamento PCA/K-means.', 'Mean score and within-domain fraction by PCA/K-means group.'))}</p></div>", unsafe_allow_html=True)
+        grupos = dados[dados["grupo"].astype(str).str.len().gt(0)].copy()
+        if grupos.empty:
+            st.info(texto("Os grupos quimiométricos não foram exportados.", "Chemometric groups were not exported."))
+        else:
+            grupos["dentro"] = grupos["classe_dominio"].eq(texto("Dentro do domínio", "Within domain")).astype(float)
+            resumo_grupos = grupos.groupby("grupo", as_index=False).agg(score=("score", "mean"), cobertura=("dentro", "mean"))
+            figura = go.Figure()
+            figura.add_trace(go.Bar(x=resumo_grupos["grupo"].astype(str), y=resumo_grupos["score"], name=texto("Score médio", "Mean score"), marker_color="#2168C5"))
+            figura.add_trace(go.Bar(x=resumo_grupos["grupo"].astype(str), y=resumo_grupos["cobertura"], name=texto("Cobertura do domínio", "Domain coverage"), marker_color="#16843C"))
+            figura.update_layout(barmode="group")
+            st.plotly_chart(configurar_figura(figura, "", texto("Grupo", "Group"), texto("Índice (0–1)", "Index (0–1)")), width="stretch")
+
+    decisao = dados.copy().sort_values(["score", "desejabilidade"], ascending=False, na_position="last").head(10)
+    decisao["pareto_texto"] = decisao["pareto"].astype(str).map(normalizar_texto).isin(["true", "sim", "1"]).map({True: texto("Sim", "Yes"), False: texto("Não", "No")})
+    decisao["acao"] = np.select(
+        [decisao["classe_dominio"].eq(texto("Fora do domínio", "Outside domain")), decisao["classe_dominio"].eq(texto("Zona de atenção", "Attention zone")), decisao["pareto_texto"].eq(texto("Sim", "Yes"))],
+        [texto("Não extrapolar: coletar evidências", "Do not extrapolate: collect evidence"), texto("Validar experimentalmente", "Validate experimentally"), texto("Priorizar para síntese", "Prioritize for synthesis")],
+        default=texto("Confirmar em bancada", "Confirm in laboratory"),
+    )
+    tabela_decisao = decisao[["formula", "score", "classe_dominio", "t2", "q_residual", "desejabilidade", "pareto_texto", "acao"]].copy()
+    tabela_decisao.insert(0, "#", range(1, len(tabela_decisao) + 1))
+    tabela_decisao.columns = ["#", texto("Candidato", "Candidate"), texto("Score previsto", "Predicted score"), texto("Status de domínio", "Domain status"), "T²", "Q residual", texto("Desejabilidade", "Desirability"), texto("Pareto", "Pareto"), texto("Ação recomendada", "Recommended action")]
+    for coluna in [texto("Score previsto", "Predicted score"), "T²", "Q residual", texto("Desejabilidade", "Desirability")]:
+        tabela_decisao[coluna] = tabela_decisao[coluna].map(lambda valor: "-" if pd.isna(valor) else f"{float(valor):.3f}")
+
+    coluna_tabela, coluna_nota = st.columns([1.62, .72])
+    with coluna_tabela:
+        st.markdown(f"<h3 class='validation-section'>5. {html.escape(texto('Decisão para candidatos', 'Candidate decision'))}</h3>", unsafe_allow_html=True)
+        st.dataframe(tabela_decisao, hide_index=True, width="stretch")
+    with coluna_nota:
+        linhas_relatorio = []
+        if not relatorio_validacao_df.empty:
+            col_criterio = encontrar_coluna(relatorio_validacao_df, ["criterio"])
+            col_status = encontrar_coluna(relatorio_validacao_df, ["status"])
+            col_evidencia = encontrar_coluna(relatorio_validacao_df, ["evidencia"])
+            if col_criterio and col_status and col_evidencia:
+                for _, linha in relatorio_validacao_df.head(4).iterrows():
+                    linhas_relatorio.append(f"<div><b>{html.escape(corrigir_texto_portugues(linha[col_criterio]))}</b>{html.escape(corrigir_texto_portugues(linha[col_status]))}: {html.escape(corrigir_texto_portugues(linha[col_evidencia]))}</div>")
+        resumo_modelo = [
+            f"<div><b>{html.escape(texto('Modelo de referência', 'Reference model'))}</b>PCR/PLSR {html.escape(texto('aplicado a alvos proxy', 'applied to proxy targets'))}.</div>",
+            f"<div><b>{html.escape(texto('Descritores e PCA', 'Descriptors and PCA'))}</b>{formatar_valor(n_descritores)} {html.escape(texto('descritores; PC1 + PC2 =', 'descriptors; PC1 + PC2 ='))} {formatar_valor(variancia_pca, percentual=True)}.</div>",
+            f"<div><b>{html.escape(texto('Planejamento experimental', 'Experimental design'))}</b>{formatar_valor(ensaios_doe)} {html.escape(texto('ensaios DOE sugeridos para confirmação', 'DOE experiments suggested for confirmation'))}.</div>",
+        ]
+        resumo_html = "".join(resumo_modelo + linhas_relatorio) if linhas_relatorio else "".join(resumo_modelo)
+        nota = texto("Os painéis acima avaliam coerência interna, domínio e robustez da triagem. Eles não substituem conversão, seletividade, estabilidade temporal ou balanço de massa obtidos em experimento.", "The panels above assess internal consistency, domain, and screening robustness. They do not replace conversion, selectivity, time-on-stream stability, or mass balance obtained experimentally.")
+        st.markdown(f"<aside class='validation-note'><h3>{html.escape(texto('Nota científica', 'Scientific note'))}</h3><p>{html.escape(nota)}</p><div class='validation-summary'>{resumo_html}</div></aside>", unsafe_allow_html=True)
+
+
 def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
     """Mostra a triagem como um funil horizontal de quatro níveis."""
     n_gerados = float(extrair_metrica(metricas_df, "candidatos gerados") or 0)
@@ -3346,19 +3568,14 @@ with aba_quimica:
     )
 
 with aba_validacao:
-    col1, col2 = st.columns([1.0, 1.0])
-    with col1:
-        mostrar_tabela("Domínio de aplicabilidade", dominio_df, linhas=20)
-    with col2:
-        mostrar_tabela("Pareto e desejabilidade", pareto_df, linhas=20)
-    metricas_validacao_df = filtrar_metricas_por_termos(
-        metricas_df,
-        ["dominio", "pareto", "desejabilidade", "hotelling", "q residual", "quimiometria"],
+    mostrar_painel_validacao(
+        classificacao_df,
+        ranking_df,
+        dominio_df,
+        pareto_df,
+        validacao_quimio_df,
+        validacao_avancada_df,
     )
-    mostrar_tabela("Métricas de validação científica", metricas_validacao_df, linhas=30)
-    mostrar_tabela("Validação quimiométrica", validacao_quimio_df, linhas=30)
-    mostrar_tabela("Validação avançada dos prioritários", validacao_avancada_df, linhas=10)
-    mostrar_tabela("Correção de temperatura no Top 10", correcao_temperatura_df, linhas=10)
 
 with aba_figuras:
     mostrar_visualizacao_cientifica_plotly(prioritarios_df, classificacao_df, ranking_df, monte_carlo_df)
