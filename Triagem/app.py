@@ -86,6 +86,7 @@ TRADUCOES_EN = {
     "Executar triagem": "Run screening",
     "Resumo dos resultados": "Results summary",
     "Visão geral": "Overview",
+    "Catalisadores recomendados": "Recommended catalysts",
     "Candidatos": "Candidates",
     "Classificação": "Ranking",
     "Incerteza": "Uncertainty",
@@ -2896,13 +2897,35 @@ def aplicar_estilo_interface() -> None:
                 background: #1565C0;
                 border-color: #1565C0;
             }
-            button[data-baseweb="tab"] {
-                font-weight: 700;
-                color: var(--catialab-ink);
+            button[data-baseweb="tab"],
+            div[data-testid="stTab"] {
+                min-height: 46px;
+                padding: 0 17px;
+                font-weight: 750;
+                color: #263B58;
+                font-size: 0.88rem;
+                letter-spacing: 0;
             }
-            div[data-baseweb="tab-list"] {
-                gap: 4px;
+            div[data-baseweb="tab-list"],
+            div[role="tablist"] {
+                gap: 18px;
                 border-bottom: 1px solid var(--catialab-line);
+            }
+            button[data-baseweb="tab"][aria-selected="true"],
+            div[data-testid="stTab"][aria-selected="true"] {
+                color: #146CC1 !important;
+                font-weight: 850 !important;
+                border-bottom: 3px solid #146CC1 !important;
+            }
+            div[data-testid="stTab"][aria-selected="true"] p {
+                color: #146CC1 !important;
+            }
+            div[data-testid="stTab"][aria-selected="true"] .react-aria-SelectionIndicator {
+                background: #146CC1 !important;
+            }
+            button[data-baseweb="tab"]:hover,
+            div[data-testid="stTab"]:hover {
+                color: #146CC1;
             }
             .catialab-section-note {
                 padding: 10px 12px;
@@ -2921,10 +2944,14 @@ def aplicar_estilo_interface() -> None:
                 margin-bottom: 3px;
             }
             @media (max-width: 860px) {
-                div[data-baseweb="tab-list"] {
+                div[data-baseweb="tab-list"],
+                div[role="tablist"] {
                     overflow-x: auto;
                     justify-content: flex-start;
+                    gap: 6px;
                 }
+                button[data-baseweb="tab"],
+                div[data-testid="stTab"] { padding: 0 12px; font-size: 0.82rem; }
             }
         </style>
         """,
@@ -3641,20 +3668,35 @@ validacao_quimio_df = ler_csv(paths["validacao_quimio"])
 validacao_avancada_df = ler_csv(paths["validacao_avancada"])
 correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
 
-renderizar_titulo_dashboard()
-mostrar_recomendacoes_sintese(prioritarios_df)
-mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
-# O detalhamento dos prioritários é exibido acima, nos cartões de síntese.
+st.markdown(
+    """<style>
+    div[data-testid="stTab"][aria-selected="true"],
+    div[data-testid="stTab"][aria-selected="true"] p {
+        color: #146CC1 !important;
+        font-weight: 850 !important;
+    }
+    div[data-testid="stTab"][aria-selected="true"] .react-aria-SelectionIndicator {
+        background: #146CC1 !important;
+    }
+    </style>""",
+    unsafe_allow_html=True,
+)
 
-aba_candidatos, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
-    t("Candidatos"),
-    t("Incerteza"),
-    "Robustez e opera\u00e7\u00e3o",
-    t("Química"),
-    t("Validação"),
-    t("Visualização científica"),
-    t("Arquivos"),
+aba_recomendados, aba_candidatos, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
+    f"⌂  {t('Catalisadores recomendados')}",
+    f"⌕  {t('Candidatos')}",
+    f"◌  {t('Incerteza')}",
+    f"◈  {t('Robustez e operação')}",
+    f"⚗  {t('Química')}",
+    f"✓  {t('Validação')}",
+    f"▥  {t('Visualização científica')}",
+    f"▤  {t('Arquivos')}",
 ])
+
+with aba_recomendados:
+    renderizar_titulo_dashboard()
+    mostrar_recomendacoes_sintese(prioritarios_df)
+    mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
 
 with aba_candidatos:
     mostrar_candidatos_prioritarios(metricas_df, [prioritarios_df, classificacao_df, ranking_df])
