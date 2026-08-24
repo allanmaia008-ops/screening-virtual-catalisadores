@@ -36,6 +36,26 @@ ESTRUTURAS_CATALITICAS = [
     APP_DIR / "assets" / "estrutura_catalitica_padrao_5.png",
 ]
 
+CONFIGURACAO_VOLCANO = {
+    "metanacao": {"descritor": "CO", "energia_otima": 0.85, "largura": 0.35},
+    "reforma": {"descritor": "C", "energia_otima": 1.25, "largura": 0.45},
+    "rwgs": {"descritor": "CO", "energia_otima": 0.70, "largura": 0.32},
+}
+
+BIBLIOTECA_SUPORTES_QUIMICA = [
+    {"suporte": "Al2O3", "reacoes": ["metanacao", "rwgs"], "redox": 0.20, "basicidade": 0.25, "dispersao": 0.92, "estabilidade_termica": 0.78, "vacancia_oxigenio": 0.20, "afinidade_co2": 0.35, "risco_smsi": 0.20},
+    {"suporte": "SiO2-Al2O3", "reacoes": ["metanacao"], "redox": 0.15, "basicidade": 0.22, "dispersao": 0.88, "estabilidade_termica": 0.72, "vacancia_oxigenio": 0.15, "afinidade_co2": 0.30, "risco_smsi": 0.15},
+    {"suporte": "ZrO2", "reacoes": ["metanacao", "reforma", "rwgs"], "redox": 0.75, "basicidade": 0.45, "dispersao": 0.70, "estabilidade_termica": 0.90, "vacancia_oxigenio": 0.65, "afinidade_co2": 0.65, "risco_smsi": 0.45},
+    {"suporte": "CeO2-ZrO2", "reacoes": ["metanacao", "reforma", "rwgs"], "redox": 1.00, "basicidade": 0.62, "dispersao": 0.72, "estabilidade_termica": 0.84, "vacancia_oxigenio": 1.00, "afinidade_co2": 0.82, "risco_smsi": 0.75},
+    {"suporte": "Al2O3-CeO2-ZrO2", "reacoes": ["metanacao", "reforma"], "redox": 0.88, "basicidade": 0.56, "dispersao": 0.82, "estabilidade_termica": 0.82, "vacancia_oxigenio": 0.85, "afinidade_co2": 0.76, "risco_smsi": 0.62},
+    {"suporte": "MgO-Al2O3", "reacoes": ["reforma"], "redox": 0.30, "basicidade": 0.92, "dispersao": 0.78, "estabilidade_termica": 0.88, "vacancia_oxigenio": 0.25, "afinidade_co2": 0.86, "risco_smsi": 0.25},
+    {"suporte": "MgAl2O4", "reacoes": ["reforma"], "redox": 0.28, "basicidade": 0.88, "dispersao": 0.72, "estabilidade_termica": 0.94, "vacancia_oxigenio": 0.22, "afinidade_co2": 0.80, "risco_smsi": 0.22},
+    {"suporte": "MgAlOx", "reacoes": ["reforma"], "redox": 0.35, "basicidade": 0.95, "dispersao": 0.80, "estabilidade_termica": 0.90, "vacancia_oxigenio": 0.28, "afinidade_co2": 0.88, "risco_smsi": 0.26},
+    {"suporte": "La2O3-Al2O3", "reacoes": ["metanacao", "reforma"], "redox": 0.45, "basicidade": 0.88, "dispersao": 0.78, "estabilidade_termica": 0.82, "vacancia_oxigenio": 0.38, "afinidade_co2": 0.90, "risco_smsi": 0.32},
+    {"suporte": "TiO2", "reacoes": ["metanacao", "rwgs"], "redox": 0.70, "basicidade": 0.30, "dispersao": 0.70, "estabilidade_termica": 0.76, "vacancia_oxigenio": 0.62, "afinidade_co2": 0.50, "risco_smsi": 0.82},
+    {"suporte": "In2O3-ZrO2", "reacoes": ["rwgs"], "redox": 0.82, "basicidade": 0.42, "dispersao": 0.70, "estabilidade_termica": 0.78, "vacancia_oxigenio": 0.76, "afinidade_co2": 0.78, "risco_smsi": 0.48},
+]
+
 PERFIL_PESQUISADOR = {
     "nome": "Allan Maia",
     "email": os.environ.get("CATAILAB_CONTACT_EMAIL", "allan.maia.008@ufrn.edu.br").strip(),
@@ -162,6 +182,40 @@ def traduzir_texto_exibicao(texto: str) -> str:
         "impregnacao incipiente do metal ativo em suporte de alta area": "incipient-wetness impregnation of the active metal on a high-surface-area support",
         "suporte de alta area favorece dispersao da fase ativa em metanacao": "a high-surface-area support favors active-phase dispersion in methanation",
         "confirmar carga metalica e pH de impregnacao conforme solubilidade dos precursores": "confirm metal loading and impregnation pH according to precursor solubility",
+        "Interações metal–suporte–promotor": "Metal–support–promoter interactions",
+        "Componente eletrônico": "Electronic component", "Índice redox": "Redox index",
+        "Componente estrutural": "Structural component", "interação eletrônica e estrutural": "electronic and structural interaction",
+        "Interação metal–suporte": "Metal–support interaction", "Racional do suporte": "Support rationale",
+        "Índice heurístico": "Heuristic index", "Modelo estrutural esquemático": "Schematic structural model",
+        "Fase ativa": "Active phase", "Fórmulas e propriedades calculadas": "Calculated formulas and properties",
+        "Distância do ótimo": "Distance from optimum", "Barreira aparente": "Apparent barrier",
+        "Estabilidade, robustez e resistência à formação de coque": "Stability, robustness, and resistance to coke formation",
+        "Descritores químicos e relação estrutura–desempenho": "Chemical descriptors and structure–performance relationship",
+        "Energia de adsorção": "Adsorption energy", "Afinidade por oxigênio": "Oxygen affinity",
+        "Redutibilidade": "Reducibility", "Basicidade": "Basicity", "Resistência ao coque": "Coke resistance",
+        "Robustez operacional": "Operational robustness", "Proxy de resistência à sinterização": "Sintering-resistance proxy",
+        "Maior é melhor": "Higher is better", "Maior depende da reação": "Higher depends on the reaction",
+        "Próxima do ótimo é melhor": "Closer to the optimum is better", "Maior indica ancoragem favorável": "Higher indicates favorable anchoring",
+        "Sugestão da triagem": "Screening suggestion", "Sem promotor": "No promoter",
+        "Dispersão da fase ativa": "Active-phase dispersion", "Estabilidade térmica": "Thermal stability",
+        "Capacidade redox": "Redox capacity", "Basicidade superficial": "Surface basicity",
+        "Vacâncias de oxigênio": "Oxygen vacancies", "Afinidade por CO₂": "CO₂ affinity",
+        "Excelente": "Excellent", "Boa": "Good", "Moderada": "Moderate", "Baixa": "Low",
+        "O suporte sugerido pela triagem aparece primeiro. O índice heurístico compara dispersão, estabilidade térmica, redox, basicidade, afinidade por CO₂ e risco de SMSI; ele não refaz o ranking global nem substitui DFT explícita da interface.": "The support suggested by the screening appears first. The heuristic index compares dispersion, thermal stability, redox behavior, basicity, CO₂ affinity, and SMSI risk; it neither recomputes the global ranking nor replaces explicit interface DFT.",
+        "A resistência à sinterização é um proxy estrutural/composicional; não representa um modelo temporal de crescimento de partículas.": "Sintering resistance is a structural/compositional proxy; it is not a time-dependent particle-growth model.",
+        "Representação visual das fases; não corresponde a uma geometria atômica relaxada por DFT.": "Visual representation of the phases; it is not a DFT-relaxed atomic geometry.",
+        "Descritores normalizados são proxies de triagem e devem ser confirmados por DFT de superfície e validação experimental.": "Normalized descriptors are screening proxies and must be confirmed by surface DFT and experimental validation.",
+        "E<sub>ads</sub>, distância e barreira usam o descritor da reação; E<sub>GNN</sub> é uma predição de bulk e não uma energia explícita de superfície.": "E<sub>ads</sub>, distance, and barrier use the reaction descriptor; E<sub>GNN</sub> is a bulk prediction, not an explicit surface energy.",
+        "Representação esquemática do catalisador": "Schematic catalyst representation",
+        "DFT/proxy ajustado por Boltzmann": "Boltzmann-adjusted DFT/proxy",
+        "Proxy redox normalizado": "Normalized redox proxy",
+        "DFT ou proxy DFT normalizado": "Normalized DFT or DFT proxy",
+        "Proxy de afinidade ácido–base": "Acid–base affinity proxy",
+        "Índice composicional/cinético": "Compositional/kinetic index",
+        "DFT/proxy com peso de Boltzmann": "Boltzmann-weighted DFT/proxy",
+        "Estabilidade termodinâmica": "Thermodynamic stability", "Score final": "Final score",
+        "Catalisador": "Catalyst", "Promotor": "Promoter", "Suporte": "Support",
+        "eV/átomo": "eV/atom",
     }
     for origem, destino in sorted(traducoes.items(), key=lambda item: len(item[0]), reverse=True):
         texto = texto.replace(origem, destino)
@@ -2649,6 +2703,250 @@ def mostrar_indicadores_quimicos(prioritarios_df: pd.DataFrame) -> None:
     ])
 
 
+def mostrar_painel_quimica(
+    prioritarios_df: pd.DataFrame,
+    classificacao_df: pd.DataFrame,
+    ranking_df: pd.DataFrame,
+    metais_selecionados: list[str],
+    promotor_selecionado: str,
+    reacao: str,
+) -> None:
+    """Apresenta relações químicas, descritores e evidências do candidato prioritário."""
+    if prioritarios_df.empty:
+        st.info("Execute uma triagem para gerar o painel químico.")
+        return
+
+    st.markdown(
+        """
+        <style>
+        .chem-top-grid{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);gap:14px;align-items:start}.chem-column{display:grid;gap:14px}.chem-panel{border:1px solid #D7E3DD;border-radius:8px;background:#FFF;color:#14213D;box-shadow:0 3px 11px rgba(20,33,61,.04);overflow:hidden}.chem-panel h3{margin:0!important;padding:11px 14px!important;border-bottom:1px solid #E5EDE8;color:#153A70!important;font-size:.96rem!important;line-height:1.25!important;font-weight:850!important}.chem-interaction-stage{position:relative;display:grid;grid-template-columns:minmax(66px,1fr) 50px 78px 50px minmax(66px,1fr);grid-template-rows:82px 28px 86px;align-items:center;min-height:240px;padding:8px 10px 14px;background:linear-gradient(180deg,#FFF,#F9FCFA)}.chem-sphere{z-index:2;display:grid;place-items:center;border-radius:50%;color:#FFF;font-weight:900;box-shadow:inset -10px -12px 18px rgba(0,0,0,.18),0 7px 14px rgba(20,33,61,.16)}.chem-sphere.promoter{grid-column:2;width:48px;height:48px;background:#45A85A}.chem-sphere.metal{grid-column:3;width:76px;height:76px;background:#174A93;font-size:1.05rem}.chem-sphere.support{grid-column:4;width:48px;height:48px;background:#19A2B8}.chem-effect{font-size:.59rem;line-height:1.34;overflow-wrap:anywhere}.chem-effect b,.chem-effect span{display:block}.chem-effect span{margin-top:4px;color:#087A3B}.chem-effect.electronic{grid-column:1;text-align:right}.chem-effect.structural{grid-column:5}.chem-arrows{grid-column:2/5;grid-row:2;color:#2385C7;font-size:.64rem;font-weight:750;text-align:center}.chem-support-lattice{grid-column:1/6;grid-row:3;display:grid;grid-template-columns:repeat(9,18px);justify-content:center;gap:2px}.chem-support-lattice i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F7F8F9,#8B959D 65%,#59636B);box-shadow:0 2px 4px rgba(20,33,61,.18)}.chem-support-lattice i:nth-child(3n){background:radial-gradient(circle at 35% 30%,#FF7B6A,#C62828 70%)}.chem-anchor{position:absolute;right:12px;bottom:5px;left:12px;color:#B45A17;font-size:.62rem;text-align:center}.chem-anchor b,.chem-anchor span{display:block}.chem-support-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:12px}.chem-support-card{min-height:156px;padding:12px;border:1px solid #D9E4DF;border-radius:7px;background:#FCFDFD}.chem-support-card.selected{border:2px solid #1A9A50;background:#F6FCF8}.chem-support-card h4{margin:0 0 8px;color:#153A70;font-size:.92rem;text-align:center}.chem-support-card.selected h4{color:#087A3B}.chem-support-card ul{margin:0;padding-left:17px;color:#40536A;font-size:.67rem;line-height:1.45}.chem-support-card strong{display:block;margin-top:10px;padding:5px;border-radius:5px;background:#EEF7F1;color:#087A3B;font-size:.68rem;text-align:center}.chem-method-note{margin:0;padding:9px 13px;color:#64748B;font-size:.65rem;line-height:1.4}.chem-method-note.centered{text-align:center}.chem-structure-body{display:grid;grid-template-columns:138px 1fr;gap:8px;align-items:center;padding:10px 14px}.chem-phase-legend{display:grid;gap:9px;color:#263B58;font-size:.66rem}.chem-phase-legend span{display:flex;align-items:flex-start;gap:7px;line-height:1.3}.chem-phase-legend i{display:inline-block;flex:0 0 12px;width:12px;height:12px;border-radius:50%}.chem-phase-legend .active{background:#174A93}.chem-phase-legend .promoter{background:#19A2B8}.chem-phase-legend .support{background:#C6CDD2}.chem-structure-image{display:grid;min-height:205px;place-items:center}.chem-structure-image img{width:100%;height:205px;object-fit:contain;mix-blend-mode:multiply}.chem-table-wrap{overflow-x:auto}.chem-table{width:100%;min-width:650px;border-collapse:collapse;font-size:.67rem}.chem-table th,.chem-table td{padding:8px 7px;border-right:1px solid #E3EAE6;border-bottom:1px solid #E3EAE6;text-align:center}.chem-table th{background:#F4F8F6;color:#153A70;font-weight:850}.chem-table td:nth-child(2),.chem-table td:last-child{color:#087A3B;font-weight:800}.chem-gauges{margin:14px 0 24px}.chem-gauge-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding:16px}.chem-gauge-item{text-align:center}.chem-gauge-item>b{display:block;min-height:34px;color:#263B58;font-size:.7rem}.chem-gauge{display:grid;width:88px;height:88px;margin:4px auto 7px;place-items:center;border-radius:50%;background:conic-gradient(#16843C var(--gauge),#E4ECE7 0)}.chem-gauge:before{content:'';grid-area:1/1;width:64px;height:64px;border-radius:50%;background:#FFF}.chem-gauge span{z-index:1;grid-area:1/1;color:#14213D;font-size:1.25rem;font-weight:900}.chem-gauge-item small{color:#16843C;font-weight:750}.chem-section-title{margin:25px 0 12px;color:#14213D;font-size:1.55rem;text-align:center}.chem-descriptor-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-top:12px}.chem-descriptor{min-height:168px;padding:13px 11px;border:1px solid #D7E3DD;border-radius:8px;background:#FFF;text-align:center}.chem-descriptor h4{min-height:38px;margin:0;color:#087A3B;font-size:.76rem}.chem-descriptor strong{display:block;margin:10px 0;color:#146CC1;font-size:1.35rem}.chem-descriptor span{display:block;min-height:48px;color:#40536A;font-size:.66rem;line-height:1.35}.chem-descriptor b{display:block;margin-top:8px;color:#087A3B;font-size:.67rem}.chem-panel sub,.chem-support-card sub,.chem-table sub{font-size:.72em}.stPlotlyChart{border:1px solid #D7E3DD;border-radius:8px;overflow:hidden;background:#FFF}@media(max-width:1050px){.chem-top-grid{grid-template-columns:1fr}.chem-descriptor-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:760px){.chem-support-grid,.chem-gauge-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.chem-interaction-stage{grid-template-columns:1fr 58px 82px 58px 1fr}.chem-structure-body{grid-template-columns:1fr}.chem-descriptor-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.chem-support-grid,.chem-gauge-grid,.chem-descriptor-grid{grid-template-columns:1fr}.chem-interaction-stage{grid-template-columns:1fr 52px 70px 52px 1fr;padding-inline:6px}.chem-effect{font-size:.58rem}.chem-sphere.metal{width:70px;height:70px}.chem-sphere.promoter,.chem-sphere.support{width:48px;height:48px}}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown("<style>.chem-support-card em{display:block;margin:-3px 0 7px;color:#087A3B;font-size:.6rem;font-style:normal;font-weight:800;text-align:center}</style>", unsafe_allow_html=True)
+
+    def numero_quimico(row: pd.Series, opcoes: list[list[str]], padrao: float = np.nan) -> float:
+        """Converte a primeira coluna compatível em número sem inventar valores ausentes."""
+        for termos in opcoes:
+            coluna = encontrar_coluna(pd.DataFrame([row]), termos)
+            if coluna:
+                valor = pd.to_numeric(pd.Series([row.get(coluna)]), errors="coerce").iloc[0]
+                if pd.notna(valor):
+                    return float(valor)
+        return padrao
+
+    def fmt(valor: float, casas: int = 2, sufixo: str = "") -> str:
+        """Formata valores científicos no padrão decimal brasileiro."""
+        if pd.isna(valor):
+            return "-"
+        return f"{valor:.{casas}f}".replace(".", ",") + sufixo
+
+    def formula_html(formula: str) -> str:
+        """Exibe índices estequiométricos como subscritos sem alterar a fórmula original."""
+        formula_segura = html.escape(str(formula))
+        return re.sub(r"(?<=[A-Za-z])(\d+(?:\.\d+)?)", r"<sub>\1</sub>", formula_segura)
+
+    def adequacao_suporte(suporte: dict[str, object]) -> float:
+        """Calcula o índice heurístico com os mesmos eixos químicos da biblioteca do notebook."""
+        pesos = {
+            "metanacao": {"dispersao": 0.30, "redox": 0.25, "estabilidade_termica": 0.20, "afinidade_co2": 0.15, "vacancia_oxigenio": 0.10},
+            "reforma": {"basicidade": 0.30, "estabilidade_termica": 0.25, "dispersao": 0.20, "afinidade_co2": 0.15, "redox": 0.10},
+            "rwgs": {"redox": 0.30, "vacancia_oxigenio": 0.25, "afinidade_co2": 0.20, "dispersao": 0.15, "estabilidade_termica": 0.10},
+        }.get(reacao, {"dispersao": 0.30, "redox": 0.25, "estabilidade_termica": 0.20, "afinidade_co2": 0.15, "vacancia_oxigenio": 0.10})
+        indice = sum(float(suporte.get(eixo, 0.0)) * peso for eixo, peso in pesos.items())
+        penalidade_smsi = 0.08 * max(float(suporte.get("risco_smsi", 0.0)) - 0.75, 0.0) / 0.25
+        return float(np.clip(indice - penalidade_smsi, 0.0, 1.0))
+
+    top = prioritarios_df.iloc[0]
+    formula = str(valor_linha(top, ["formula"], valor_linha(top, ["f"], "-")))
+    suporte_sugerido = corrigir_texto_portugues(valor_linha(top, ["suporte", "sugerido"], "-"))
+    tipo_candidato = normalizar_texto(valor_linha(top, ["tipo", "candidato"], ""))
+    elementos_formula = list(dict.fromkeys(re.findall(r"[A-Z][a-z]?", formula)))
+    metais_ativos = list(dict.fromkeys(metais_selecionados or []))
+    promotor = promotor_selecionado.strip()
+    if not metais_ativos:
+        if "promovido" in tipo_candidato and len(elementos_formula) > 1:
+            metais_ativos = elementos_formula[:-1]
+            promotor = promotor or elementos_formula[-1]
+        else:
+            metais_ativos = [elemento for elemento in elementos_formula if elemento != promotor]
+    metal_principal = " / ".join(metais_ativos) if metais_ativos else (elementos_formula[0] if elementos_formula else "M")
+    promotor_exibicao = promotor or "Sem promotor"
+
+    score_redox = numero_quimico(top, [["score", "redox"]], 0.0)
+    score_estrutural = numero_quimico(top, [["score", "quimico", "pymatgen"], ["score", "pymatgen"]], 0.0)
+    score_interacao = numero_quimico(top, [["score", "dft", "ajustado", "boltzmann"], ["score", "dft", "proxy"]], 0.0)
+    score_estabilidade = numero_quimico(top, [["score", "estabilidade"]], 0.0)
+    score_coque = numero_quimico(top, [["score", "resistencia", "coque"]], 0.0)
+    score_robustez = numero_quimico(top, [["score", "faixa", "condicao"]], 0.0)
+    score_confianca = numero_quimico(top, [["score", "confianca"]], 0.0)
+
+    assinatura = sum((indice + 1) * ord(caractere) for indice, caractere in enumerate(formula))
+    caminho_estrutura = ESTRUTURAS_CATALITICAS[assinatura % len(ESTRUTURAS_CATALITICAS)]
+    estrutura_html = ""
+    if caminho_estrutura.exists():
+        estrutura_base64 = base64.b64encode(caminho_estrutura.read_bytes()).decode("utf-8")
+        estrutura_html = f"<img src='data:image/png;base64,{estrutura_base64}' alt='Representação esquemática do catalisador'>"
+
+    suportes_reacao = [suporte for suporte in BIBLIOTECA_SUPORTES_QUIMICA if reacao in suporte["reacoes"]]
+    suporte_normalizado = normalizar_texto(suporte_sugerido).replace(" ", "")
+    sugeridos = [suporte for suporte in suportes_reacao if normalizar_texto(str(suporte["suporte"])).replace(" ", "") in suporte_normalizado]
+    restantes = sorted([suporte for suporte in suportes_reacao if suporte not in sugeridos], key=adequacao_suporte, reverse=True)
+    suportes_exibidos = (sugeridos + restantes)[:3]
+    nomes_propriedades = {
+        "dispersao": "Dispersão da fase ativa",
+        "estabilidade_termica": "Estabilidade térmica",
+        "redox": "Capacidade redox",
+        "basicidade": "Basicidade superficial",
+        "vacancia_oxigenio": "Vacâncias de oxigênio",
+        "afinidade_co2": "Afinidade por CO₂",
+    }
+    cards_suporte = []
+    for indice, suporte in enumerate(suportes_exibidos):
+        propriedades = sorted(nomes_propriedades, key=lambda chave: float(suporte[chave]), reverse=True)[:3]
+        itens = "".join(f"<li>{html.escape(nomes_propriedades[chave])}: {fmt(float(suporte[chave]), 2)}</li>" for chave in propriedades)
+        classe = " selected" if indice == 0 else ""
+        selo_suporte = "<em>Sugestão da triagem</em>" if indice == 0 else ""
+        cards_suporte.append(
+            f"<article class='chem-support-card{classe}'><h4>{formula_html(str(suporte['suporte']))}</h4>{selo_suporte}"
+            f"<ul>{itens}</ul><strong>Índice heurístico: {fmt(adequacao_suporte(suporte), 2)}</strong></article>"
+        )
+
+    fontes = [dataframe for dataframe in [classificacao_df, ranking_df, prioritarios_df] if not dataframe.empty]
+    base_quimica = pd.concat(fontes, ignore_index=True, sort=False) if fontes else prioritarios_df.copy()
+    coluna_formula = encontrar_coluna(base_quimica, ["formula"]) or encontrar_coluna(base_quimica, ["f"])
+    if coluna_formula:
+        base_quimica = base_quimica.drop_duplicates(subset=[coluna_formula]).head(20).copy()
+
+    linhas_propriedades = []
+    for posicao, (_, row) in enumerate(base_quimica.head(5).iterrows(), 1):
+        formula_row = str(row.get(coluna_formula, "-")) if coluna_formula else "-"
+        linhas_propriedades.append(
+            "<tr>"
+            f"<td>{posicao}</td><td>{formula_html(formula_row)}</td>"
+            f"<td>{fmt(numero_quimico(row, [['energia', 'adsorcao', 'volcano']]), 3)}</td>"
+            f"<td>{fmt(numero_quimico(row, [['distancia', 'otimo', 'volcano']]), 3)}</td>"
+            f"<td>{fmt(numero_quimico(row, [['barreira', 'aparente', 'volcano']]), 3)}</td>"
+            f"<td>{fmt(numero_quimico(row, [['energia', 'gnn', 'local']]), 3)}</td>"
+            f"<td>{fmt(numero_quimico(row, [['score', 'final']]), 3)}</td></tr>"
+        )
+
+    def classe_gauge(valor: float) -> tuple[str, str]:
+        percentual = int(round(100 * float(np.clip(valor, 0.0, 1.0))))
+        classe = "Excelente" if percentual >= 80 else "Boa" if percentual >= 65 else "Moderada" if percentual >= 45 else "Baixa"
+        return str(percentual), classe
+
+    gauges = []
+    for titulo, valor in [
+        ("Estabilidade termodinâmica", score_estabilidade),
+        ("Proxy de resistência à sinterização", score_estrutural),
+        ("Robustez operacional", score_robustez),
+        ("Resistência ao coque", score_coque),
+    ]:
+        percentual, classe = classe_gauge(valor)
+        gauges.append(
+            f"<div class='chem-gauge-item'><b>{html.escape(titulo)}</b><div class='chem-gauge' style='--gauge:{percentual}%'><span>{percentual}</span></div><small>{classe}</small></div>"
+        )
+
+    html_superior = f"""
+    <section class="chem-top-grid">
+      <div class="chem-column">
+        <article class="chem-panel chem-interactions"><h3>Interações metal–suporte–promotor</h3>
+          <div class="chem-interaction-stage">
+            <div class="chem-effect electronic"><b>Componente eletrônico</b><span>Índice redox: {fmt(score_redox, 2)}</span></div>
+            <div class="chem-sphere promoter">{html.escape(promotor_exibicao)}</div>
+            <div class="chem-sphere metal">{html.escape(metal_principal)}</div>
+            <div class="chem-sphere support">S</div>
+            <div class="chem-effect structural"><b>Componente estrutural</b><span>Proxy pymatgen: {fmt(score_estrutural, 2)}</span></div>
+            <div class="chem-arrows">⇢ &nbsp; interação eletrônica e estrutural &nbsp; ⇠</div>
+            <div class="chem-support-lattice">{''.join('<i></i>' for _ in range(18))}</div>
+            <div class="chem-anchor"><b>Interação metal–suporte</b><span>DFT/proxy ajustado por Boltzmann: {fmt(score_interacao, 2)}</span></div>
+          </div>
+        </article>
+        <article class="chem-panel"><h3>Racional do suporte</h3><div class="chem-support-grid">{''.join(cards_suporte)}</div>
+          <p class="chem-method-note">O suporte sugerido pela triagem aparece primeiro. O índice heurístico compara dispersão, estabilidade térmica, redox, basicidade, afinidade por CO₂ e risco de SMSI; ele não refaz o ranking global nem substitui DFT explícita da interface.</p>
+        </article>
+      </div>
+      <div class="chem-column">
+        <article class="chem-panel chem-structure"><h3>Modelo estrutural esquemático ({formula_html(formula)} / {formula_html(suporte_sugerido)})</h3>
+          <div class="chem-structure-body"><div class="chem-phase-legend"><span><i class="active"></i>Fase ativa: {html.escape(metal_principal)}</span><span><i class="promoter"></i>Promotor: {html.escape(promotor_exibicao)}</span><span><i class="support"></i>Suporte: {html.escape(suporte_sugerido)}</span></div><div class="chem-structure-image">{estrutura_html}</div></div>
+          <p class="chem-method-note">Representação visual das fases; não corresponde a uma geometria atômica relaxada por DFT.</p>
+        </article>
+        <article class="chem-panel"><h3>Fórmulas e propriedades calculadas</h3><div class="chem-table-wrap"><table class="chem-table"><thead><tr><th>#</th><th>Catalisador</th><th>E<sub>ads</sub> (eV)</th><th>Distância do ótimo (eV)</th><th>Barreira aparente (eV)</th><th>E<sub>GNN</sub> (eV/átomo)</th><th>Score final</th></tr></thead><tbody>{''.join(linhas_propriedades)}</tbody></table></div>
+          <p class="chem-method-note">E<sub>ads</sub>, distância e barreira usam o descritor da reação; E<sub>GNN</sub> é uma predição de bulk e não uma energia explícita de superfície.</p>
+        </article>
+      </div>
+    </section>
+    <article class="chem-panel chem-gauges"><h3>Estabilidade, robustez e resistência à formação de coque</h3><div class="chem-gauge-grid">{''.join(gauges)}</div><p class="chem-method-note centered">A resistência à sinterização é um proxy estrutural/composicional; não representa um modelo temporal de crescimento de partículas.</p></article>
+    """
+    st.markdown(traduzir_texto_exibicao(html_superior), unsafe_allow_html=True)
+
+    st.markdown(traduzir_texto_exibicao("<h2 class='chem-section-title'>Descritores químicos e relação estrutura–desempenho</h2>"), unsafe_allow_html=True)
+    cfg_volcano = CONFIGURACAO_VOLCANO.get(reacao, CONFIGURACAO_VOLCANO["metanacao"])
+    modo_ingles = idioma_atual() == "en"
+    energia_col = encontrar_coluna_por_opcoes(base_quimica, [["energia", "adsorcao", "volcano"]])
+    score_volcano_col = encontrar_coluna_por_opcoes(base_quimica, [["score", "volcano"], ["taxa", "relativa", "volcano"]])
+    score_final_col = encontrar_coluna_por_opcoes(base_quimica, [["score", "final"]])
+    estabilidade_col = encontrar_coluna_por_opcoes(base_quimica, [["estabilidade", "termodinamica"]])
+    coluna_suporte = encontrar_coluna_por_opcoes(base_quimica, [["suporte", "sugerido"], ["suporte"]])
+
+    coluna_grafico_1, coluna_grafico_2 = st.columns(2)
+    with coluna_grafico_1:
+        if energia_col and score_volcano_col and coluna_formula:
+            dados_volcano = base_quimica[[coluna_formula, energia_col, score_volcano_col] + ([coluna_suporte] if coluna_suporte else [])].copy()
+            dados_volcano[energia_col] = pd.to_numeric(dados_volcano[energia_col], errors="coerce")
+            dados_volcano[score_volcano_col] = pd.to_numeric(dados_volcano[score_volcano_col], errors="coerce")
+            dados_volcano = dados_volcano.dropna(subset=[energia_col, score_volcano_col])
+            x_curva = np.linspace(cfg_volcano["energia_otima"] - 2.2 * cfg_volcano["largura"], cfg_volcano["energia_otima"] + 2.2 * cfg_volcano["largura"], 180)
+            y_curva = np.exp(-np.abs(x_curva - cfg_volcano["energia_otima"]) / cfg_volcano["largura"])
+            figura_volcano = go.Figure()
+            figura_volcano.add_vrect(x0=cfg_volcano["energia_otima"] - cfg_volcano["largura"], x1=cfg_volcano["energia_otima"] + cfg_volcano["largura"], fillcolor="#DFF3E4", opacity=0.45, line_width=0)
+            figura_volcano.add_trace(go.Scatter(x=x_curva, y=y_curva, mode="lines", name="Sabatier trend" if modo_ingles else "Tendência de Sabatier", line={"color": "#355070", "dash": "dash", "width": 2}))
+            figura_volcano.add_trace(go.Scatter(x=dados_volcano[energia_col], y=dados_volcano[score_volcano_col], mode="markers", name="Candidates" if modo_ingles else "Candidatos", text=dados_volcano[coluna_formula], customdata=dados_volcano[[coluna_suporte]].to_numpy() if coluna_suporte else None, marker={"size": 10, "color": "#0B7A3B", "line": {"width": 1, "color": "#FFFFFF"}}, hovertemplate="<b>%{text}</b><br>Eads: %{x:.3f} eV<br>" + ("Relative activity" if modo_ingles else "Atividade relativa") + ": %{y:.3f}" + (("<br>Support" if modo_ingles else "<br>Suporte") + ": %{customdata[0]}" if coluna_suporte else "") + "<extra></extra>"))
+            figura_volcano.add_vline(x=cfg_volcano["energia_otima"], line_dash="dot", line_color="#16843C", annotation_text="Sabatier optimum" if modo_ingles else "Ótimo de Sabatier")
+            titulo_volcano = f"Relative activity (proxy) vs {cfg_volcano['descritor']} adsorption energy" if modo_ingles else f"Atividade relativa (proxy) vs energia de adsorção de {cfg_volcano['descritor']}"
+            figura_volcano.update_layout(title={"text": titulo_volcano, "x": 0.5}, xaxis_title="Adsorption energy (eV)" if modo_ingles else "Energia de adsorção (eV)", yaxis_title="Relative activity (0–1)" if modo_ingles else "Atividade relativa (0–1)", height=470, margin={"l": 72, "r": 22, "t": 76, "b": 62}, paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", font={"color": "#14213D"}, legend={"orientation": "h", "y": 1.12})
+            figura_volcano.update_xaxes(gridcolor="#E6EEE9", automargin=True)
+            figura_volcano.update_yaxes(gridcolor="#E6EEE9", range=[0, 1.08], automargin=True)
+            st.plotly_chart(figura_volcano, width="stretch", key="quimica_volcano", theme=None)
+        else:
+            st.info("Dados de adsorção insuficientes para o gráfico de Sabatier.")
+
+    with coluna_grafico_2:
+        if score_final_col and estabilidade_col and coluna_formula:
+            dados_estabilidade = base_quimica[[coluna_formula, score_final_col, estabilidade_col] + ([coluna_suporte] if coluna_suporte else [])].copy()
+            dados_estabilidade[score_final_col] = pd.to_numeric(dados_estabilidade[score_final_col], errors="coerce")
+            dados_estabilidade[estabilidade_col] = pd.to_numeric(dados_estabilidade[estabilidade_col], errors="coerce")
+            dados_estabilidade = dados_estabilidade.dropna(subset=[score_final_col, estabilidade_col])
+            figura_estabilidade = px.scatter(dados_estabilidade, x=score_final_col, y=estabilidade_col, color=score_final_col, color_continuous_scale="Tealgrn", custom_data=[coluna_formula] + ([coluna_suporte] if coluna_suporte else []))
+            figura_estabilidade.update_traces(marker={"size": 10, "line": {"width": 0.8, "color": "#FFFFFF"}}, hovertemplate="<b>%{customdata[0]}</b><br>" + ("Final score" if modo_ingles else "Score final") + ": %{x:.3f}<br>" + ("Stability" if modo_ingles else "Estabilidade") + ": %{y:.3f} eV/atom" + (("<br>Support" if modo_ingles else "<br>Suporte") + ": %{customdata[1]}" if coluna_suporte else "") + "<extra></extra>")
+            if not dados_estabilidade.empty:
+                primeiro = dados_estabilidade.iloc[0]
+                figura_estabilidade.add_annotation(x=primeiro[score_final_col], y=primeiro[estabilidade_col], text=str(primeiro[coluna_formula]), showarrow=True, arrowcolor="#153A70", ax=32, ay=-32, font={"color": "#153A70", "size": 11})
+            figura_estabilidade.update_layout(title={"text": "Thermodynamic stability vs final score" if modo_ingles else "Estabilidade termodinâmica vs score final", "x": 0.5}, xaxis_title="Final score (0–1)" if modo_ingles else "Score final (0–1)", yaxis_title="Thermodynamic stability (eV/atom; lower is better)" if modo_ingles else "Estabilidade termodinâmica (eV/átomo; menor é melhor)", height=470, margin={"l": 86, "r": 28, "t": 76, "b": 62}, paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF", font={"color": "#14213D"}, coloraxis_colorbar={"title": "Score"})
+            figura_estabilidade.update_xaxes(gridcolor="#E6EEE9", automargin=True)
+            figura_estabilidade.update_yaxes(gridcolor="#E6EEE9", automargin=True)
+            st.plotly_chart(figura_estabilidade, width="stretch", key="quimica_estabilidade", theme=None)
+        else:
+            st.info("Dados insuficientes para relacionar estabilidade e score final.")
+
+    energia_adsorcao = numero_quimico(top, [["energia", "adsorcao", "volcano"]])
+    distancia_otimo = numero_quimico(top, [["distancia", "otimo", "volcano"]])
+    score_dft = numero_quimico(top, [["score", "dft", "proxy"]])
+    descritores = [
+        ("Energia de adsorção", fmt(energia_adsorcao, 3, " eV"), f"Distância do ótimo: {fmt(distancia_otimo, 3, ' eV')}", "Próxima do ótimo é melhor"),
+        ("Afinidade por oxigênio", fmt(score_redox, 2), "Proxy redox normalizado (0–1)", "Maior é melhor"),
+        ("Redutibilidade", fmt(score_dft, 2), "DFT ou proxy DFT normalizado (0–1)", "Maior é melhor"),
+        ("Basicidade", fmt(numero_quimico(top, [["score", "basicidade"]]), 2), "Proxy de afinidade ácido–base (0–1)", "Maior depende da reação"),
+        ("Resistência ao coque", fmt(score_coque, 2), "Índice composicional/cinético (0–1)", "Maior é melhor"),
+        ("Interação metal–suporte", fmt(score_interacao, 2), "DFT/proxy com peso de Boltzmann (0–1)", "Maior indica ancoragem favorável"),
+    ]
+    cards_descritores = "".join(f"<article class='chem-descriptor'><h4>{html.escape(titulo)}</h4><strong>{html.escape(valor)}</strong><span>{html.escape(fonte)}</span><b>{html.escape(sentido)}</b></article>" for titulo, valor, fonte, sentido in descritores)
+    st.markdown(traduzir_texto_exibicao(f"<div class='chem-descriptor-grid'>{cards_descritores}</div><p class='chem-method-note centered'>Descritores normalizados são proxies de triagem e devem ser confirmados por DFT de superfície e validação experimental.</p>"), unsafe_allow_html=True)
+
+
 def renderizar_navegacao() -> str:
     """Exibe a navegacao principal e o seletor de idioma."""
     if "pagina_atual" not in st.session_state:
@@ -2938,16 +3236,14 @@ with aba_robustez:
     mostrar_simulador_operacional(prioritarios_df, classificacao_df)
 
 with aba_quimica:
-    mostrar_indicadores_quimicos(prioritarios_df)
-    col1, col2 = st.columns([1.1, 1.0])
-    with col1:
-        mostrar_tabela("Descritores essenciais dos recomendados", selecionar_colunas_tecnicas(prioritarios_df), linhas=10)
-    with col2:
-        metricas_quimicas_df = filtrar_metricas_por_termos(
-            metricas_df,
-            ["dft", "volcano", "descritores", "quimica", "quimiometria", "adsorcao"],
-        )
-        mostrar_tabela("Métricas químicas e DFT", metricas_quimicas_df, linhas=30)
+    mostrar_painel_quimica(
+        prioritarios_df,
+        classificacao_df,
+        ranking_df,
+        metais,
+        promotor,
+        reacao_resultado,
+    )
 
 with aba_validacao:
     col1, col2 = st.columns([1.0, 1.0])
