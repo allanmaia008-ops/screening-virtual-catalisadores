@@ -204,6 +204,7 @@ def traduzir_texto_exibicao(texto: str) -> str:
         "O suporte sugerido pela triagem aparece primeiro. O índice heurístico compara dispersão, estabilidade térmica, redox, basicidade, afinidade por CO₂ e risco de SMSI; ele não refaz o ranking global nem substitui DFT explícita da interface.": "The support suggested by the screening appears first. The heuristic index compares dispersion, thermal stability, redox behavior, basicity, CO₂ affinity, and SMSI risk; it neither recomputes the global ranking nor replaces explicit interface DFT.",
         "A resistência à sinterização é um proxy estrutural/composicional; não representa um modelo temporal de crescimento de partículas.": "Sintering resistance is a structural/compositional proxy; it is not a time-dependent particle-growth model.",
         "Representação visual das fases; não corresponde a uma geometria atômica relaxada por DFT.": "Visual representation of the phases; it is not a DFT-relaxed atomic geometry.",
+        "As cores representam as espécies indicadas na legenda e são atualizadas a cada triagem. O desenho é esquemático e não corresponde a uma geometria atômica relaxada por DFT.": "Colors represent the species indicated in the legend and are updated for each screening. The drawing is schematic and does not correspond to a DFT-relaxed atomic geometry.",
         "Descritores normalizados são proxies de triagem e devem ser confirmados por DFT de superfície e validação experimental.": "Normalized descriptors are screening proxies and must be confirmed by surface DFT and experimental validation.",
         "E<sub>ads</sub>, distância e barreira usam o descritor da reação; E<sub>GNN</sub> é uma predição de bulk e não uma energia explícita de superfície.": "E<sub>ads</sub>, distance, and barrier use the reaction descriptor; E<sub>GNN</sub> is a bulk prediction, not an explicit surface energy.",
         "Representação esquemática do catalisador": "Schematic catalyst representation",
@@ -220,6 +221,8 @@ def traduzir_texto_exibicao(texto: str) -> str:
         "Ligação eletrônica": "Electronic bonding", "Doação de elétrons": "Electron donation",
         "Retirada de elétrons": "Electron withdrawal", "Efeito estrutural": "Structural effect",
         "Dispersão": "Dispersion", "Transferência de carga": "Charge transfer",
+        "Oxigênio da superfície": "Surface oxygen", "Matriz do suporte": "Support matrix",
+        "Segundo metal ativo": "Second active metal",
         "Estimativas proxy derivadas dos descritores da triagem; confirmar por DFT de interface.": "Proxy estimates derived from the screening descriptors; confirm by interface DFT.",
         "Valores calculados de interface disponíveis na base local.": "Calculated interface values available in the local database.",
     }
@@ -2746,6 +2749,8 @@ def mostrar_painel_quimica(
         .chem-support-lattice{position:absolute;right:18px;bottom:49px;left:18px;display:grid;grid-template-columns:repeat(13,18px);justify-content:center;gap:1px 3px}.chem-support-lattice i{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#F7F8F9,#8B959D 65%,#59636B);box-shadow:0 2px 4px rgba(20,33,61,.18)}.chem-support-lattice i:nth-child(3n){background:radial-gradient(circle at 35% 30%,#FF7B6A,#C62828 70%)}
         .chem-charge-transfer{position:absolute;right:10px;bottom:8px;left:10px;color:#D65B13;font-size:.63rem;font-weight:800;line-height:1.35;text-align:center}.chem-charge-transfer span{display:block}
         .chem-proxy-note{margin:0;padding:7px 12px 9px;border-top:1px solid #EDF2EF;color:#6A7688;font-size:.59rem;line-height:1.35;text-align:center}
+        .chem-interaction-diagram{padding:2px 4px 0;background:linear-gradient(180deg,#FFF,#FBFDFC)}.chem-interaction-diagram svg{display:block;width:100%;height:auto;max-height:300px}.chem-interaction-diagram .interacao-titulo{fill:#153A70;font:700 12px Arial,sans-serif}.chem-interaction-diagram .interacao-valor{fill:#153A70;font:800 12px Arial,sans-serif}.chem-interaction-diagram .interacao-verde{fill:#07823F;font:700 12px Arial,sans-serif}.chem-interaction-diagram .interacao-azul{fill:#1667B8;font:700 12px Arial,sans-serif}.chem-interaction-diagram .interacao-laranja{fill:#D65B13;font:700 11px Arial,sans-serif}.chem-interaction-diagram .interacao-atomo{fill:#FFF;font:800 17px Arial,sans-serif}.chem-interaction-diagram .interacao-metal-atomo{fill:#FFF;font:800 29px Arial,sans-serif}.chem-interaction-diagram .interacao-seta-verde{fill:none;stroke:#3AAB59;stroke-width:1.6;stroke-dasharray:5 4}.chem-interaction-diagram .interacao-seta-azul{fill:none;stroke:#278CD1;stroke-width:1.6;stroke-dasharray:5 4}.chem-interaction-diagram .interacao-ancoragem{fill:none;stroke:#F07822;stroke-width:1.55;stroke-dasharray:4 4}.chem-interaction-diagram .interacao-ligacao-suporte{fill:none;stroke:#8E9AA4;stroke-width:2.2;stroke-linecap:round;opacity:.72}
+        .chem-structure-body{grid-template-columns:154px 1fr;gap:10px}.chem-phase-legend i{background:var(--phase-color);box-shadow:inset -2px -2px 3px rgba(0,0,0,.18)}.chem-generated-structure,.chem-generated-structure svg{display:block;width:100%;height:205px}.chem-generated-structure svg{overflow:visible}.chem-generated-structure .ligacao-suporte{stroke:#8E9AA4;stroke-width:2.4;stroke-linecap:round;opacity:.75}
         @media(max-width:620px){.chem-interaction-stage{min-height:335px}.chem-effect{width:78px;font-size:.54rem}.chem-effect.electronic{left:4px}.chem-effect.structural{right:2px}.chem-sphere.promoter{left:25%}.chem-sphere.support{right:25%}.chem-support-lattice{grid-template-columns:repeat(9,18px)}}
         </style>
         """,
@@ -2832,12 +2837,122 @@ def mostrar_painel_quimica(
     atomo_promotor = promotor if promotor else (metais_ativos[1] if len(metais_ativos) > 1 else "—")
     efeito_eletronico = "Doação de elétrons" if delta_q >= 0 else "Retirada de elétrons"
 
-    assinatura = sum((indice + 1) * ord(caractere) for indice, caractere in enumerate(formula))
-    caminho_estrutura = ESTRUTURAS_CATALITICAS[assinatura % len(ESTRUTURAS_CATALITICAS)]
-    estrutura_html = ""
-    if caminho_estrutura.exists():
-        estrutura_base64 = base64.b64encode(caminho_estrutura.read_bytes()).decode("utf-8")
-        estrutura_html = f"<img src='data:image/png;base64,{estrutura_base64}' alt='Representação esquemática do catalisador'>"
+    # Desenha a interação M–S no mesmo arranjo visual da referência e atualiza átomos e deltas por candidato.
+    nodos_suporte = []
+    ligacoes_suporte_interacao = []
+    for linha in range(3):
+        for coluna in range(15):
+            x = 38 + coluna * 34 + (linha % 2) * 17
+            y = 205 + linha * 19
+            if coluna < 14:
+                ligacoes_suporte_interacao.append(f"<path d='M{x} {y} L{x + 34} {y}' class='interacao-ligacao-suporte'/>")
+            if linha < 2:
+                ligacoes_suporte_interacao.append(f"<path d='M{x} {y} L{x + 17} {y + 19}' class='interacao-ligacao-suporte'/>")
+            nodos_suporte.append(f"<circle cx='{x}' cy='{y}' r='8.5' fill='url(#interacao-suporte)'/>")
+    oxigenios_interacao = "".join(
+        f"<circle cx='{x}' cy='195' r='6' fill='url(#interacao-oxigenio)'/>" for x in [75, 126, 177, 228, 279, 330, 381, 432, 483]
+    )
+    linhas_ancoragem = "".join(
+        f"<path d='M280 159 L{x} 195' class='interacao-ancoragem'/>" for x in [177, 228, 279, 330, 381]
+    )
+    svg_interacao = f"""
+    <svg viewBox='0 0 560 285' role='img' aria-label='Diagrama de interações metal suporte promotor'>
+      <defs>
+        <radialGradient id='interacao-metal' cx='30%' cy='24%'><stop offset='0%' stop-color='#DCEBFF'/><stop offset='40%' stop-color='#174A93'/><stop offset='100%' stop-color='#082A66'/></radialGradient>
+        <radialGradient id='interacao-promotor' cx='30%' cy='24%'><stop offset='0%' stop-color='#CEFFD8'/><stop offset='42%' stop-color='#43A955'/><stop offset='100%' stop-color='#176F2C'/></radialGradient>
+        <radialGradient id='interacao-lateral' cx='30%' cy='24%'><stop offset='0%' stop-color='#D5F7FF'/><stop offset='42%' stop-color='#1CA5C5'/><stop offset='100%' stop-color='#08748E'/></radialGradient>
+        <radialGradient id='interacao-suporte' cx='30%' cy='24%'><stop offset='0%' stop-color='#FFFFFF'/><stop offset='45%' stop-color='#B7C0C6'/><stop offset='100%' stop-color='#6C7881'/></radialGradient>
+        <radialGradient id='interacao-oxigenio' cx='30%' cy='24%'><stop offset='0%' stop-color='#FFD8D8'/><stop offset='42%' stop-color='#D93C3C'/><stop offset='100%' stop-color='#84212A'/></radialGradient>
+        <marker id='seta-verde' markerWidth='8' markerHeight='8' refX='7' refY='4' orient='auto'><path d='M0,0 L8,4 L0,8 Z' fill='#3AAB59'/></marker>
+        <marker id='seta-azul' markerWidth='8' markerHeight='8' refX='7' refY='4' orient='auto'><path d='M0,0 L8,4 L0,8 Z' fill='#278CD1'/></marker>
+      </defs>
+      <text x='280' y='25' class='interacao-titulo' text-anchor='middle'>Fortalecimento da ligação M–S</text>
+      <text x='280' y='43' class='interacao-valor' text-anchor='middle'>ΔE = {fmt_delta(delta_e_ms, 'eV')}</text>
+      <text x='12' y='90' class='interacao-verde'>Ligação eletrônica</text>
+      <text x='12' y='108' class='interacao-verde'>{efeito_eletronico}</text>
+      <text x='12' y='133' class='interacao-verde interacao-valor'>Δq = {fmt_delta(delta_q, 'e')}</text>
+      <text x='548' y='90' class='interacao-azul' text-anchor='end'>Efeito estrutural</text>
+      <text x='548' y='108' class='interacao-azul' text-anchor='end'>Dispersão</text>
+      <text x='548' y='133' class='interacao-azul interacao-valor' text-anchor='end'>Δd = {fmt_delta(delta_d, 'Å')}</text>
+      <path d='M183 104 C210 105 220 115 237 123' class='interacao-seta-verde' marker-end='url(#seta-verde)'/>
+      <path d='M183 111 C215 126 222 143 244 148' class='interacao-seta-verde' marker-end='url(#seta-verde)'/>
+      <path d='M377 104 C350 105 340 115 323 123' class='interacao-seta-azul' marker-end='url(#seta-azul)'/>
+      <path d='M377 111 C345 126 338 143 316 148' class='interacao-seta-azul' marker-end='url(#seta-azul)'/>
+      <circle cx='164' cy='103' r='20' fill='url(#interacao-promotor)'/><text x='164' y='109' class='interacao-atomo' text-anchor='middle'>{html.escape(atomo_promotor)}</text>
+      <circle cx='280' cy='120' r='45' fill='url(#interacao-metal)'/><text x='280' y='128' class='interacao-metal-atomo' text-anchor='middle'>{html.escape(metal_central)}</text>
+      <circle cx='397' cy='103' r='20' fill='url(#interacao-lateral)'/><text x='397' y='109' class='interacao-atomo' text-anchor='middle'>{html.escape(atomo_lateral)}</text>
+      {linhas_ancoragem}
+      {''.join(ligacoes_suporte_interacao)}
+      {''.join(nodos_suporte)}
+      {oxigenios_interacao}
+      <text x='280' y='269' class='interacao-laranja' text-anchor='middle'>Transferência de carga</text>
+      <text x='280' y='282' class='interacao-laranja interacao-valor' text-anchor='middle'>Δρ = {fmt_delta(delta_rho, '|e|')}</text>
+    </svg>
+    """
+
+    # Define cores químicas consistentes para que o desenho e a legenda descrevam as mesmas espécies.
+    cores_elementos = {
+        "Ni": "#2C62C7", "Co": "#14866F", "Fe": "#C94848", "Cu": "#C8752D", "Ru": "#7650B8",
+        "Rh": "#9B4FAD", "Pt": "#5A6C81", "Pd": "#7C8DA4", "Mo": "#2D8794", "W": "#55728D",
+        "Ce": "#D28D17", "La": "#8253C2", "Y": "#C52D9C", "Zr": "#3F8FB0", "Mg": "#41A866",
+        "K": "#B45B34", "Na": "#E38B24", "Ca": "#4B9C92", "Pr": "#A14B9B", "Nd": "#755AC4",
+    }
+    cor_metal = cores_elementos.get(metal_central, "#2C62C7")
+    cor_secundaria = cores_elementos.get(atomo_promotor, "#A64CA6")
+    cor_suporte = "#D5DCE1"
+    cor_oxigenio = "#D94343"
+
+    # Monta um modelo 2,5D de partículas sobre o suporte com a composição da triagem atual.
+    def esfera_svg(cx: float, cy: float, raio: float, gradiente: str) -> str:
+        """Cria uma esfera sombreada para a representação estrutural ilustrativa."""
+        return f"<circle cx='{cx}' cy='{cy}' r='{raio}' fill='url(#{gradiente})' filter='url(#sombra)'/>"
+
+    ligacoes_suporte = []
+    esferas_suporte = []
+    for linha in range(4):
+        for coluna in range(12):
+            x = 34 + coluna * 32 + (linha % 2) * 16
+            y = 151 + linha * 17
+            if coluna < 11:
+                ligacoes_suporte.append(f"<path d='M{x} {y} L{x + 32} {y}' class='ligacao-suporte'/>")
+            if linha < 3:
+                ligacoes_suporte.append(f"<path d='M{x} {y} L{x + 16} {y + 17}' class='ligacao-suporte'/>")
+            esferas_suporte.append(esfera_svg(x, y, 10.2, "suporte"))
+
+    coordenadas_oxigenio = [(69, 142), (119, 142), (169, 142), (219, 142), (269, 142), (319, 142), (369, 142)]
+    oxigenios_svg = "".join(esfera_svg(x, y, 5.9, "oxigenio") for x, y in coordenadas_oxigenio)
+    coordenadas_ativas = [(147, 119, 17), (178, 94, 18), (209, 116, 18), (239, 88, 19), (270, 114, 17)]
+    ativa_svg = []
+    for indice, (x, y, raio) in enumerate(coordenadas_ativas):
+        gradiente = "metal" if not promotor or indice % 3 else "secundario"
+        ativa_svg.append(esfera_svg(x, y, raio, gradiente))
+
+    # Associa cada cor efetivamente desenhada a uma espécie exibida na legenda.
+    rotulo_secundario = f"Promotor: {atomo_promotor}" if promotor else (f"Segundo metal ativo: {atomo_lateral}" if len(metais_ativos) > 1 else "")
+    itens_legenda = [(cor_metal, f"Fase ativa: {metal_central}")]
+    if rotulo_secundario:
+        itens_legenda.append((cor_secundaria, rotulo_secundario))
+    itens_legenda.extend([(cor_oxigenio, "Oxigênio da superfície"), (cor_suporte, f"Matriz do suporte: {suporte_sugerido}")])
+    legenda_estrutura_html = "".join(
+        f"<span><i style='--phase-color:{cor}'></i>{html.escape(rotulo)}</span>" for cor, rotulo in itens_legenda
+    )
+    svg_estrutura = f"""
+    <svg viewBox='0 0 420 225' role='img' aria-label='Modelo estrutural esquemático de {html.escape(formula)}'>
+      <defs>
+        <radialGradient id='metal' cx='30%' cy='24%'><stop offset='0%' stop-color='#FFFFFF' stop-opacity='.88'/><stop offset='32%' stop-color='{cor_metal}'/><stop offset='100%' stop-color='{cor_metal}' stop-opacity='.60'/></radialGradient>
+        <radialGradient id='secundario' cx='30%' cy='24%'><stop offset='0%' stop-color='#FFFFFF' stop-opacity='.88'/><stop offset='32%' stop-color='{cor_secundaria}'/><stop offset='100%' stop-color='{cor_secundaria}' stop-opacity='.60'/></radialGradient>
+        <radialGradient id='suporte' cx='30%' cy='24%'><stop offset='0%' stop-color='#FFFFFF'/><stop offset='42%' stop-color='{cor_suporte}'/><stop offset='100%' stop-color='#84919B'/></radialGradient>
+        <radialGradient id='oxigenio' cx='30%' cy='24%'><stop offset='0%' stop-color='#FFD9D9'/><stop offset='42%' stop-color='{cor_oxigenio}'/><stop offset='100%' stop-color='#8B2128'/></radialGradient>
+        <filter id='sombra' x='-30%' y='-30%' width='160%' height='160%'><feDropShadow dx='1.4' dy='2.6' stdDeviation='1.6' flood-color='#172033' flood-opacity='.24'/></filter>
+      </defs>
+      <ellipse cx='210' cy='182' rx='184' ry='36' fill='#DCE5E6' opacity='.55'/>
+      {''.join(ligacoes_suporte)}
+      {''.join(esferas_suporte)}
+      {oxigenios_svg}
+      {''.join(ativa_svg)}
+    </svg>
+    """
+    estrutura_html = f"<div class='chem-generated-structure'>{svg_estrutura}</div>"
 
     suportes_reacao = [suporte for suporte in BIBLIOTECA_SUPORTES_QUIMICA if reacao in suporte["reacoes"]]
     suporte_normalizado = normalizar_texto(suporte_sugerido).replace(" ", "")
@@ -2903,18 +3018,7 @@ def mostrar_painel_quimica(
     <section class="chem-top-grid">
       <div class="chem-column">
         <article class="chem-panel chem-interactions"><h3>Interações metal–suporte–promotor</h3>
-          <div class="chem-interaction-stage">
-            <div class="chem-bond-strength">Fortalecimento da ligação M–S<span>ΔE = {fmt_delta(delta_e_ms, 'eV')}</span></div>
-            <div class="chem-effect electronic"><b>Ligação eletrônica</b><span>{efeito_eletronico}</span><span>Δq = {fmt_delta(delta_q, 'e')}</span></div>
-            <div class="chem-sphere promoter">{html.escape(atomo_promotor)}</div>
-            <div class="chem-sphere metal">{html.escape(metal_central)}</div>
-            <div class="chem-sphere support">{html.escape(atomo_lateral)}</div>
-            <div class="chem-effect structural"><b>Efeito estrutural</b><span>Dispersão</span><span>Δd = {fmt_delta(delta_d, 'Å')}</span></div>
-            <i class="chem-link e1"></i><i class="chem-link e2"></i><i class="chem-link s1"></i><i class="chem-link s2"></i>
-            <div class="chem-anchor-links">{''.join('<i></i>' for _ in range(5))}</div>
-            <div class="chem-support-lattice">{''.join('<i></i>' for _ in range(39))}</div>
-            <div class="chem-charge-transfer">Transferência de carga<span>Δρ = {fmt_delta(delta_rho, '|e|')}</span></div>
-          </div>
+          <div class="chem-interaction-diagram">{svg_interacao}</div>
           <p class="chem-proxy-note">{'Estimativas proxy derivadas dos descritores da triagem; confirmar por DFT de interface.' if usa_proxy_interacao else 'Valores calculados de interface disponíveis na base local.'}</p>
         </article>
         <article class="chem-panel"><h3>Racional do suporte</h3><div class="chem-support-grid">{''.join(cards_suporte)}</div>
@@ -2923,8 +3027,8 @@ def mostrar_painel_quimica(
       </div>
       <div class="chem-column">
         <article class="chem-panel chem-structure"><h3>Modelo estrutural esquemático ({formula_html(formula)} / {formula_html(suporte_sugerido)})</h3>
-          <div class="chem-structure-body"><div class="chem-phase-legend"><span><i class="active"></i>Fase ativa: {html.escape(metal_principal)}</span><span><i class="promoter"></i>Promotor: {html.escape(promotor_exibicao)}</span><span><i class="support"></i>Suporte: {html.escape(suporte_sugerido)}</span></div><div class="chem-structure-image">{estrutura_html}</div></div>
-          <p class="chem-method-note">Representação visual das fases; não corresponde a uma geometria atômica relaxada por DFT.</p>
+          <div class="chem-structure-body"><div class="chem-phase-legend">{legenda_estrutura_html}</div><div class="chem-structure-image">{estrutura_html}</div></div>
+          <p class="chem-method-note">As cores representam as espécies indicadas na legenda e são atualizadas a cada triagem. O desenho é esquemático e não corresponde a uma geometria atômica relaxada por DFT.</p>
         </article>
         <article class="chem-panel"><h3>Fórmulas e propriedades calculadas</h3><div class="chem-table-wrap"><table class="chem-table"><thead><tr><th>#</th><th>Catalisador</th><th>E<sub>ads</sub> (eV)</th><th>Distância do ótimo (eV)</th><th>Barreira aparente (eV)</th><th>E<sub>GNN</sub> (eV/átomo)</th><th>Score final</th></tr></thead><tbody>{''.join(linhas_propriedades)}</tbody></table></div>
           <p class="chem-method-note">E<sub>ads</sub>, distância e barreira usam o descritor da reação; E<sub>GNN</sub> é uma predição de bulk e não uma energia explícita de superfície.</p>
