@@ -3961,6 +3961,74 @@ TABELA_PERIODICA = [
 
 def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
     """Exibe uma tabela periódica clicável e retorna os metais ativos selecionados."""
+    # Estiliza os elementos como teclas físicas sem alterar a lógica de seleção química.
+    st.markdown(
+        """
+        <style>
+        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] {
+            min-width: 900px;
+            gap: 4px !important;
+            padding: 1px 2px 7px;
+        }
+        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] {
+            min-width: 44px !important;
+        }
+        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
+            position: relative;
+            min-height: 42px !important;
+            height: 42px;
+            padding: 0 !important;
+            border: 1px solid #5E96AD !important;
+            border-radius: 7px !important;
+            background: linear-gradient(145deg, #EAF8FC 0%, #9DD9E8 52%, #49A9C4 100%) !important;
+            color: #073B50 !important;
+            box-shadow: 0 5px 0 #2B7189, 0 8px 12px rgba(15, 57, 74, 0.24) !important;
+            font-size: 0.78rem !important;
+            font-weight: 900 !important;
+            line-height: 1 !important;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+            transform: translateY(0);
+            transition: transform 90ms ease, box-shadow 90ms ease, filter 120ms ease;
+        }
+        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:hover {
+            filter: brightness(1.08) saturate(1.08);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 0 #2B7189, 0 10px 15px rgba(15, 57, 74, 0.28) !important;
+        }
+        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:active {
+            animation: tecla-periodica-pressionada 180ms ease-out;
+            transform: translateY(5px);
+            box-shadow: 0 0 0 #2B7189, 0 2px 4px rgba(15, 57, 74, 0.20) !important;
+        }
+        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button[kind="primary"] {
+            background: linear-gradient(145deg, #D8FFE3 0%, #56D77C 48%, #07913B 100%) !important;
+            border-color: #087A38 !important;
+            color: #073B1D !important;
+            box-shadow: 0 1px 0 #075F2C, 0 3px 7px rgba(7, 95, 44, 0.28) !important;
+            transform: translateY(4px);
+        }
+        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button * {
+            margin: 0 !important;
+            color: inherit !important;
+            font-size: inherit !important;
+            font-weight: inherit !important;
+        }
+        @keyframes tecla-periodica-pressionada {
+            0% { transform: translateY(0); box-shadow: 0 5px 0 #2B7189, 0 8px 12px rgba(15, 57, 74, 0.24); }
+            55% { transform: translateY(5px); box-shadow: 0 0 0 #2B7189, 0 2px 4px rgba(15, 57, 74, 0.20); }
+            100% { transform: translateY(3px); box-shadow: 0 2px 0 #2B7189, 0 4px 7px rgba(15, 57, 74, 0.22); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     chave_selecao = "config_metal_selecionados"
     selecionados = list(dict.fromkeys(st.session_state.get(chave_selecao, [])))
     if n_metais <= 0:
