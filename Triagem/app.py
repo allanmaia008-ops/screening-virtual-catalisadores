@@ -160,6 +160,11 @@ def t(texto: str) -> str:
     return TRADUCOES_EN.get(texto, texto) if idioma_atual() == "en" else texto
 
 
+def formatar_formula_quimica(formula: object) -> str:
+    """Converte algarismos estequiométricos em subscritos apenas para exibição."""
+    return str(formula).translate(str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉"))
+
+
 def traduzir_texto_exibicao(texto: str) -> str:
     """Traduz rótulos e mensagens conhecidas que já foram inseridos em cartões HTML."""
     if idioma_atual() != "en":
@@ -793,7 +798,7 @@ def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_d
     candidatos = (prioritarios_df if not prioritarios_df.empty else classificacao_df).copy().head(10).reset_index(drop=True)
     coluna_formula = encontrar_coluna(candidatos, ["formula"]) or candidatos.columns[0]
     opcoes = candidatos[coluna_formula].astype(str).tolist()
-    formula = st.selectbox("Candidato simulado", opcoes, key="simulador_operacional_candidato")
+    formula = st.selectbox("Candidato simulado", opcoes, format_func=formatar_formula_quimica, key="simulador_operacional_candidato")
     candidato = candidatos.loc[candidatos[coluna_formula].astype(str) == formula].iloc[0]
     def numero(row, termos, padrao):
         coluna = encontrar_coluna(pd.DataFrame(columns=row.index), termos)
@@ -820,7 +825,7 @@ def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_d
     st.markdown("<div class='operation-kpis'>"+"".join(f"<div class='operation-kpi'><b>{html.escape(a)}</b><strong>{html.escape(b)}</strong><span>{html.escape(c)}</span></div>" for a,b,c in cards)+"</div>",unsafe_allow_html=True)
     temperaturas=np.arange(200,801,25); fig_atividade=go.Figure()
     for indice,(_,linha) in enumerate(candidatos.head(5).iterrows(),1):
-        atividade=np.clip(100*(.42+.58*np.exp(-((temperaturas-numero(linha,["temperatura"],temperatura_base))/190)**2))*numero(linha,["conversao","prevista"],conversao_base)/max(conversao_base,1),0,120); fig_atividade.add_trace(go.Scatter(x=temperaturas,y=atividade,mode="lines+markers",name=f"{indice}. {linha[coluna_formula]}"))
+        atividade=np.clip(100*(.42+.58*np.exp(-((temperaturas-numero(linha,["temperatura"],temperatura_base))/190)**2))*numero(linha,["conversao","prevista"],conversao_base)/max(conversao_base,1),0,120); fig_atividade.add_trace(go.Scatter(x=temperaturas,y=atividade,mode="lines+markers",name=f"{indice}. {formatar_formula_quimica(linha[coluna_formula])}"))
     fig_atividade.add_vline(x=temperatura,line_dash="dash",line_color="#64748B"); fig_atividade.update_layout(title="Atividade relativa versus temperatura",xaxis_title="Temperatura (°C)",yaxis_title="Atividade relativa (%)",height=335,margin=dict(l=35,r=15,t=50,b=35),legend=dict(font=dict(size=10)))
     grade_t,grade_p=np.linspace(200,800,51),np.linspace(1,30,31); tm,pm=np.meshgrid(grade_t,grade_p); _,_,grade_rendimento,grade_robustez,_=resposta(tm,pm,razao)
     fig_superficie=go.Figure(go.Contour(x=grade_t,y=grade_p,z=grade_rendimento,colorscale="YlGnBu",contours=dict(showlabels=True),colorbar=dict(title="Rendimento (%)"))); fig_superficie.add_trace(go.Scatter(x=[temperatura],y=[pressao],mode="markers",marker=dict(size=12,color="#14213D",symbol="star"),name="Condição simulada")); fig_superficie.update_layout(title="Superfície de resposta: rendimento previsto",xaxis_title="Temperatura (°C)",yaxis_title="Pressão (bar)",height=335,margin=dict(l=35,r=15,t=50,b=35))
@@ -841,7 +846,7 @@ def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_d
     pontos=pd.DataFrame({"Temperatura (°C)":tm.ravel(),"Pressão (bar)":pm.ravel(),"Rendimento (%)":grade_rendimento.ravel(),"Score de robustez":grade_robustez.ravel()}); janelas=pontos.sort_values(["Score de robustez","Rendimento (%)"],ascending=False).drop_duplicates(subset=["Temperatura (°C)"],keep="first").head(3).reset_index(drop=True); janelas.insert(0,"Janela",["Ótima","Alta","Boa"][:len(janelas)]); janelas["Razão H₂/CO₂"]=f"{razao:.1f}"; janelas["Conversão de CO₂ (%)"]=[float(resposta(r["Temperatura (°C)"],r["Pressão (bar)"],razao)[0]) for _,r in janelas.iterrows()]; janelas=janelas[["Janela","Temperatura (°C)","Pressão (bar)","Razão H₂/CO₂","Conversão de CO₂ (%)","Rendimento (%)","Score de robustez"]].round(2)
     tabela,nota=st.columns([1.25,.75])
     with tabela: st.markdown("#### Principais janelas operacionais"); st.dataframe(janelas,hide_index=True,width="stretch")
-    with nota: st.markdown("#### Interpretação da simulação"); st.markdown(f"<div class='operation-note'><b>Candidato:</b> {html.escape(formula)}<br><b>Condição avaliada:</b> {temperatura} °C, {pressao} bar, H₂/CO₂ = {razao:.1f}.<br><b>Score operacional:</b> {float(score_robustez):.2f}.<br><br>Os indicadores de coque e desativação são proxies relativos. Confirme-os por ensaios de tempo em operação.</div>",unsafe_allow_html=True)
+    with nota: st.markdown("#### Interpretação da simulação"); st.markdown(f"<div class='operation-note'><b>Candidato:</b> {html.escape(formatar_formula_quimica(formula))}<br><b>Condição avaliada:</b> {temperatura} °C, {pressao} bar, H₂/CO₂ = {razao:.1f}.<br><b>Score operacional:</b> {float(score_robustez):.2f}.<br><br>Os indicadores de coque e desativação são proxies relativos. Confirme-os por ensaios de tempo em operação.</div>",unsafe_allow_html=True)
 
 
 def mostrar_painel_incerteza(monte_carlo_df: pd.DataFrame, dominio_df: pd.DataFrame, validacao_df: pd.DataFrame) -> None:
@@ -855,7 +860,7 @@ def mostrar_painel_incerteza(monte_carlo_df: pd.DataFrame, dominio_df: pd.DataFr
     desvio = encontrar_coluna(monte_carlo_df, ["desvio", "monte", "score"])
     inf = encontrar_coluna(monte_carlo_df, ["limite", "inferior", "top"])
     sup = encontrar_coluna(monte_carlo_df, ["limite", "superior", "top"])
-    dados = pd.DataFrame({"Catalisador": monte_carlo_df[formula].astype(str), "Probabilidade": pd.to_numeric(monte_carlo_df[prob], errors="coerce") if prob else np.nan, "Score médio": pd.to_numeric(monte_carlo_df[media], errors="coerce") if media else np.nan, "Desvio MC": pd.to_numeric(monte_carlo_df[desvio], errors="coerce") if desvio else np.nan, "LI 95%": pd.to_numeric(monte_carlo_df[inf], errors="coerce") if inf else np.nan, "LS 95%": pd.to_numeric(monte_carlo_df[sup], errors="coerce") if sup else np.nan}).sort_values("Probabilidade", ascending=False).head(10)
+    dados = pd.DataFrame({"Catalisador": monte_carlo_df[formula].astype(str).map(formatar_formula_quimica), "Probabilidade": pd.to_numeric(monte_carlo_df[prob], errors="coerce") if prob else np.nan, "Score médio": pd.to_numeric(monte_carlo_df[media], errors="coerce") if media else np.nan, "Desvio MC": pd.to_numeric(monte_carlo_df[desvio], errors="coerce") if desvio else np.nan, "LI 95%": pd.to_numeric(monte_carlo_df[inf], errors="coerce") if inf else np.nan, "LS 95%": pd.to_numeric(monte_carlo_df[sup], errors="coerce") if sup else np.nan}).sort_values("Probabilidade", ascending=False).head(10)
     cobertura = None
     if not dominio_df.empty:
         coluna = encontrar_coluna(dominio_df, ["dominio"]) or encontrar_coluna(dominio_df, ["status"])
@@ -953,6 +958,7 @@ def mostrar_painel_validacao(
     anexar_coluna("desejabilidade", ["desejabilidade", "global"])
     anexar_coluna("atividade", ["score", "atividade"])
     anexar_coluna("seletividade", ["score", "seletividade"])
+    dados["formula_exibicao"] = dados["formula"].map(formatar_formula_quimica)
 
     dados["dominio"] = dados["dominio"].fillna("não calculado").astype(str)
     dominio_norm = dados["dominio"].map(normalizar_texto)
@@ -1012,7 +1018,7 @@ def mostrar_painel_validacao(
             st.info(texto("A execução não contém pares de score nominal e Monte Carlo.", "This execution has no nominal-score and Monte Carlo pairs."))
         else:
             erro = consistencia["mc_desvio"].fillna(0).clip(lower=0)
-            figura = go.Figure(go.Scatter(x=consistencia["score"], y=consistencia["mc_media"], mode="markers", marker=dict(color="#2168C5", size=9), error_y=dict(type="data", array=erro, visible=bool(erro.gt(0).any())), text=consistencia["formula"], hovertemplate="%{text}<br>Score nominal: %{x:.3f}<br>Média MC: %{y:.3f}<extra></extra>", name=texto("Candidatos", "Candidates")))
+            figura = go.Figure(go.Scatter(x=consistencia["score"], y=consistencia["mc_media"], mode="markers", marker=dict(color="#2168C5", size=9), error_y=dict(type="data", array=erro, visible=bool(erro.gt(0).any())), text=consistencia["formula_exibicao"], hovertemplate="%{text}<br>Score nominal: %{x:.3f}<br>Média MC: %{y:.3f}<extra></extra>", name=texto("Candidatos", "Candidates")))
             limite_min = float(np.nanmin(consistencia[["score", "mc_media"]].to_numpy()))
             limite_max = float(np.nanmax(consistencia[["score", "mc_media"]].to_numpy()))
             margem = max((limite_max - limite_min) * .08, .03)
@@ -1026,7 +1032,7 @@ def mostrar_painel_validacao(
         else:
             dominio_plot["t2_plot"] = dominio_plot["t2"].clip(lower=1e-4)
             dominio_plot["q_plot"] = dominio_plot["q_residual"].clip(lower=1e-5)
-            figura = px.scatter(dominio_plot, x="t2_plot", y="q_plot", color="classe_dominio", color_discrete_map=cores_dominio, hover_name="formula", log_x=True, log_y=True)
+            figura = px.scatter(dominio_plot, x="t2_plot", y="q_plot", color="classe_dominio", color_discrete_map=cores_dominio, hover_name="formula_exibicao", log_x=True, log_y=True)
             limiar_t2 = dominio_plot["limiar_t2"].dropna().median()
             limiar_q = dominio_plot["limiar_q"].dropna().median()
             if pd.notna(limiar_t2):
@@ -1040,7 +1046,7 @@ def mostrar_painel_validacao(
         if pca_plot.empty:
             st.info(texto("Os componentes principais não foram exportados nesta execução.", "Principal components were not exported in this run."))
         else:
-            figura = px.scatter(pca_plot, x="pc1", y="pc2", color="classe_dominio", color_discrete_map=cores_dominio, symbol="grupo", hover_name="formula", hover_data={"score": ":.3f", "score_dominio": ":.3f"})
+            figura = px.scatter(pca_plot, x="pc1", y="pc2", color="classe_dominio", color_discrete_map=cores_dominio, symbol="grupo", hover_name="formula_exibicao", hover_data={"score": ":.3f", "score_dominio": ":.3f"})
             figura.add_hline(y=0, line_color="#C9D3DF", line_width=1)
             figura.add_vline(x=0, line_color="#C9D3DF", line_width=1)
             st.plotly_chart(configurar_figura(figura, "", "PC1", "PC2"), width="stretch")
@@ -1059,7 +1065,7 @@ def mostrar_painel_validacao(
             st.info(texto("Dados insuficientes para a fronteira de Pareto.", "Insufficient data for the Pareto frontier."))
         else:
             pareto_plot["pareto_sim"] = pareto_plot["pareto"].astype(str).map(normalizar_texto).isin(["true", "sim", "1"])
-            figura = px.scatter(pareto_plot, x=eixo_x, y=eixo_y, color="pareto_sim", color_discrete_map={True: "#16843C", False: "#BBC7D2"}, hover_name="formula", hover_data={"desejabilidade": ":.3f", "score_dominio": ":.3f"}, labels={"pareto_sim": texto("Fronteira de Pareto", "Pareto frontier")})
+            figura = px.scatter(pareto_plot, x=eixo_x, y=eixo_y, color="pareto_sim", color_discrete_map={True: "#16843C", False: "#BBC7D2"}, hover_name="formula_exibicao", hover_data={"desejabilidade": ":.3f", "score_dominio": ":.3f"}, labels={"pareto_sim": texto("Fronteira de Pareto", "Pareto frontier")})
             fronteira = pareto_plot.loc[pareto_plot["pareto_sim"]].sort_values(eixo_x)
             if len(fronteira) > 1:
                 figura.add_trace(go.Scatter(x=fronteira[eixo_x], y=fronteira[eixo_y], mode="lines", line=dict(color="#4E8BE2", dash="dash"), name=texto("Fronteira", "Frontier")))
@@ -1086,6 +1092,7 @@ def mostrar_painel_validacao(
         default=texto("Confirmar em bancada", "Confirm in laboratory"),
     )
     tabela_decisao = decisao[["formula", "score", "classe_dominio", "t2", "q_residual", "desejabilidade", "pareto_texto", "acao"]].copy()
+    tabela_decisao["formula"] = tabela_decisao["formula"].map(formatar_formula_quimica)
     tabela_decisao.insert(0, "#", range(1, len(tabela_decisao) + 1))
     tabela_decisao.columns = ["#", texto("Candidato", "Candidate"), texto("Score previsto", "Predicted score"), texto("Status de domínio", "Domain status"), "T²", "Q residual", texto("Desejabilidade", "Desirability"), texto("Pareto", "Pareto"), texto("Ação recomendada", "Recommended action")]
     for coluna in [texto("Score previsto", "Predicted score"), "T²", "Q residual", texto("Desejabilidade", "Desirability")]:
@@ -1835,8 +1842,8 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
 
     cards_html = []
     for posicao, (_, row) in enumerate(prioritarios_df.head(2).iterrows(), start=1):
-        formula = valor_linha(row, ["formula"], valor_linha(row, ["f"], "-"))
-        suporte = texto_curto(valor_linha(row, ["suporte"], "-"), limite=135)
+        formula = formatar_formula_quimica(valor_linha(row, ["formula"], valor_linha(row, ["f"], "-")))
+        suporte = formatar_formula_quimica(texto_curto(valor_linha(row, ["suporte"], "-"), limite=135))
         condicao = montar_condicao_operacional(row)
         conversao = formatar_numero_linha(row, ["conversao"], "%", casas=1)
         seletividade = formatar_numero_linha(row, ["seletividade"], "%", casas=1)
@@ -2334,9 +2341,9 @@ def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.D
             f"<article class='candidate-podium-card {classes_posicao[indice_candidato]}'>"
             f"<span class='candidate-podium-medal'>{rotulos_posicao[indice_candidato]}</span>"
             f"<div class='candidate-podium-image'>{imagem_html}</div>"
-            f"<h4>{html.escape(str(linha_podio['Fórmula']))}</h4>"
+            f"<h4>{html.escape(formatar_formula_quimica(linha_podio['Fórmula']))}</h4>"
             "<span class='candidate-podium-label'>Suporte sugerido</span>"
-            f"<p>{html.escape(str(linha_podio['Suporte sugerido']))}</p>"
+            f"<p>{html.escape(formatar_formula_quimica(linha_podio['Suporte sugerido']))}</p>"
             "<div class='candidate-podium-score'><span>Pontuação final</span>"
             f"<strong>{html.escape(formatar_decimal(linha_podio['Pontuação final (0-1)']))}</strong></div>"
             "</article>"
@@ -2358,7 +2365,7 @@ def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.D
         classe_confianca = "high" if normalizar_texto(confianca) == "alta" else "medium" if normalizar_texto(confianca) == "media" else "low"
         componentes = [formatar_decimal(linha[chave]) for chave in ["Atividade", "Estabilidade", "Seletividade", "Robustez"]]
         barras_componentes = "".join(f"<span>{html.escape(valor)}</span>" for valor in componentes)
-        linhas_html.append("<tr>" f"<td>{posicao}</td><td><b>{html.escape(str(linha['Fórmula']))}</b></td>" f"<td>{html.escape(str(linha['Suporte sugerido']))}</td>" f"<td class='candidate-stability'>{html.escape(str(estabilidade))}</td>" f"<td class='candidate-score'>{html.escape(str(score))}</td>" f"<td class='candidate-uncertainty'>{html.escape(str(incerteza))}</td>" f"<td>{html.escape(str(linha['Rota de síntese']))}</td>" f"<td><span class='candidate-confidence {classe_confianca}'>{html.escape(str(confianca).capitalize())}</span></td>" f"<td><div class='candidate-score-stack'>{barras_componentes}</div></td>" "</tr>")
+        linhas_html.append("<tr>" f"<td>{posicao}</td><td><b>{html.escape(formatar_formula_quimica(linha['Fórmula']))}</b></td>" f"<td>{html.escape(formatar_formula_quimica(linha['Suporte sugerido']))}</td>" f"<td class='candidate-stability'>{html.escape(str(estabilidade))}</td>" f"<td class='candidate-score'>{html.escape(str(score))}</td>" f"<td class='candidate-uncertainty'>{html.escape(str(incerteza))}</td>" f"<td>{html.escape(str(linha['Rota de síntese']))}</td>" f"<td><span class='candidate-confidence {classe_confianca}'>{html.escape(str(confianca).capitalize())}</span></td>" f"<td><div class='candidate-score-stack'>{barras_componentes}</div></td>" "</tr>")
     tabela_html = "".join(linhas_html)
     st.markdown("<div class='candidate-results-layout'><div class='candidate-table-wrap'><table class='candidate-table'><thead><tr>" "<th>#</th><th>Fórmula</th><th>Suporte sugerido</th>" "<th>Estabilidade termodinâmica<br>(eV/átomo) ↓</th><th>Pontuação final<br>(0-1) ↑</th>" "<th>Incerteza<br>(desvio MC)</th><th>Rota de síntese</th><th>Confiança</th><th>Composição do score<br>(0-1)</th>" f"</tr></thead><tbody>{tabela_html}</tbody></table></div>" "<aside class='candidate-mcda-panel'><h4>Composição do score (MCDA)</h4>" "<div class='candidate-donut'><span>PESOS<br>(%)</span></div>" "<div class='candidate-mcda-item'><b>Atividade (40%)</b><span>Desempenho catalítico previsto (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Estabilidade (30%)</b><span>Estabilidade termodinâmica (eV/átomo; mais negativa é melhor)</span></div>" "<div class='candidate-mcda-item'><b>Seletividade (20%)</b><span>Seletividade para o produto-alvo (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Robustez (10%)</b><span>Robustez a variações estruturais e operacionais (0-1)</span></div>" "<p>Score final: soma ponderada normalizada entre 0 e 1.</p></aside></div>" "<div class='candidate-legend'><span>↓ Valores mais negativos indicam maior estabilidade termodinâmica.</span>" "<span>↑ Valores mais altos indicam melhor desempenho global.</span>" "<span><i class='high'></i> Alta &nbsp; <i class='medium'></i> Média &nbsp; <i class='low'></i> Baixa</span></div>", unsafe_allow_html=True)
 
@@ -2469,9 +2476,9 @@ def preparar_dados_plotly(dataframe: pd.DataFrame, limite: int = 300) -> pd.Data
     for _, row in df.iterrows():
         linhas.append(
             {
-                "_formula": valor_linha(row, ["formula"], valor_linha(row, ["f"], "-")),
+                "_formula": formatar_formula_quimica(valor_linha(row, ["formula"], valor_linha(row, ["f"], "-"))),
                 "_score_final": formatar_numero_linha(row, ["score", "final"], casas=3),
-                "_suporte": texto_curto(valor_linha(row, ["suporte"], "-"), limite=120),
+                "_suporte": formatar_formula_quimica(texto_curto(valor_linha(row, ["suporte"], "-"), limite=120)),
                 "_rota": texto_curto(valor_linha(row, ["rota"], "-"), limite=120),
                 "_condicao": montar_condicao_operacional(row),
                 "_confiabilidade": extrair_confiabilidade(row),
@@ -2663,7 +2670,7 @@ def mostrar_visualizacao_cientifica_plotly(
             st.markdown("<h3 class='science-card-title'>Modelo estrutural esquemático do catalisador</h3><p class='science-card-note'>Use a ficha para relacionar a composição recomendada aos descritores que sustentam sua priorização.</p>", unsafe_allow_html=True)
             if formula_coluna and not base_ficha.empty:
                 opcoes_formula = base_ficha[formula_coluna].astype(str).tolist()
-                formula_escolhida = st.selectbox("Candidato em destaque", opcoes_formula, key="visualizacao_candidato")
+                formula_escolhida = st.selectbox("Candidato em destaque", opcoes_formula, format_func=formatar_formula_quimica, key="visualizacao_candidato")
                 selecionado = base_ficha.loc[base_ficha[formula_coluna].astype(str) == formula_escolhida].iloc[0]
                 indice_estrutura = sum(ord(caractere) for caractere in formula_escolhida) % len(ESTRUTURAS_CATALITICAS)
                 caminho_estrutura = ESTRUTURAS_CATALITICAS[indice_estrutura]
@@ -2716,7 +2723,7 @@ def mostrar_visualizacao_cientifica_plotly(
                 suporte = valor_linha(selecionado, ["suporte"], "Não informado")
                 score = formatar_numero_linha(selecionado, ["score", "final"], casas=3)
                 detalhes = [
-                    ("Suporte sugerido", suporte),
+                    ("Suporte sugerido", formatar_formula_quimica(suporte)),
                     ("Energia de adsorção", formatar_numero_linha(selecionado, ["energia", "adsor"], "eV", casas=3)),
                     ("Estabilidade", formatar_numero_linha(selecionado, ["estabilidade"], "eV/átomo", casas=3)),
                     ("Score vulcão", formatar_numero_linha(selecionado, ["score", "volcano"], casas=3)),
@@ -2724,7 +2731,7 @@ def mostrar_visualizacao_cientifica_plotly(
                     ("Condição inicial", montar_condicao_operacional(selecionado)),
                 ]
                 detalhes_html = "".join(f"<div><span>{html.escape(rotulo)}</span><b>{html.escape(str(valor))}</b></div>" for rotulo, valor in detalhes)
-                st.markdown(f"<article class='science-detail'><div class='science-detail-score'>Score final<strong>{html.escape(score)}</strong></div><h3>{html.escape(str(formula))}</h3><div class='science-detail-grid'>{detalhes_html}</div></article>", unsafe_allow_html=True)
+                st.markdown(f"<article class='science-detail'><div class='science-detail-score'>Score final<strong>{html.escape(score)}</strong></div><h3>{html.escape(formatar_formula_quimica(formula))}</h3><div class='science-detail-grid'>{detalhes_html}</div></article>", unsafe_allow_html=True)
             else:
                 st.info("Selecione um candidato quando os resultados estiverem disponíveis.")
 
@@ -3177,6 +3184,7 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
         return None if pd.isna(valor) else float(valor)
 
     def massas_formula(formula: str, massa_ativa: float) -> str:
+        formula = str(formula).translate(str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789"))
         partes = [(e, float(q or 1)) for e, q in re.findall(r"([A-Z][a-z]?)([0-9]*\.?[0-9]*)", formula) if e in MASSAS_ATOMICAS_G_MOL]
         massa_molar = sum(MASSAS_ATOMICAS_G_MOL[e] * q for e, q in partes)
         if not massa_molar:
@@ -3215,6 +3223,8 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
         confianca = {"alta": 86, "média": 68, "media": 68, "baixa": 42}.get(normalizar_texto(extrair_confiabilidade(row)), 55)
         carga = float(np.clip(numero(row, [["teor", "fase", "ativa"], ["carga", "metal"], ["loading"]]) or 15, 1, 90))
         condicoes = montar_condicao_operacional(row)
+        formula = formatar_formula_quimica(formula)
+        suporte = formatar_formula_quimica(suporte)
         cor = "#16843C" if posicao == 1 else "#D99A00"
         estrutura = imagem_estrutura(posicao)
         cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Confiabilidade do modelo: {confianca}%</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
@@ -3227,7 +3237,7 @@ def mostrar_resumo_dashboard(metricas_df: pd.DataFrame, prioritarios_df: pd.Data
     n_recomendados = extrair_metrica(metricas_df, "candidatos priorit") or len(prioritarios_df)
     n_refinados = extrair_metrica(metricas_df, "candidatos refinados") or len(monte_carlo_df)
     top = prioritarios_df.iloc[0] if not prioritarios_df.empty else pd.Series(dtype=object)
-    formula = valor_linha(top, ["formula", "f"], "Aguardando triagem")
+    formula = formatar_formula_quimica(valor_linha(top, ["formula", "f"], "Aguardando triagem"))
     score = pd.to_numeric(pd.Series([valor_linha(top, ["score", "final"], np.nan)]), errors="coerce").iloc[0]
     confiabilidade = extrair_confiabilidade(top) if not prioritarios_df.empty else "-"
     confiabilidade_num = {"alta": "0,86", "média": "0,68", "media": "0,68", "baixa": "0,42"}.get(normalizar_texto(confiabilidade), "-")
