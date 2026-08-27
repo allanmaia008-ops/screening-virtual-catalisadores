@@ -92,6 +92,7 @@ TRADUCOES_EN = {
     "Incerteza": "Uncertainty",
     "Robustez e operação": "Robustness and operation",
     "Química": "Chemistry",
+    "Síntese": "Synthesis",
     "Validação": "Validation",
     "Visualização científica": "Scientific visualization",
     "Arquivos": "Files",
@@ -3167,6 +3168,246 @@ def renderizar_titulo_dashboard() -> None:
 MASSAS_ATOMICAS_G_MOL = {"Al": 26.982, "Ce": 140.116, "Co": 58.933, "Cu": 63.546, "Fe": 55.845, "La": 138.905, "Mg": 24.305, "Mo": 95.950, "Ni": 58.693, "Pd": 106.420, "Pt": 195.084, "Rh": 102.906, "Ru": 101.070, "Ti": 47.867, "W": 183.840, "Y": 88.906, "Zn": 65.380, "Zr": 91.224}
 
 
+# Reúne precursores de composição definida para converter carga metálica em massa de sal.
+PRECURSORES_PADRAO = {
+    "Al": {"nome": "Nitrato de alumínio nonahidratado", "formula": "Al(NO3)3·9H2O", "massa_molar": 375.13, "atomos_metal": 1},
+    "Ce": {"nome": "Nitrato de cério(III) hexahidratado", "formula": "Ce(NO3)3·6H2O", "massa_molar": 434.22, "atomos_metal": 1},
+    "Co": {"nome": "Nitrato de cobalto(II) hexahidratado", "formula": "Co(NO3)2·6H2O", "massa_molar": 291.03, "atomos_metal": 1},
+    "Cu": {"nome": "Nitrato de cobre(II) trihidratado", "formula": "Cu(NO3)2·3H2O", "massa_molar": 241.60, "atomos_metal": 1},
+    "Fe": {"nome": "Nitrato de ferro(III) nonahidratado", "formula": "Fe(NO3)3·9H2O", "massa_molar": 404.00, "atomos_metal": 1},
+    "La": {"nome": "Nitrato de lantânio(III) hexahidratado", "formula": "La(NO3)3·6H2O", "massa_molar": 433.01, "atomos_metal": 1},
+    "Mg": {"nome": "Nitrato de magnésio hexahidratado", "formula": "Mg(NO3)2·6H2O", "massa_molar": 256.41, "atomos_metal": 1},
+    "Mo": {"nome": "Heptamolibdato de amônio tetrahidratado", "formula": "(NH4)6Mo7O24·4H2O", "massa_molar": 1235.86, "atomos_metal": 7},
+    "Ni": {"nome": "Nitrato de níquel(II) hexahidratado", "formula": "Ni(NO3)2·6H2O", "massa_molar": 290.79, "atomos_metal": 1},
+    "Y": {"nome": "Nitrato de ítrio(III) hexahidratado", "formula": "Y(NO3)3·6H2O", "massa_molar": 383.01, "atomos_metal": 1},
+    "Zn": {"nome": "Nitrato de zinco hexahidratado", "formula": "Zn(NO3)2·6H2O", "massa_molar": 297.49, "atomos_metal": 1},
+}
+
+
+def composicao_metalica_formula(formula: str, metais_preferidos: list[str]) -> list[tuple[str, float]]:
+    """Extrai a razão atômica dos metais da fórmula do candidato sem interpretar o suporte."""
+    formula_ascii = str(formula).translate(str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789"))
+    formula_ativa = re.split(r"\s*/\s*|\s+ou\s+", formula_ascii, maxsplit=1, flags=re.IGNORECASE)[0]
+    componentes = [(elemento, float(indice or 1.0)) for elemento, indice in re.findall(r"([A-Z][a-z]?)([0-9]*\.?[0-9]*)", formula_ativa)]
+    selecionados = [(elemento, indice) for elemento, indice in componentes if elemento in metais_preferidos and elemento in MASSAS_ATOMICAS_G_MOL]
+    if selecionados:
+        return selecionados
+    return [(elemento, indice) for elemento, indice in componentes if elemento in MASSAS_ATOMICAS_G_MOL and elemento != "O"]
+
+
+def procedimento_sintese_html(rota: str, temperatura_secagem: float, temperatura_calcinacao: float) -> str:
+    """Monta um protocolo orientativo específico para a rota escolhida."""
+    protocolos = {
+        "Impregnação por umidade incipiente": [
+            "Determinar experimentalmente o volume de poros do suporte seco.",
+            "Dissolver os precursores no volume calculado, verificando solubilidade e compatibilidade.",
+            "Adicionar a solução gradualmente ao suporte sob mistura uniforme, sem formar líquido livre.",
+            "Envelhecer o sólido úmido, secar com rampa moderada e evitar migração macroscópica dos sais.",
+            "Calcinar com atmosfera e rampa compatíveis com a decomposição dos precursores.",
+            "Ativar ou reduzir somente após confirmar a fase formada por DRX, TGA/DSC ou técnica equivalente.",
+        ],
+        "Impregnação úmida": [
+            "Dissolver os precursores em excesso controlado de solvente.",
+            "Adicionar o suporte e manter agitação e temperatura compatíveis com a estabilidade da solução.",
+            "Remover o solvente lentamente para limitar redistribuição e cristalização externa do precursor.",
+            "Secar até massa constante, calcinar e ativar conforme a química dos precursores.",
+            "Confirmar teor metálico e homogeneidade por ICP-OES, XRF ou método analítico apropriado.",
+        ],
+        "Coprecipitação": [
+            "Preparar soluções dos sais nas razões molares calculadas.",
+            "Adicionar o precipitante com controle contínuo de pH, temperatura e taxa de adição.",
+            "Envelhecer o precipitado pelo tempo definido para estabilizar composição e textura.",
+            "Filtrar e lavar até remover nitratos, cloretos e álcalis residuais.",
+            "Secar com controle de retração, calcinar e reduzir conforme a fase ativa desejada.",
+        ],
+        "Sol-gel": [
+            "Preparar a solução dos precursores e definir água, solvente, complexante e catalisador ácido ou básico.",
+            "Controlar hidrólise, condensação, pH e sequência de adição para evitar segregação.",
+            "Envelhecer o gel e realizar troca de solvente quando necessária.",
+            "Secar lentamente para reduzir tensão capilar, retração e formação de trincas.",
+            "Calcinar com rampa compatível com a remoção dos orgânicos e estabilização da porosidade.",
+        ],
+    }
+    etapas = protocolos.get(rota, protocolos["Impregnação úmida"])
+    itens = "".join(f"<li><b>{indice}.</b> {html.escape(etapa)}</li>" for indice, etapa in enumerate(etapas, 1))
+    return (
+        f"<div class='synthesis-procedure'><h3>{html.escape(rota)}</h3><ol>{itens}</ol>"
+        f"<p><b>Parâmetros iniciais:</b> secagem a {temperatura_secagem:.0f} °C e calcinação a "
+        f"{temperatura_calcinacao:.0f} °C. Estes valores devem ser confirmados por TGA/DSC e literatura do precursor.</p></div>"
+    )
+
+
+def mostrar_planejamento_sintese(
+    prioritarios_df: pd.DataFrame,
+    metais_configurados: list[str],
+    promotor_configurado: str,
+) -> None:
+    """Calcula uma receita nominal por precursor e oferece uma calculadora estequiométrica livre."""
+    st.markdown(
+        "<div class='synthesis-title'>Instruções e cálculo para síntese</div>"
+        "<div class='synthesis-subtitle'>Balanço nominal entre fase final, precursores, suporte e solução de preparação.</div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """<style>
+        .synthesis-title{margin:8px 0 4px;color:#14213D;font-size:1.75rem;font-weight:850;text-align:center}
+        .synthesis-subtitle{margin-bottom:18px;color:#5C6B80;font-size:.96rem;text-align:center}
+        .synthesis-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}
+        .synthesis-kpi{padding:15px;border:1px solid #D8E5DE;border-radius:8px;background:#FFF;text-align:center}
+        .synthesis-kpi b{display:block;color:#52637A;font-size:.8rem}.synthesis-kpi strong{display:block;margin-top:8px;color:#087A3B;font-size:1.3rem}
+        .synthesis-procedure{margin:14px 0;padding:17px 20px;border:1px solid #CFE1D5;border-radius:8px;background:#F8FCF9;color:#263B58}
+        .synthesis-procedure h3{margin:0 0 10px;color:#087A3B;font-size:1.05rem}.synthesis-procedure ol{margin:0;padding-left:0;list-style:none}
+        .synthesis-procedure li{margin:7px 0;font-size:.9rem;line-height:1.45}.synthesis-procedure p{margin:12px 0 0;padding-top:10px;border-top:1px solid #DCE8E0;font-size:.86rem;line-height:1.45}
+        .synthesis-warning{margin:14px 0;padding:12px 14px;border-left:4px solid #E5A600;background:#FFF9E9;color:#655016;font-size:.88rem;line-height:1.45}
+        @media(max-width:900px){.synthesis-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        </style>""",
+        unsafe_allow_html=True,
+    )
+
+    if prioritarios_df.empty:
+        st.info("Execute a triagem para gerar a receita vinculada ao candidato. A calculadora livre permanece disponível abaixo.")
+    else:
+        coluna_formula = encontrar_coluna(prioritarios_df, ["formula"]) or prioritarios_df.columns[0]
+        coluna_suporte = encontrar_coluna(prioritarios_df, ["suporte"])
+        formulas = prioritarios_df[coluna_formula].astype(str).head(10).tolist()
+        formula = st.selectbox("Candidato para a receita", formulas, key="sintese_candidato")
+        linha = prioritarios_df[prioritarios_df[coluna_formula].astype(str) == formula].iloc[0]
+        suporte_bruto = str(linha.get(coluna_suporte, "Al2O3")) if coluna_suporte else "Al2O3"
+        suporte = re.split(r"\s+ou\s+|\s*/\s*", suporte_bruto, maxsplit=1, flags=re.IGNORECASE)[0]
+
+        c1, c2, c3, c4 = st.columns(4)
+        massa_final = c1.number_input("Massa final desejada (g)", min_value=0.1, value=100.0, step=10.0, key="sintese_massa_final")
+        carga_ativa = c2.number_input("Fase ativa (% m/m)", min_value=0.0, max_value=100.0, value=15.0, step=0.5, key="sintese_carga_ativa")
+        carga_promotor = c3.number_input("Promotor (% m/m)", min_value=0.0, max_value=50.0, value=5.0 if promotor_configurado else 0.0, step=0.5, key="sintese_carga_promotor")
+        rota = c4.selectbox("Procedimento de síntese", ["Impregnação por umidade incipiente", "Impregnação úmida", "Coprecipitação", "Sol-gel"], key="sintese_rota")
+
+        d1, d2, d3, d4 = st.columns(4)
+        pureza = d1.number_input("Pureza dos precursores (%)", min_value=1.0, max_value=100.0, value=100.0, step=0.1, key="sintese_pureza")
+        recuperacao = d2.number_input("Recuperação global estimada (%)", min_value=1.0, max_value=100.0, value=100.0, step=0.5, key="sintese_recuperacao")
+        volume_poroso = d3.number_input("Volume de poros (cm³/g)", min_value=0.0, value=0.80, step=0.05, key="sintese_volume_poroso")
+        preenchimento = d4.number_input("Preenchimento dos poros (%)", min_value=1.0, max_value=150.0, value=90.0, step=5.0, key="sintese_preenchimento")
+
+        e1, e2 = st.columns(2)
+        temperatura_secagem = e1.number_input("Temperatura de secagem (°C)", min_value=20.0, max_value=300.0, value=100.0, step=5.0, key="sintese_secagem")
+        temperatura_calcinacao = e2.number_input("Temperatura de calcinação (°C)", min_value=100.0, max_value=1200.0, value=500.0, step=25.0, key="sintese_calcinacao")
+
+        if carga_ativa + carga_promotor >= 100.0:
+            st.error("A soma da fase ativa e do promotor deve ser menor que 100%.")
+        else:
+            massa_ativa = massa_final * carga_ativa / 100.0
+            massa_promotor = massa_final * carga_promotor / 100.0
+            massa_suporte = massa_final - massa_ativa - massa_promotor
+            componentes = composicao_metalica_formula(formula, metais_configurados)
+            denominador = sum(MASSAS_ATOMICAS_G_MOL[elemento] * indice for elemento, indice in componentes)
+            linhas = []
+            mols_precursores = 0.0
+            for elemento, indice in componentes:
+                fracao_massica = MASSAS_ATOMICAS_G_MOL[elemento] * indice / denominador if denominador else 0.0
+                massa_elemento = massa_ativa * fracao_massica
+                precursor = PRECURSORES_PADRAO.get(elemento)
+                if precursor:
+                    massa_pura = massa_elemento * precursor["massa_molar"] / (precursor["atomos_metal"] * MASSAS_ATOMICAS_G_MOL[elemento])
+                    massa_pesar = massa_pura / (pureza / 100.0) / (recuperacao / 100.0)
+                    mols_precursores += massa_pura / precursor["massa_molar"]
+                    nome_precursor = f'{precursor["nome"]} ({formatar_formula_quimica(precursor["formula"])})'
+                else:
+                    massa_pura = np.nan
+                    massa_pesar = np.nan
+                    nome_precursor = "Definir precursor e massa molar na calculadora livre"
+                linhas.append({"Função": "Fase ativa", "Elemento/fase": elemento, "Precursor": nome_precursor, "Massa final alvo (g)": massa_elemento, "Massa de precursor puro (g)": massa_pura, "Massa corrigida a pesar (g)": massa_pesar})
+            if promotor_configurado and carga_promotor > 0:
+                precursor = PRECURSORES_PADRAO.get(promotor_configurado)
+                if precursor and promotor_configurado in MASSAS_ATOMICAS_G_MOL:
+                    massa_pura = massa_promotor * precursor["massa_molar"] / (precursor["atomos_metal"] * MASSAS_ATOMICAS_G_MOL[promotor_configurado])
+                    massa_pesar = massa_pura / (pureza / 100.0) / (recuperacao / 100.0)
+                    mols_precursores += massa_pura / precursor["massa_molar"]
+                    nome_precursor = f'{precursor["nome"]} ({formatar_formula_quimica(precursor["formula"])})'
+                else:
+                    massa_pura = np.nan
+                    massa_pesar = np.nan
+                    nome_precursor = "Definir precursor e massa molar na calculadora livre"
+                linhas.append({"Função": "Promotor", "Elemento/fase": promotor_configurado, "Precursor": nome_precursor, "Massa final alvo (g)": massa_promotor, "Massa de precursor puro (g)": massa_pura, "Massa corrigida a pesar (g)": massa_pesar})
+            linhas.append({"Função": "Suporte", "Elemento/fase": suporte, "Precursor": f"{formatar_formula_quimica(suporte)} fornecido na forma final", "Massa final alvo (g)": massa_suporte, "Massa de precursor puro (g)": massa_suporte, "Massa corrigida a pesar (g)": massa_suporte / (recuperacao / 100.0)})
+            receita_df = pd.DataFrame(linhas)
+            colunas_numericas = receita_df.select_dtypes(include=[np.number]).columns
+            receita_df[colunas_numericas] = receita_df[colunas_numericas].round(3)
+
+            # Calcula o solvente pelo volume de poros somente nas rotas de impregnação.
+            if rota == "Impregnação por umidade incipiente":
+                volume_solucao = massa_suporte * volume_poroso * preenchimento / 100.0
+            elif rota == "Impregnação úmida":
+                volume_solucao = massa_suporte * volume_poroso * max(2.0, preenchimento / 100.0)
+            else:
+                volume_solucao = np.nan
+            molaridade_aproximada = mols_precursores / (volume_solucao / 1000.0) if np.isfinite(volume_solucao) and volume_solucao > 0 else np.nan
+            volume_exibicao = f"{volume_solucao:.2f} mL" if np.isfinite(volume_solucao) else "Definir por concentração"
+            st.markdown(
+                f"<div class='synthesis-grid'><div class='synthesis-kpi'><b>Catalisador final</b><strong>{massa_final:.2f} g</strong></div>"
+                f"<div class='synthesis-kpi'><b>Fase ativa</b><strong>{massa_ativa:.2f} g</strong></div>"
+                f"<div class='synthesis-kpi'><b>Suporte final</b><strong>{massa_suporte:.2f} g</strong></div>"
+                f"<div class='synthesis-kpi'><b>Volume inicial de solução</b><strong>{volume_exibicao}</strong></div></div>",
+                unsafe_allow_html=True,
+            )
+            st.dataframe(receita_df, width="stretch", hide_index=True)
+            if np.isfinite(molaridade_aproximada):
+                st.caption(f"Concentração metálica total aproximada da solução: {molaridade_aproximada:.3f} mol/L. Verifique solubilidade individual, pH e volume real dos sais.")
+            else:
+                st.caption("Na coprecipitação e no sol-gel, defina o volume a partir da concentração dos precursores, do pH, do complexante e da cinética de adição; o volume de poros não determina essa quantidade.")
+            st.html(procedimento_sintese_html(rota, temperatura_secagem, temperatura_calcinacao))
+            st.markdown(
+                "<div class='synthesis-warning'><b>Base do cálculo:</b> as cargas da fase ativa e do promotor são tratadas como equivalentes metálicos. "
+                "O suporte é considerado já disponível na fase final. Caso seja preparado a partir de boehmita, hidróxido, carbonato ou gel, use a calculadora abaixo "
+                "com a massa molar da fase final ou o fator de resíduo obtido por TGA. A receita é nominal e deve ser confirmada por análise química e balanço após calcinação.</div>",
+                unsafe_allow_html=True,
+            )
+
+    st.divider()
+    st.subheader("Calculadora estequiométrica livre")
+    st.caption("Informe cada fase final e o respectivo precursor. A razão estequiométrica representa mol de precursor necessário por mol da fase final.")
+    numero_reagentes = st.number_input("Número de reagentes ou componentes", min_value=1, max_value=6, value=3, step=1, key="calc_numero_reagentes")
+    massa_lote = st.number_input("Massa final do lote (g)", min_value=0.01, value=100.0, step=10.0, key="calc_massa_lote")
+    with st.form("form_calculadora_sintese"):
+        entradas = []
+        for indice in range(int(numero_reagentes)):
+            st.markdown(f"**Componente {indice + 1}**")
+            col1, col2, col3 = st.columns(3)
+            nome = col1.text_input("Nome do reagente/precursor", value="", key=f"calc_nome_{indice}")
+            fracao = col2.number_input("Fase final (% m/m)", min_value=0.0, max_value=100.0, value=0.0, step=0.5, key=f"calc_fracao_{indice}")
+            massa_molar_precursor = col3.number_input("Massa molar do precursor (g/mol)", min_value=0.0, value=0.0, step=1.0, key=f"calc_mm_prec_{indice}")
+            col4, col5, col6 = st.columns(3)
+            massa_molar_final = col4.number_input("Massa molar da fase final (g/mol)", min_value=0.0, value=0.0, step=1.0, key=f"calc_mm_final_{indice}")
+            razao = col5.number_input("mol precursor/mol fase final", min_value=0.0, value=1.0, step=0.1, key=f"calc_razao_{indice}")
+            pureza_item = col6.number_input("Pureza do reagente (%)", min_value=0.1, max_value=100.0, value=100.0, step=0.1, key=f"calc_pureza_{indice}")
+            recuperacao_item = st.number_input("Recuperação prevista do componente (%)", min_value=0.1, max_value=100.0, value=100.0, step=0.5, key=f"calc_recuperacao_{indice}")
+            entradas.append((nome, fracao, massa_molar_precursor, massa_molar_final, razao, pureza_item, recuperacao_item))
+        calcular = st.form_submit_button("Calcular quantidades", type="primary", width="stretch")
+
+    if calcular:
+        soma_fracoes = sum(item[1] for item in entradas)
+        if soma_fracoes > 100.0 + 1e-9:
+            st.error("A soma das porcentagens das fases finais ultrapassa 100%.")
+        else:
+            resultados = []
+            for nome, fracao, mm_precursor, mm_final, razao, pureza_item, recuperacao_item in entradas:
+                massa_fase = massa_lote * fracao / 100.0
+                if mm_precursor <= 0 or mm_final <= 0:
+                    massa_pura = np.nan
+                    massa_corrigida = np.nan
+                else:
+                    mols_fase = massa_fase / mm_final
+                    massa_pura = mols_fase * razao * mm_precursor
+                    massa_corrigida = massa_pura / (pureza_item / 100.0) / (recuperacao_item / 100.0)
+                resultados.append({"Reagente/precursor": nome or "Não informado", "Fase final (% m/m)": fracao, "Massa da fase final (g)": massa_fase, "Massa pura do precursor (g)": massa_pura, "Massa corrigida a pesar (g)": massa_corrigida})
+            if soma_fracoes < 100.0:
+                resultados.append({"Reagente/precursor": "Componente restante/suporte", "Fase final (% m/m)": 100.0 - soma_fracoes, "Massa da fase final (g)": massa_lote * (100.0 - soma_fracoes) / 100.0, "Massa pura do precursor (g)": np.nan, "Massa corrigida a pesar (g)": np.nan})
+            resultado_df = pd.DataFrame(resultados)
+            numericas = resultado_df.select_dtypes(include=[np.number]).columns
+            resultado_df[numericas] = resultado_df[numericas].round(4)
+            st.dataframe(resultado_df, width="stretch", hide_index=True)
+            st.info("Use a massa corrigida somente quando pureza, estequiometria e recuperação forem sustentadas por certificado, TGA ou validação experimental.")
+
+
+
 def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
     """Apresenta os dois candidatos prioritários com os dados de síntese essenciais."""
     if prioritarios_df.empty:
@@ -3924,12 +4165,13 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-aba_recomendados, aba_candidatos, aba_incerteza, aba_robustez, aba_quimica, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
+aba_recomendados, aba_candidatos, aba_quimica, aba_sintese, aba_incerteza, aba_robustez, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
     f"⌂  {t('Catalisadores recomendados')}",
     f"⌕  {t('Candidatos')}",
+    f"⚗  {t('Química')}",
+    f"⚖  {t('Síntese')}",
     f"◌  {t('Incerteza')}",
     f"◈  {t('Robustez e operação')}",
-    f"⚗  {t('Química')}",
     f"✓  {t('Validação')}",
     f"▥  {t('Visualização científica')}",
     f"▤  {t('Arquivos')}",
@@ -3943,12 +4185,6 @@ with aba_recomendados:
 with aba_candidatos:
     mostrar_candidatos_prioritarios(metricas_df, [prioritarios_df, classificacao_df, ranking_df])
 
-with aba_incerteza:
-    mostrar_painel_incerteza(monte_carlo_df, dominio_df, validacao_quimio_df)
-
-with aba_robustez:
-    mostrar_simulador_operacional(prioritarios_df, classificacao_df)
-
 with aba_quimica:
     mostrar_painel_quimica(
         prioritarios_df,
@@ -3958,6 +4194,15 @@ with aba_quimica:
         promotor,
         reacao_resultado,
     )
+
+with aba_sintese:
+    mostrar_planejamento_sintese(prioritarios_df, metais, promotor)
+
+with aba_incerteza:
+    mostrar_painel_incerteza(monte_carlo_df, dominio_df, validacao_quimio_df)
+
+with aba_robustez:
+    mostrar_simulador_operacional(prioritarios_df, classificacao_df)
 
 with aba_validacao:
     mostrar_painel_validacao(
