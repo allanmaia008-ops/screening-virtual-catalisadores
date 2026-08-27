@@ -2935,7 +2935,24 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] {
                 background: linear-gradient(180deg, #E7F6ED 0%, #F5FBF7 100%);
                 border-right: 1px solid #B9DDC7;
+            }
+            section[data-testid="stSidebar"][aria-expanded="true"] {
                 min-width: 270px;
+            }
+            section[data-testid="stSidebar"][aria-expanded="false"] {
+                width: 0 !important;
+                min-width: 0 !important;
+                border-right: 0 !important;
+            }
+            div[data-testid="stAppViewContainer"] main,
+            div[data-testid="stMain"] {
+                width: 100%;
+                min-width: 0;
+                flex: 1 1 auto;
+            }
+            div[data-testid="stMainBlockContainer"] {
+                width: 100%;
+                max-width: 100%;
             }
             section[data-testid="stSidebar"] h2,
             section[data-testid="stSidebar"] h3,
