@@ -78,6 +78,9 @@ TRADUCOES_EN = {
     "Reforma de CH4": "CH₄ reforming",
     "Número de metais ativos": "Number of active metals",
     "Metais ativos": "Active metals",
+    "Regra de composição": "Composition rule",
+    "Exigir todos os metais": "Require all metals",
+    "Explorar combinações": "Explore combinations",
     "Promotor": "Promoter",
     "Local de salvamento": "Output location",
     "Usar pasta padrão": "Use default folder",
@@ -2069,7 +2072,13 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
     )
 
 
-def montar_celula_configuracao(reacao: str, metais: list[str], promotor: str, output_dir: Path) -> str:
+def montar_celula_configuracao(
+    reacao: str,
+    metais: list[str],
+    promotor: str,
+    output_dir: Path,
+    exigir_todos_metais: bool,
+) -> str:
     """Monta a célula que substitui as perguntas interativas do notebook."""
     metais_repr = repr(metais)
     promotor_repr = repr(promotor)
@@ -2156,17 +2165,27 @@ metais_usuario = {metais_repr}
 # Define o promotor escolhido na interface Streamlit.
 promotor_usuario = {promotor_repr}
 
+# Define se cada candidato selecionado deve conter todos os metais ativos informados.
+EXIGIR_TODOS_METAIS_ATIVOS = {exigir_todos_metais!r}
+
 # Mostra as escolhas usadas nesta execução.
 print("Reação:", reacao_usuario)
 print("Metais ativos:", metais_usuario)
 print("Promotor:", promotor_usuario)
+print("Regra dos metais ativos:", "exigir todos" if EXIGIR_TODOS_METAIS_ATIVOS else "explorar combinações")
 """.strip()
 
 
-def preparar_notebook_parametrizado(reacao: str, metais: list[str], promotor: str, output_dir: Path):
+def preparar_notebook_parametrizado(
+    reacao: str,
+    metais: list[str],
+    promotor: str,
+    output_dir: Path,
+    exigir_todos_metais: bool,
+):
     """Carrega o notebook base e substitui as células de perguntas por parâmetros da interface."""
     notebook = nbformat.read(NOTEBOOK_PATH, as_version=4)
-    celula_config = montar_celula_configuracao(reacao, metais, promotor, output_dir)
+    celula_config = montar_celula_configuracao(reacao, metais, promotor, output_dir, exigir_todos_metais)
     substituiu_config = False
     substituiu_entrada = False
 
@@ -2187,14 +2206,20 @@ def preparar_notebook_parametrizado(reacao: str, metais: list[str], promotor: st
     return notebook
 
 
-def executar_triagem(reacao: str, metais: list[str], promotor: str, output_dir: Path) -> Path:
+def executar_triagem(
+    reacao: str,
+    metais: list[str],
+    promotor: str,
+    output_dir: Path,
+    exigir_todos_metais: bool,
+) -> Path:
     """Executa o notebook parametrizado e salva uma cópia executada para auditoria."""
     garantir_pkg_resources()
     mp_api_key = obter_mp_api_key()
     if mp_api_key:
         os.environ["MP_API_KEY"] = mp_api_key
     configurar_banco_incremental_github()
-    notebook = preparar_notebook_parametrizado(reacao, metais, promotor, output_dir)
+    notebook = preparar_notebook_parametrizado(reacao, metais, promotor, output_dir, exigir_todos_metais)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     metais_slug = slug_texto("_".join(metais))
     promotor_slug = slug_texto(promotor) or "sem_promotor"
@@ -4088,6 +4113,18 @@ with st.sidebar:
 
     with st.popover("Metais ativos", icon=":material/hub:", width="stretch"):
         metais = selecionar_metais_tabela_periodica(n_metais)
+        regra_metais = st.radio(
+            t("Regra de composição"),
+            ["Exigir todos os metais", "Explorar combinações"],
+            index=0,
+            format_func=t,
+            help=(
+                "Exigir todos mantém cada metal ativo selecionado nas fórmulas que avançam no funil. "
+                "Explorar combinações permite candidatos puros, binários e multimetálicos."
+            ),
+            key="config_regra_metais",
+        )
+    exigir_todos_metais = regra_metais == "Exigir todos os metais"
     if metais:
         chips_metais = "".join(f"<span class='catialab-metal-chip'>{html.escape(metal)}</span>" for metal in metais)
         st.markdown(f"<div class='catialab-config-preview'>{chips_metais}</div>", unsafe_allow_html=True)
@@ -4110,9 +4147,15 @@ with st.sidebar:
             output_dir_texto = ""
 
     resumo_metais = ", ".join(metais) if metais else "não definidos"
+    resumo_regra = "todos os metais obrigatórios" if exigir_todos_metais else "combinações permitidas"
     resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
     resumo_reacao = nomes_reacao.get(reacao, "não definida")
-    st.markdown(f"<div class='catialab-config-status'><strong>Configuração atual</strong><br>{html.escape(resumo_reacao)}<br>{html.escape(resumo_metais)}<br>{html.escape(resumo_promotor)}</div>", unsafe_allow_html=True)
+    st.markdown(
+        f"<div class='catialab-config-status'><strong>Configuração atual</strong><br>"
+        f"{html.escape(resumo_reacao)}<br>{html.escape(resumo_metais)}<br>"
+        f"{html.escape(resumo_regra)}<br>{html.escape(resumo_promotor)}</div>",
+        unsafe_allow_html=True,
+    )
     espaco_esquerdo, coluna_executar, espaco_direito = st.columns([0.35, 1.8, 0.35])
     with coluna_executar:
         executar = st.button(t("Executar triagem"), type="primary", width="stretch")
@@ -4145,7 +4188,13 @@ if executar:
     else:
         try:
             with st.spinner("Executando consultas, descritores, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
-                notebook_executado = executar_triagem(reacao, metais, promotor, output_dir)
+                notebook_executado = executar_triagem(
+                    reacao,
+                    metais,
+                    promotor,
+                    output_dir,
+                    exigir_todos_metais,
+                )
         except Exception as erro_execucao:
             st.error("A triagem não foi concluída. Verifique os detalhes técnicos abaixo.")
             with st.expander("Detalhes técnicos do erro"):
