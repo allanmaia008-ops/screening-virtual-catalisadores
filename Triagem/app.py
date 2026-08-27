@@ -3869,6 +3869,49 @@ correcao_temperatura_df = ler_csv(paths["correcao_temperatura"])
 
 st.markdown(
     """<style>
+    /* Amplia textos de leitura sem modificar os tamanhos dos titulos h1-h4. */
+    div[data-testid="stTabPanel"] p,
+    div[data-testid="stTabPanel"] li,
+    div[data-testid="stTabPanel"] td,
+    div[data-testid="stTabPanel"] th,
+    div[data-testid="stTabPanel"] label,
+    div[data-testid="stTabPanel"] button,
+    div[data-testid="stTabPanel"] input,
+    div[data-testid="stTabPanel"] select,
+    div[data-testid="stTabPanel"] textarea,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] button {
+        font-size: 0.96rem !important;
+        line-height: 1.48 !important;
+    }
+    div[data-testid="stTabPanel"] [class$="-note"],
+    div[data-testid="stTabPanel"] [class$="-subtitle"],
+    div[data-testid="stTabPanel"] [class$="-description"],
+    div[data-testid="stTabPanel"] [class$="-detail"],
+    div[data-testid="stTabPanel"] [class$="-meta"],
+    div[data-testid="stTabPanel"] [class$="-label"] {
+        font-size: 0.94rem !important;
+        line-height: 1.45 !important;
+    }
+    /* Destaca a navegacao por abas sem alterar os titulos internos das paginas. */
+    div[data-testid="stTabs"] div[role="tablist"] {
+        min-height: 56px;
+        gap: clamp(8px, 1.1vw, 18px);
+    }
+    button[data-baseweb="tab"],
+    div[data-testid="stTab"] {
+        min-height: 54px !important;
+        padding: 0 14px !important;
+    }
+    button[data-baseweb="tab"] p,
+    div[data-testid="stTab"] p {
+        font-size: clamp(1rem, 0.95vw, 1.10rem) !important;
+        font-weight: 780 !important;
+        line-height: 1.18 !important;
+        white-space: nowrap;
+    }
+
     div[data-testid="stTab"][aria-selected="true"],
     div[data-testid="stTab"][aria-selected="true"] p {
         color: #146CC1 !important;
