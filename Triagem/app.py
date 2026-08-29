@@ -4121,22 +4121,43 @@ def renderizar_pagina_institucional(pagina: str) -> None:
     elif pagina == "pesquisa":
         st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Pesquisa'))}</h2>", unsafe_allow_html=True)
         if idioma_atual() == "en":
-            perfil = f"{dados['nome']} is the researcher and developer responsible for CatAiLab."
-            titulo_perfil, titulo_citacao = "Researcher and developer", "Suggested citation"
+            perfil = (
+                "CatAiLab was developed at the Environmental Technology Laboratory (LabTam/UFRN) "
+                "by doctoral researcher Allan da Silva Maia, under the supervision of Professor "
+                "Dulce Maria de Araújo Melo. The scientific software was designed to support catalysis "
+                "laboratories in screening and prioritizing candidate materials, interpreting chemical "
+                "descriptors, selecting supports and promoters, assessing uncertainty and operational "
+                "stability, and planning initial experimental validation. It also provides recommended "
+                "synthesis routes, operating conditions, and theoretical component quantities, which "
+                "must be confirmed and adjusted by the laboratory according to precursor purity, the "
+                "preparation method, characterization results, and catalytic tests."
+            )
+            titulo_perfil, titulo_citacao = "Development", "Suggested citation"
             citacao = (
-                "MAIA, Allan. CatAiLab: virtual screening of catalysts and synthesis conditions. "
+                "MAIA, Allan da Silva. CatAiLab: virtual screening of catalysts and synthesis conditions. "
                 "Scientific software. Federal University of Rio Grande do Norte, 2026. "
                 "Available at: https://triagemufrn.streamlit.app/."
             )
         else:
-            perfil = f"{dados['nome']} é o pesquisador e desenvolvedor responsável pelo CatAiLab."
-            titulo_perfil, titulo_citacao = "Pesquisador e desenvolvedor", "Forma de citação"
+            perfil = (
+                "O CatAiLab foi desenvolvido no Laboratório de Tecnologia Ambiental (LabTam/UFRN) "
+                "pelo doutorando Allan da Silva Maia, sob orientação da professora Dulce Maria de "
+                "Araújo Melo. O software científico foi concebido para apoiar laboratórios de catálise "
+                "na triagem e priorização de materiais candidatos, na interpretação de descritores "
+                "químicos, na seleção de suportes e promotores, na avaliação da incerteza e da "
+                "estabilidade operacional e no planejamento da validação experimental inicial. O "
+                "sistema também apresenta rotas de síntese recomendadas, condições de operação e "
+                "quantidades teóricas dos componentes, que devem ser confirmadas e ajustadas pelo "
+                "laboratório conforme a pureza dos precursores, o método de preparação, os resultados "
+                "de caracterização e os ensaios catalíticos."
+            )
+            titulo_perfil, titulo_citacao = "Desenvolvimento", "Forma de citação"
             citacao = (
-                "MAIA, Allan. CatAiLab: triagem virtual de catalisadores e condições de síntese. "
+                "MAIA, Allan da Silva. CatAiLab: triagem virtual de catalisadores e condições de síntese. "
                 "Software científico. Universidade Federal do Rio Grande do Norte, 2026. "
                 "Disponível em: https://triagemufrn.streamlit.app/."
             )
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([1.35, 0.65])
         col1.markdown(cartao_texto_html(titulo_perfil, perfil), unsafe_allow_html=True)
         col2.markdown(cartao_texto_html(titulo_citacao, citacao), unsafe_allow_html=True)
         st.link_button("Curriculum Lattes" if idioma_atual() == "en" else "Currículo Lattes", dados["lattes"])
