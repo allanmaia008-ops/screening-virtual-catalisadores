@@ -4120,6 +4120,9 @@ def renderizar_pagina_institucional(pagina: str) -> None:
 
     elif pagina == "pesquisa":
         st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Pesquisa'))}</h2>", unsafe_allow_html=True)
+        data_acesso = datetime.now()
+        meses_abnt = ["jan", "fev", "mar", "abr", "maio", "jun", "jul", "ago", "set", "out", "nov", "dez"]
+        data_acesso_abnt = f"{data_acesso.day} {meses_abnt[data_acesso.month - 1]}. {data_acesso.year}"
         if idioma_atual() == "en":
             perfil = (
                 "CatAiLab was developed at the Environmental Technology Laboratory (LabTam/UFRN) "
@@ -4132,11 +4135,12 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "must be confirmed and adjusted by the laboratory according to precursor purity, the "
                 "preparation method, characterization results, and catalytic tests."
             )
-            titulo_perfil, titulo_citacao = "Development", "Suggested citation"
+            titulo_perfil, titulo_citacao = "Development", "Suggested citation (ABNT)"
             citacao = (
                 "MAIA, Allan da Silva. CatAiLab: virtual screening of catalysts and synthesis conditions. "
-                "Scientific software. Federal University of Rio Grande do Norte, 2026. "
-                "Available at: https://triagemufrn.streamlit.app/."
+                "Version 1.0. Natal: Federal University of Rio Grande do Norte, 2026. "
+                "Available at: https://triagemufrn.streamlit.app/. "
+                f"Accessed on: {data_acesso.strftime('%d %b. %Y')}."
             )
         else:
             perfil = (
@@ -4151,11 +4155,12 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "laboratório conforme a pureza dos precursores, o método de preparação, os resultados "
                 "de caracterização e os ensaios catalíticos."
             )
-            titulo_perfil, titulo_citacao = "Desenvolvimento", "Forma de citação"
+            titulo_perfil, titulo_citacao = "Desenvolvimento", "Forma de citação (ABNT)"
             citacao = (
                 "MAIA, Allan da Silva. CatAiLab: triagem virtual de catalisadores e condições de síntese. "
-                "Software científico. Universidade Federal do Rio Grande do Norte, 2026. "
-                "Disponível em: https://triagemufrn.streamlit.app/."
+                "Versão 1.0. Natal: Universidade Federal do Rio Grande do Norte, 2026. "
+                "Disponível em: https://triagemufrn.streamlit.app/. "
+                f"Acesso em: {data_acesso_abnt}."
             )
         col1, col2 = st.columns([1.35, 0.65])
         col1.markdown(cartao_texto_html(titulo_perfil, perfil), unsafe_allow_html=True)
