@@ -1742,7 +1742,8 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             .funil-etapa {{
                 align-self: center;
                 justify-self: center;
-                display: flex;
+                display: grid;
+                grid-template-columns: 38px minmax(0, 1fr) 38px;
                 align-items: center;
                 justify-content: center;
                 gap: 13px;
@@ -1756,9 +1757,15 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-family: Arial, Helvetica, sans-serif;
                 text-align: center;
             }}
+            .funil-etapa::after {{
+                content: "";
+                display: block;
+                width: 38px;
+                height: 1px;
+            }}
             .funil-etapa-icone {{ display: flex; align-items: center; justify-content: center; width: 38px; height: 34px; line-height: 1; }}
             .funil-etapa-icone svg {{ width: 38px; height: 32px; fill: none; stroke: currentColor; stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round; }}
-            .funil-etapa div {{ display: flex; flex-direction: column; gap: 4px; }}
+            .funil-etapa div {{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; text-align: center; }}
             .funil-etapa strong {{ font-size: 0.96rem; line-height: 1.12; }}
             .funil-etapa small {{ font-size: 0.75rem; line-height: 1.18; }}
             .funil-quantidade, .funil-criterio, .funil-retencao {{
