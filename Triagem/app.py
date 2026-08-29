@@ -4164,14 +4164,71 @@ def renderizar_pagina_institucional(pagina: str) -> None:
 
     elif pagina == "contato":
         st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Contato'))}</h2>", unsafe_allow_html=True)
-        titulo = "Contact" if idioma_atual() == "en" else "Contato profissional"
-        texto = f"E-mail: {dados['email']}\n\nTelefone: {dados['telefone']}\n\nCurrículo Lattes: {dados['lattes']}"
-        col1, col2 = st.columns([1.2, 0.8])
-        col1.markdown(cartao_texto_html(titulo, texto), unsafe_allow_html=True)
+        site_labtam = "https://nupprar.ufrn.br/labtam/"
+        solicitacoes_labtam = "https://nupprar.ufrn.br/labtam/solicitacoes.php"
+        email_labtam = "ufrn.labtam@gmail.com"
+        telefone_labtam = "+55 (84) 3342-2323 — ramal 142"
+        endereco_labtam = (
+            "Av. Senador Salgado Filho, Lagoa Nova, Campus Universitário, "
+            "Natal–RN, CEP 59075-000"
+        )
+        if idioma_atual() == "en":
+            titulo_laboratorio = "Environmental Technology Laboratory — LabTAm/UFRN"
+            texto_laboratorio = (
+                "Multi-user research laboratory with analytical infrastructure for biomass "
+                "characterization and for the synthesis and characterization of materials.\n\n"
+                f"Address: {endereco_labtam}\n\n"
+                f"Email: {email_labtam}\n\nPhone: {telefone_labtam}"
+            )
+            titulo_acessos = "Laboratory services"
+            titulo_pesquisador = "Researcher and software contact"
+            texto_pesquisador = (
+                "Allan da Silva Maia — CatAiLab developer and doctoral researcher.\n\n"
+                f"Email: {dados['email']}\n\nPhone: {dados['telefone']}\n\n"
+                f"Lattes CV: {dados['lattes']}"
+            )
+            rotulo_site, rotulo_solicitacoes = "LabTAm website", "Request analyses"
+            rotulo_email_lab, rotulo_telefone_lab = "Laboratory email", "Laboratory phone"
+            rotulo_email_pessoal, rotulo_telefone_pessoal = "Researcher email", "Researcher phone"
+        else:
+            titulo_laboratorio = "Laboratório de Tecnologia Ambiental — LabTAm/UFRN"
+            texto_laboratorio = (
+                "Laboratório multiusuário e de pesquisa com infraestrutura analítica para a "
+                "caracterização de biomassa e para a síntese e caracterização de materiais.\n\n"
+                f"Endereço: {endereco_labtam}\n\n"
+                f"E-mail: {email_labtam}\n\nTelefone: {telefone_labtam}"
+            )
+            titulo_acessos = "Serviços do laboratório"
+            titulo_pesquisador = "Contato do pesquisador e do software"
+            texto_pesquisador = (
+                "Allan da Silva Maia — desenvolvedor do CatAiLab e pesquisador de doutorado.\n\n"
+                f"E-mail: {dados['email']}\n\nTelefone: {dados['telefone']}\n\n"
+                f"Currículo Lattes: {dados['lattes']}"
+            )
+            rotulo_site, rotulo_solicitacoes = "Site do LabTAm", "Solicitar análises"
+            rotulo_email_lab, rotulo_telefone_lab = "E-mail do laboratório", "Telefone do laboratório"
+            rotulo_email_pessoal, rotulo_telefone_pessoal = "E-mail do pesquisador", "Telefone do pesquisador"
+
+        col1, col2 = st.columns([1.35, 0.65])
+        col1.markdown(cartao_texto_html(titulo_laboratorio, texto_laboratorio), unsafe_allow_html=True)
         with col2:
-            st.link_button("Email", f"mailto:{dados['email']}", width="stretch")
-            st.link_button("WhatsApp / telefone", f"tel:{telefone_link}", width="stretch")
-            st.link_button("Currículo Lattes", dados["lattes"], width="stretch")
+            st.markdown(f"#### {titulo_acessos}")
+            st.link_button(rotulo_site, site_labtam, width="stretch")
+            st.link_button(rotulo_solicitacoes, solicitacoes_labtam, width="stretch")
+            st.link_button(rotulo_email_lab, f"mailto:{email_labtam}", width="stretch")
+            st.link_button(rotulo_telefone_lab, "tel:+558433422323", width="stretch")
+
+        st.divider()
+        st.markdown(
+            f"<h3 style='text-align:center;'>{html.escape(titulo_pesquisador)}</h3>",
+            unsafe_allow_html=True,
+        )
+        col3, col4 = st.columns([1.35, 0.65])
+        col3.markdown(cartao_texto_html(titulo_pesquisador, texto_pesquisador), unsafe_allow_html=True)
+        with col4:
+            st.link_button(rotulo_email_pessoal, f"mailto:{dados['email']}", width="stretch")
+            st.link_button(rotulo_telefone_pessoal, f"tel:{telefone_link}", width="stretch")
+            st.link_button("Curriculum Lattes" if idioma_atual() == "en" else "Currículo Lattes", dados["lattes"], width="stretch")
 
 
 TABELA_PERIODICA = [
