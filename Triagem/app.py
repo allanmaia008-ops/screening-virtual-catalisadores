@@ -91,7 +91,7 @@ TRADUCOES_EN = {
     "Candidatos": "Candidates",
     "Classificação": "Ranking",
     "Incerteza": "Uncertainty",
-    "Robustez e operação": "Robustness and operation",
+    "Estabilidade catalítica e operação": "Catalytic stability and operation",
     "Química": "Chemistry",
     "Síntese": "Synthesis",
     "Validação": "Validation",
@@ -105,7 +105,7 @@ TRADUCOES_EN = {
     "Condição e confiança": "Conditions and confidence",
     "Condição inicial de ensaio": "Initial test condition",
     "Confiabilidade da recomendação": "Recommendation confidence",
-    "Robustez no Top 5": "Top 5 robustness",
+    "Permanência no Top 5": "Top 5 retention",
     "Desempenho químico previsto": "Predicted chemical performance",
     "Conversão prevista": "Predicted conversion",
     "Seletividade prevista": "Predicted selectivity",
@@ -189,7 +189,7 @@ def traduzir_texto_exibicao(texto: str) -> str:
         "Combinações de metais ativos, promotor e composições geradas.": "Generated combinations of active metals, promoter, and compositions.",
         "Estabilidade termodinâmica, composição e regras químicas.": "Thermodynamic stability, composition, and chemical rules.",
         "Descritores catalíticos, DFT ou proxy e incerteza do modelo.": "Catalytic descriptors, DFT or proxy, and model uncertainty.",
-        "Desempenho, robustez Monte Carlo e viabilidade de síntese.": "Performance, Monte Carlo robustness, and synthesis feasibility.",
+        "Desempenho, estabilidade do ranking por Monte Carlo e viabilidade de síntese.": "Performance, Monte Carlo ranking stability, and synthesis feasibility.",
         "As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.": "Precursor-salt masses must be recalculated according to the selected salt, purity, and calcination loss.",
         "impregnacao incipiente do metal ativo em suporte de alta area": "incipient-wetness impregnation of the active metal on a high-surface-area support",
         "suporte de alta area favorece dispersao da fase ativa em metanacao": "a high-surface-area support favors active-phase dispersion in methanation",
@@ -201,11 +201,11 @@ def traduzir_texto_exibicao(texto: str) -> str:
         "Índice heurístico": "Heuristic index", "Modelo estrutural esquemático": "Schematic structural model",
         "Fase ativa": "Active phase", "Fórmulas e propriedades calculadas": "Calculated formulas and properties",
         "Distância do ótimo": "Distance from optimum", "Barreira aparente": "Apparent barrier",
-        "Estabilidade, robustez e resistência à formação de coque": "Stability, robustness, and resistance to coke formation",
+        "Estabilidade térmica e resistência à formação de coque": "Thermal stability and resistance to coke formation",
         "Descritores químicos e relação estrutura–desempenho": "Chemical descriptors and structure–performance relationship",
         "Energia de adsorção": "Adsorption energy", "Afinidade por oxigênio": "Oxygen affinity",
         "Redutibilidade": "Reducibility", "Basicidade": "Basicity", "Resistência ao coque": "Coke resistance",
-        "Robustez operacional": "Operational robustness", "Proxy de resistência à sinterização": "Sintering-resistance proxy",
+        "Estabilidade operacional": "Operational stability", "Proxy de resistência à sinterização": "Sintering-resistance proxy",
         "Maior é melhor": "Higher is better", "Maior depende da reação": "Higher depends on the reaction",
         "Próxima do ótimo é melhor": "Closer to the optimum is better", "Maior indica ancoragem favorável": "Higher indicates favorable anchoring",
         "Sugestão da triagem": "Screening suggestion", "Sem promotor": "No promoter",
@@ -749,7 +749,7 @@ def mostrar_painel_decisao(
         [
             ("Condição inicial de ensaio", f"{condicao_inicial} · {regime.replace('_', ' ')}" if regime != "-" else condicao_inicial, False),
             ("Confiabilidade da recomendação", confiabilidade.capitalize() if confiabilidade != "-" else "-", True),
-            ("Robustez no Top 5", "-" if probabilidade_top5 is None else f"{100 * probabilidade_top5:.0f}%", False),
+            ("Permanência no Top 5", "-" if probabilidade_top5 is None else f"{100 * probabilidade_top5:.0f}%", False),
         ],
     )
     mostrar_linha_cartoes(
@@ -812,9 +812,9 @@ def mostrar_robustez_operacao(
     monte_carlo_df: pd.DataFrame,
     desempenho_df: pd.DataFrame,
 ) -> None:
-    """Mostra os indicadores operacionais e de robustez em uma aba dedicada."""
+    """Mostra os indicadores de estabilidade catalítica e operação em uma aba dedicada."""
     if prioritarios_df.empty and monte_carlo_df.empty and desempenho_df.empty:
-        st.info("Execute a triagem para visualizar os dados de robustez e opera\u00e7\u00e3o.")
+        st.info("Execute a triagem para visualizar os dados de estabilidade catalítica e opera\u00e7\u00e3o.")
         return
 
     top = prioritarios_df.iloc[0] if not prioritarios_df.empty else pd.Series(dtype=object)
@@ -843,7 +843,7 @@ def mostrar_robustez_operacao(
                 melhor_regime = str(resumo_regime.sort_values(col_score_cond, ascending=False).iloc[0][col_regime])
 
     mostrar_linha_cartoes(
-        "Robustez e opera\u00e7\u00e3o",
+        "Estabilidade catalítica e opera\u00e7\u00e3o",
         [
             ("Maior prob. MC Top 5", formatar_valor(prob_mc, percentual=True), True),
             ("Incerteza m\u00e9dia MC", formatar_valor(incert_mc), False),
@@ -855,13 +855,13 @@ def mostrar_robustez_operacao(
 
     col1, col2 = st.columns([1.0, 1.0])
     with col1:
-        mostrar_tabela("Robustez Monte Carlo", monte_carlo_df, linhas=30)
+        mostrar_tabela("Estabilidade do ranking (Monte Carlo)", monte_carlo_df, linhas=30)
     with col2:
         metricas_operacao_df = filtrar_metricas_por_termos(
             metricas_df,
             ["robustez", "monte carlo", "probabilidade", "desvio", "faixa", "condicao", "condi\u00e7\u00e3o", "operacao", "opera\u00e7\u00e3o", "regime"],
         )
-        mostrar_tabela("M\u00e9tricas de robustez e opera\u00e7\u00e3o", metricas_operacao_df, linhas=30)
+        mostrar_tabela("M\u00e9tricas de estabilidade catalítica e opera\u00e7\u00e3o", metricas_operacao_df, linhas=30)
 
     mostrar_tabela("Desempenho por faixa de condi\u00e7\u00e3o", desempenho_df, linhas=30)
 
@@ -882,7 +882,7 @@ def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_d
         coluna = encontrar_coluna(pd.DataFrame(columns=row.index), termos)
         valor = pd.to_numeric(pd.Series([row.get(coluna, padrao) if coluna else padrao]), errors="coerce").iloc[0]
         return float(valor) if pd.notna(valor) else padrao
-    temperatura_base, pressao_base, razao_base = float(np.clip(numero(candidato,["temperatura"],400),200,800)), float(np.clip(numero(candidato,["pressao"],10),1,30)), float(np.clip(numero(candidato,["razao"],3),1,6))
+    temperatura_base, pressao_base, razao_base = float(np.clip(numero(candidato,["temperatura"],400),200,800)), float(np.clip(numero(candidato,["pressao"],10),1,30)), float(np.clip(numero(candidato,["razao"],3),.1,6))
     conversao_base, seletividade_base = float(np.clip(numero(candidato,["conversao","prevista"],55),1,98)), float(np.clip(numero(candidato,["seletividade","prevista"],80),1,99))
     score_material, resistencia_coque = float(np.clip(numero(candidato,["score","final"],.6),0,1)), float(np.clip(numero(candidato,["resistencia","coque"],.55),0,1))
     def resposta(temperatura_c, pressao_bar, razao_h2_co2):
@@ -891,15 +891,15 @@ def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_d
         conversao = np.clip(conversao_base*fator_t*fator_p*fator_r,0,100); seletividade = np.clip(seletividade_base*(.93+.07*fator_r)*(1.02-.00016*np.maximum(temperatura_c-temperatura_base,0)),0,100); rendimento = np.clip(conversao*seletividade/100,0,100)
         risco = np.clip((1-resistencia_coque)*(.55+.25*np.clip((temperatura_c-350)/450,0,1)+.20*np.clip((3-razao_h2_co2)/2,0,1)),0,1); robustez = np.clip(.55*rendimento/100+.25*score_material+.20*(1-risco),0,1)
         return conversao,seletividade,rendimento,robustez,risco
-    st.markdown(f"<h2 class='operation-title'>{html.escape(t('Robustez e operação'))}</h2>",unsafe_allow_html=True)
+    st.markdown(f"<h2 class='operation-title'>{html.escape(t('Estabilidade catalítica e operação'))}</h2>",unsafe_allow_html=True)
     st.caption("Simulador operacional proxy: compara tendências previstas a partir dos descritores e do ranking. Não substitui ensaios cinéticos, balanço de massa ou validação experimental.")
     with st.container(border=True):
         st.markdown("#### Condições operacionais exploradas"); c1,c2,c3=st.columns(3)
         with c1: temperatura=st.slider("Temperatura (°C)",200,800,int(round(temperatura_base)),10,key="simulador_operacional_temperatura")
         with c2: pressao=st.slider("Pressão (bar)",1,30,int(round(pressao_base)),1,key="simulador_operacional_pressao")
-        with c3: razao=st.slider("Razão H₂/CO₂ (mol/mol)",1.0,6.0,round(razao_base,1),.1,key="simulador_operacional_razao")
+        with c3: razao=st.slider("Razão H₂/CO₂ (mol/mol)",0.1,6.0,max(0.1,round(razao_base,1)),.1,key="simulador_operacional_razao")
     conversao,seletividade,rendimento,score_robustez,risco_coque=resposta(temperatura,pressao,razao); k_desativacao=.0004+.006*float(risco_coque); tempo_10_pct=.105/k_desativacao
-    cards=[("Temperatura recomendada",f"{temperatura} °C",f"janela: {max(200,temperatura-60)}–{min(800,temperatura+60)} °C"),("Pressão recomendada",f"{pressao} bar",f"janela: {max(1,pressao-5)}–{min(30,pressao+5)} bar"),("Razão H₂/CO₂ recomendada",f"{razao:.1f} mol/mol",f"janela: {max(1.,razao-.7):.1f}–{min(6.,razao+.7):.1f} mol/mol"),("Rendimento previsto",f"{float(rendimento):.1f}%",f"conversão {float(conversao):.1f}% · seletividade {float(seletividade):.1f}%")]
+    cards=[("Temperatura recomendada",f"{temperatura} °C",f"janela: {max(200,temperatura-60)}–{min(800,temperatura+60)} °C"),("Pressão recomendada",f"{pressao} bar",f"janela: {max(1,pressao-5)}–{min(30,pressao+5)} bar"),("Razão H₂/CO₂ recomendada",f"{razao:.1f} mol/mol",f"janela: {max(.1,razao-.7):.1f}–{min(6.,razao+.7):.1f} mol/mol"),("Rendimento previsto",f"{float(rendimento):.1f}%",f"conversão {float(conversao):.1f}% · seletividade {float(seletividade):.1f}%")]
     st.markdown("<div class='operation-kpis'>"+"".join(f"<div class='operation-kpi'><b>{html.escape(a)}</b><strong>{html.escape(b)}</strong><span>{html.escape(c)}</span></div>" for a,b,c in cards)+"</div>",unsafe_allow_html=True)
     temperaturas=np.arange(200,801,25); fig_atividade=go.Figure()
     for indice,(_,linha) in enumerate(candidatos.head(5).iterrows(),1):
@@ -916,14 +916,14 @@ def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_d
     for p in linhas_pressao:
         conv,_,rend,_,_=resposta(temperaturas,p,razao); fig_conversao.add_trace(go.Scatter(x=temperaturas,y=conv,mode="lines+markers",name=f"Pressão: {p} bar")); fig_rendimento.add_trace(go.Scatter(x=temperaturas,y=rend,mode="lines+markers",name=f"Pressão: {p} bar"))
     for figura,titulo,eixo in [(fig_conversao,"Conversão de CO₂ prevista","Conversão de CO₂ (%)"),(fig_rendimento,"Rendimento previsto","Rendimento (%)")]: figura.add_vline(x=temperatura,line_dash="dash",line_color="#64748B"); figura.update_layout(title=titulo,xaxis_title="Temperatura (°C)",yaxis_title=eixo,height=315,margin=dict(l=35,r=15,t=50,b=35),legend=dict(orientation="h",y=1.12))
-    mapa=go.Figure(go.Heatmap(x=grade_t,y=grade_p,z=grade_robustez,colorscale="RdYlGn",zmin=0,zmax=1,colorbar=dict(title="Score"))); mapa.add_trace(go.Scatter(x=[temperatura],y=[pressao],mode="markers",marker=dict(size=10,color="#14213D",symbol="star"),name="Condição simulada")); mapa.update_layout(title="Mapa de robustez operacional",xaxis_title="Temperatura (°C)",yaxis_title="Pressão (bar)",height=315,margin=dict(l=35,r=15,t=50,b=35))
+    mapa=go.Figure(go.Heatmap(x=grade_t,y=grade_p,z=grade_robustez,colorscale="RdYlGn",zmin=0,zmax=1,colorbar=dict(title="Índice"))); mapa.add_trace(go.Scatter(x=[temperatura],y=[pressao],mode="markers",marker=dict(size=10,color="#14213D",symbol="star"),name="Condição simulada")); mapa.update_layout(title="Mapa de estabilidade operacional",xaxis_title="Temperatura (°C)",yaxis_title="Pressão (bar)",height=315,margin=dict(l=35,r=15,t=50,b=35))
     g1,g2,g3=st.columns(3)
     with g1: st.plotly_chart(fig_conversao,width="stretch")
     with g2: st.plotly_chart(fig_rendimento,width="stretch")
     with g3: st.plotly_chart(mapa,width="stretch")
-    pontos=pd.DataFrame({"Temperatura (°C)":tm.ravel(),"Pressão (bar)":pm.ravel(),"Rendimento (%)":grade_rendimento.ravel(),"Score de robustez":grade_robustez.ravel()}); janelas=pontos.sort_values(["Score de robustez","Rendimento (%)"],ascending=False).drop_duplicates(subset=["Temperatura (°C)"],keep="first").head(3).reset_index(drop=True); janelas.insert(0,"Janela",["Ótima","Alta","Boa"][:len(janelas)]); janelas["Razão H₂/CO₂"]=f"{razao:.1f}"; janelas["Conversão de CO₂ (%)"]=[float(resposta(r["Temperatura (°C)"],r["Pressão (bar)"],razao)[0]) for _,r in janelas.iterrows()]; janelas=janelas[["Janela","Temperatura (°C)","Pressão (bar)","Razão H₂/CO₂","Conversão de CO₂ (%)","Rendimento (%)","Score de robustez"]].round(2)
+    pontos=pd.DataFrame({"Temperatura (°C)":tm.ravel(),"Pressão (bar)":pm.ravel(),"Rendimento (%)":grade_rendimento.ravel(),"Índice de estabilidade operacional":grade_robustez.ravel()}); janelas=pontos.sort_values(["Índice de estabilidade operacional","Rendimento (%)"],ascending=False).drop_duplicates(subset=["Temperatura (°C)"],keep="first").head(3).reset_index(drop=True); janelas.insert(0,"Janela",["Ótima","Alta","Boa"][:len(janelas)]); janelas["Razão H₂/CO₂"]=f"{razao:.1f}"; janelas["Conversão de CO₂ (%)"]=[float(resposta(r["Temperatura (°C)"],r["Pressão (bar)"],razao)[0]) for _,r in janelas.iterrows()]; janelas=janelas[["Janela","Temperatura (°C)","Pressão (bar)","Razão H₂/CO₂","Conversão de CO₂ (%)","Rendimento (%)","Índice de estabilidade operacional"]].round(2)
     st.markdown("#### Principais janelas operacionais"); st.dataframe(janelas,hide_index=True,width="stretch")
-    st.markdown("#### Interpretação da simulação"); st.markdown(f"<div class='operation-note'><b>Candidato:</b> {html.escape(formatar_formula_quimica(formula))} &nbsp;·&nbsp; <b>Condição avaliada:</b> {temperatura} °C, {pressao} bar, H₂/CO₂ = {razao:.1f} &nbsp;·&nbsp; <b>Score operacional:</b> {float(score_robustez):.2f}.<br>Os indicadores de coque e desativação são proxies relativos. Confirme-os por ensaios de tempo em operação.</div>",unsafe_allow_html=True)
+    st.markdown("#### Interpretação da simulação"); st.markdown(f"<div class='operation-note'><b>Candidato:</b> {html.escape(formatar_formula_quimica(formula))} &nbsp;·&nbsp; <b>Condição avaliada:</b> {temperatura} °C, {pressao} bar, H₂/CO₂ = {razao:.1f} &nbsp;·&nbsp; <b>Índice de estabilidade operacional:</b> {float(score_robustez):.2f}.<br>Os indicadores de coque e desativação são proxies relativos. Confirme-os por ensaios de tempo em operação.</div>",unsafe_allow_html=True)
 
 
 def mostrar_painel_incerteza(monte_carlo_df: pd.DataFrame, dominio_df: pd.DataFrame, validacao_df: pd.DataFrame) -> None:
@@ -1074,7 +1074,7 @@ def mostrar_painel_validacao(
     kpis = [
         ("R²", texto("R² CV do modelo proxy", "Proxy-model CV R²"), formatar_valor(r2_cv), texto("validação cruzada interna", "internal cross-validation")),
         ("RMSE", texto("RMSE CV do modelo proxy", "Proxy-model CV RMSE"), formatar_valor(rmse_cv), texto("alvo proxy; não experimental", "proxy target; not experimental")),
-        ("ρ", texto("Robustez do ranking", "Ranking robustness"), formatar_valor(spearman), texto("Spearman: nominal versus Monte Carlo", "Spearman: nominal versus Monte Carlo")),
+        ("ρ", texto("Estabilidade do ranking", "Ranking stability"), formatar_valor(spearman), texto("Spearman: nominal versus Monte Carlo", "Spearman: nominal versus Monte Carlo")),
         ("AD", texto("Dentro do domínio", "Within applicability domain"), "-" if pd.isna(cobertura) else f"{100 * cobertura:.1f}%", f"{n_dentro} {texto('de', 'of')} {n_total} {texto('candidatos', 'candidates')}"),
     ]
     kpis_html = "".join(f"<article class='validation-kpi'><span class='validation-kpi-icon'>{sigla}</span><div><b>{html.escape(nome)}</b><strong>{html.escape(valor)}</strong><span>{html.escape(nota)}</span></div></article>" for sigla, nome, valor, nota in kpis)
@@ -1195,7 +1195,7 @@ def mostrar_painel_validacao(
             f"<div><b>{html.escape(texto('Planejamento experimental', 'Experimental design'))}</b>{formatar_valor(ensaios_doe)} {html.escape(texto('ensaios DOE sugeridos para confirmação', 'DOE experiments suggested for confirmation'))}.</div>",
         ]
         resumo_html = "".join(resumo_modelo + linhas_relatorio) if linhas_relatorio else "".join(resumo_modelo)
-        nota = texto("Os painéis acima avaliam coerência interna, domínio e robustez da triagem. Eles não substituem conversão, seletividade, estabilidade temporal ou balanço de massa obtidos em experimento.", "The panels above assess internal consistency, domain, and screening robustness. They do not replace conversion, selectivity, time-on-stream stability, or mass balance obtained experimentally.")
+        nota = texto("Os painéis acima avaliam coerência interna, domínio de aplicabilidade e estabilidade do ranking. Eles não substituem conversão, seletividade, estabilidade temporal ou balanço de massa obtidos em experimento.", "The panels above assess internal consistency, applicability domain, and ranking stability. They do not replace conversion, selectivity, time-on-stream stability, or mass balance obtained experimentally.")
         st.markdown(f"<aside class='validation-note'><h3>{html.escape(texto('Nota científica', 'Scientific note'))}</h3><p>{html.escape(nota)}</p><div class='validation-summary'>{resumo_html}</div></aside>", unsafe_allow_html=True)
 
 
@@ -1226,7 +1226,7 @@ def mostrar_painel_arquivos(
     arquivos = [
         ("resultados", paths["excel"], texto("Resultados completos da triagem com previsões e métricas.", "Complete screening results with predictions and metrics.")),
         ("ranking", paths["ranking"], texto("Ranking final após filtros, condições e ponderações.", "Final ranking after filters, conditions, and weights.")),
-        ("metricas", paths["metricas"], texto("Métricas de funil, desempenho, robustez e incerteza.", "Funnel, performance, robustness, and uncertainty metrics.")),
+        ("metricas", paths["metricas"], texto("Métricas de funil, desempenho, estabilidade operacional e incerteza.", "Funnel, performance, operational stability, and uncertainty metrics.")),
         ("monte_carlo", paths["monte_carlo"], texto("Ranking e dispersão estimados pela simulação Monte Carlo.", "Ranking and dispersion estimated by Monte Carlo simulation.")),
         ("dominio", paths["dominio"], texto("Diagnóstico de Hotelling T², Q residual e domínio de aplicabilidade.", "Hotelling T², Q-residual, and applicability-domain diagnostic.")),
         ("pareto", paths["pareto"], texto("Compromissos multicritério e fronteira de Pareto.", "Multi-criteria trade-offs and Pareto frontier.")),
@@ -1389,7 +1389,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
         {
             "rotulo": "Candidatos para síntese",
             "valor": n_recomendados,
-            "criterio": "Desempenho, robustez Monte Carlo e viabilidade de síntese.",
+            "criterio": "Desempenho, estabilidade do ranking por Monte Carlo e viabilidade de síntese.",
             "retencao": retencao(n_recomendados, n_refinados),
             "cor": "#F5F0FF",
             "texto": "#7340A3",
@@ -1943,7 +1943,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
         score_final = formatar_numero_linha(row, ["score", "final"], "", casas=3)
         rota_sintese = texto_curto(valor_linha(row, ["rota", "sintese"], "-"), limite=135)
         justificativa = texto_curto(
-            valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e robustez.")),
+            valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e consistência operacional.")),
             limite=155,
         )
         cor_posicao = "#007A32" if posicao == 1 else "#E0A800"
@@ -2485,7 +2485,7 @@ def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.D
         barras_componentes = "".join(f"<span>{html.escape(valor)}</span>" for valor in componentes)
         linhas_html.append("<tr>" f"<td>{posicao}</td><td><b>{html.escape(formatar_formula_quimica(linha['Fórmula']))}</b></td>" f"<td>{html.escape(formatar_formula_quimica(linha['Suporte sugerido']))}</td>" f"<td class='candidate-stability'>{html.escape(str(estabilidade))}</td>" f"<td class='candidate-score'>{html.escape(str(score))}</td>" f"<td class='candidate-uncertainty'>{html.escape(str(incerteza))}</td>" f"<td>{html.escape(str(linha['Rota de síntese']))}</td>" f"<td><span class='candidate-confidence {classe_confianca}'>{html.escape(str(confianca).capitalize())}</span></td>" f"<td><div class='candidate-score-stack'>{barras_componentes}</div></td>" "</tr>")
     tabela_html = "".join(linhas_html)
-    st.markdown("<div class='candidate-results-layout'><div class='candidate-table-wrap'><table class='candidate-table'><thead><tr>" "<th>#</th><th>Fórmula</th><th>Suporte sugerido</th>" "<th>Estabilidade termodinâmica<br>(eV/átomo) ↓</th><th>Pontuação final<br>(0-1) ↑</th>" "<th>Incerteza<br>(desvio MC)</th><th>Rota de síntese</th><th>Confiança</th><th>Composição do score<br>(0-1)</th>" f"</tr></thead><tbody>{tabela_html}</tbody></table></div>" "<aside class='candidate-mcda-panel'><h4>Composição do score (MCDA)</h4>" "<div class='candidate-donut'><span>PESOS<br>(%)</span></div>" "<div class='candidate-mcda-item'><b>Atividade (40%)</b><span>Desempenho catalítico previsto (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Estabilidade (30%)</b><span>Estabilidade termodinâmica (eV/átomo; mais negativa é melhor)</span></div>" "<div class='candidate-mcda-item'><b>Seletividade (20%)</b><span>Seletividade para o produto-alvo (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Robustez (10%)</b><span>Robustez a variações estruturais e operacionais (0-1)</span></div>" "<p>Score final: soma ponderada normalizada entre 0 e 1.</p></aside></div>" "<div class='candidate-legend'><span>↓ Valores mais negativos indicam maior estabilidade termodinâmica.</span>" "<span>↑ Valores mais altos indicam melhor desempenho global.</span>" "<span><i class='high'></i> Alta &nbsp; <i class='medium'></i> Média &nbsp; <i class='low'></i> Baixa</span></div>", unsafe_allow_html=True)
+    st.markdown("<div class='candidate-results-layout'><div class='candidate-table-wrap'><table class='candidate-table'><thead><tr>" "<th>#</th><th>Fórmula</th><th>Suporte sugerido</th>" "<th>Estabilidade termodinâmica<br>(eV/átomo) ↓</th><th>Pontuação final<br>(0-1) ↑</th>" "<th>Incerteza<br>(desvio MC)</th><th>Rota de síntese</th><th>Confiança</th><th>Composição do score<br>(0-1)</th>" f"</tr></thead><tbody>{tabela_html}</tbody></table></div>" "<aside class='candidate-mcda-panel'><h4>Composição do score (MCDA)</h4>" "<div class='candidate-donut'><span>PESOS<br>(%)</span></div>" "<div class='candidate-mcda-item'><b>Atividade (40%)</b><span>Desempenho catalítico previsto (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Estabilidade (30%)</b><span>Estabilidade termodinâmica (eV/átomo; mais negativa é melhor)</span></div>" "<div class='candidate-mcda-item'><b>Seletividade (20%)</b><span>Seletividade para o produto-alvo (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Estabilidade operacional (10%)</b><span>Consistência diante de variações estruturais e operacionais (0-1)</span></div>" "<p>Score final: soma ponderada normalizada entre 0 e 1.</p></aside></div>" "<div class='candidate-legend'><span>↓ Valores mais negativos indicam maior estabilidade termodinâmica.</span>" "<span>↑ Valores mais altos indicam melhor desempenho global.</span>" "<span><i class='high'></i> Alta &nbsp; <i class='medium'></i> Média &nbsp; <i class='low'></i> Baixa</span></div>", unsafe_allow_html=True)
     mostrar_origem_e_confianca(fontes[0].iloc[0] if fontes and not fontes[0].empty else pd.Series(dtype=object))
 
 
@@ -2876,7 +2876,7 @@ def mostrar_visualizacao_cientifica_plotly(
                 st.info("Dados de taxa relativa insuficientes para o gráfico cinético simplificado.")
     with coluna_leitura_cinetica:
         with st.container(border=True):
-            st.markdown("<h3 class='science-card-title'>Como interpretar</h3><p class='science-card-note'>Este gráfico auxilia a verificar se o ganho de atividade proxy acompanha o score final. Ele não calcula mecanismos elementares, coberturas ou barreiras de ativação completas.</p><p class='science-card-note'><b>Objetivo:</b> destacar candidatos com resposta cinética proxy coerente com estabilidade, seletividade e robustez.</p>", unsafe_allow_html=True)
+            st.markdown("<h3 class='science-card-title'>Como interpretar</h3><p class='science-card-note'>Este gráfico auxilia a verificar se o ganho de atividade proxy acompanha o score final. Ele não calcula mecanismos elementares, coberturas ou barreiras de ativação completas.</p><p class='science-card-note'><b>Objetivo:</b> destacar candidatos com resposta cinética proxy coerente com estabilidade, seletividade e consistência operacional.</p>", unsafe_allow_html=True)
 
     st.markdown("<p class='science-restored-title'>Gráficos complementares gerados pela execução</p><p class='science-restored-subtitle'>Estas figuras recuperam as análises de ranking, incerteza, operação e quimiometria salvas com a triagem.</p>", unsafe_allow_html=True)
     mostrar_figuras(figuras_df)
@@ -2897,7 +2897,7 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
         "ranking": ("Ranking por pontuação final", "Compara os candidatos segundo o score multicritério usado para priorizar a validação experimental."),
         "estabilidade": ("Estabilidade termodinâmica", "Relaciona a estabilidade prevista à pontuação global para revelar compromissos do ranking."),
         "volcano": ("Diagrama de vulcão", "Avalia a proximidade ao regime de adsorção moderada associado ao princípio de Sabatier."),
-        "monte_carlo": ("Robustez Monte Carlo", "Mostra como perturbações nos descritores afetam a permanência dos candidatos no ranking."),
+        "monte_carlo": ("Estabilidade do ranking por Monte Carlo", "Mostra como perturbações nos descritores afetam a permanência dos candidatos no ranking."),
         "desempenho_faixa": ("Desempenho em faixa de condições", "Examina a variação de desempenho previsto ao redor das condições operacionais de interesse."),
         "sensibilidade": ("Sensibilidade dos descritores", "Indica quais descritores mais influenciam a pontuação calculada."),
         "pca": ("Diversidade quimiométrica", "Projeta os descritores em componentes principais para visualizar a diversidade química dos candidatos."),
@@ -2907,7 +2907,7 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
         "outliers": ("Diagnóstico de outliers", "Sinaliza candidatos com comportamento incomum no espaço de descritores."),
         "dominio": ("Domínio de aplicabilidade", "Mostra se a previsão está dentro de uma região química representada pelo conjunto de referência."),
         "pareto": ("Pareto e desejabilidade", "Expõe candidatos não dominados quando objetivos de atividade, estabilidade e síntese competem."),
-        "validacao": ("Validação e robustez", "Resume a consistência interna do ranking e os indicadores de validação disponíveis."),
+        "validacao": ("Validação e consistência", "Resume a consistência interna do ranking e os indicadores de validação disponíveis."),
         "regressao": ("Regressão quimiométrica", "Compara a resposta do modelo proxy com a tendência de referência usada na avaliação interna."),
     }
     colunas = st.columns(2)
@@ -3902,7 +3902,7 @@ def mostrar_painel_quimica(
     for titulo, valor in [
         ("Estabilidade termodinâmica", score_estabilidade),
         ("Proxy de resistência à sinterização", score_estrutural),
-        ("Robustez operacional", score_robustez),
+        ("Estabilidade operacional", score_robustez),
         ("Resistência ao coque", score_coque),
     ]:
         percentual, classe = classe_gauge(valor)
@@ -3931,7 +3931,7 @@ def mostrar_painel_quimica(
         </article>
       </div>
     </section>
-    <article class="chem-panel chem-gauges"><h3>Estabilidade, robustez e resistência à formação de coque</h3><div class="chem-gauge-grid">{''.join(gauges)}</div><p class="chem-method-note centered">A resistência à sinterização é um proxy estrutural/composicional; não representa um modelo temporal de crescimento de partículas.</p></article>
+    <article class="chem-panel chem-gauges"><h3>Estabilidade térmica e resistência à formação de coque</h3><div class="chem-gauge-grid">{''.join(gauges)}</div><p class="chem-method-note centered">A resistência à sinterização é um proxy estrutural/composicional; não representa um modelo temporal de crescimento de partículas.</p></article>
     """
     st.markdown(traduzir_texto_exibicao(html_superior), unsafe_allow_html=True)
 
@@ -4054,7 +4054,7 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "CatAiLab é uma plataforma de triagem virtual para priorizar catalisadores e condições "
                 "de síntese para metanação de CO₂, reforma de CH₄ e RWGS. Ela apoia a decisão "
                 "experimental com estabilidade termodinâmica, descritores químicos, dados ou proxies "
-                "DFT, robustez operacional, incerteza e critérios de síntese."
+                "DFT, estabilidade operacional, incerteza e critérios de síntese."
             )
             desenvolvimento = (
                 "O desenvolvimento integra Materials Project, OQMD e Catalysis-Hub com descritores "
@@ -4408,7 +4408,7 @@ secoes_resultados = {
     "quimica": f"⚗  {t('Química')}",
     "sintese": f"⚖  {t('Síntese')}",
     "incerteza": f"◌  {t('Incerteza')}",
-    "robustez": f"◈  {t('Robustez e operação')}",
+    "robustez": f"◈  {t('Estabilidade catalítica e operação')}",
     "validacao": f"✓  {t('Validação')}",
     "visualizacao": f"▥  {t('Visualização científica')}",
     "arquivos": f"▤  {t('Arquivos')}",
