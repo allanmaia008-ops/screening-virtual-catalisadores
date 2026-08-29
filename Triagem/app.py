@@ -1684,7 +1684,8 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 margin-bottom: 16px;
             }}
             .funil-resumo-cartao {{
-                display: flex;
+                display: grid;
+                grid-template-columns: 54px minmax(0, 1fr) 54px;
                 align-items: center;
                 gap: 14px;
                 min-height: 98px;
@@ -1695,6 +1696,12 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 background: #FFFFFF;
                 color: #17305F;
                 font-family: Arial, Helvetica, sans-serif;
+            }}
+            .funil-resumo-cartao::after {{
+                content: "";
+                display: block;
+                width: 54px;
+                height: 1px;
             }}
             .funil-resumo-icone {{
                 display: flex;
@@ -1709,7 +1716,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
                 font-weight: 700;
             }}
             .funil-resumo-icone svg {{ width: 34px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }}
-            .funil-resumo-cartao div {{ display: flex; flex-direction: column; min-width: 0; }}
+            .funil-resumo-cartao div {{ display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; width: 100%; text-align: center; }}
             .funil-resumo-cartao div > span {{ font-size: 0.82rem; font-weight: 750; line-height: 1.18; }}
             .funil-resumo-cartao strong {{ color: #145DB8; font-size: 1.55rem; line-height: 1.06; margin-top: 5px; }}
             .funil-resumo-cartao small {{ color: #3D5A86; font-size: 0.78rem; margin-top: 2px; }}
@@ -1787,6 +1794,9 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             .funil-conector {{ display: none; }}
             @media (max-width: 840px) {{
                 .funil-resumos {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+                .funil-resumo-cartao {{ grid-template-columns: 1fr; gap: 7px; padding: 12px; text-align: center; }}
+                .funil-resumo-cartao::after {{ display: none; }}
+                .funil-resumo-icone {{ justify-self: center; }}
                 .funil-cabecalho {{ display: none; }}
                 .funil-linha {{ grid-template-columns: 1fr 90px; min-height: 76px; }}
                 .funil-etapa {{ width: 100%; }}
