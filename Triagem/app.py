@@ -1734,8 +1734,10 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             }}
             .funil-linha {{
                 display: grid;
-                min-height: 82px;
+                min-height: 90px;
                 align-items: center;
+                padding-block: 9px;
+                box-sizing: border-box;
                 border-bottom: 1px dashed #D8E4EF;
             }}
             .funil-linha:last-of-type {{ border-bottom: 0; }}
