@@ -37,6 +37,12 @@ ESTRUTURAS_CATALITICAS = [
     APP_DIR / "assets" / "estrutura_catalitica_padrao_4.png",
     APP_DIR / "assets" / "estrutura_catalitica_padrao_5.png",
 ]
+IMAGENS_ETAPAS_FUNIL = [
+    APP_DIR / "assets" / "funil_espaco_quimico.png",
+    APP_DIR / "assets" / "funil_filtros_quimicos.png",
+    APP_DIR / "assets" / "funil_predicao_desempenho.png",
+    APP_DIR / "assets" / "funil_candidatos_finais.png",
+]
 
 CONFIGURACAO_VOLCANO = {
     "metanacao": {"descritor": "CO", "energia_otima": 0.85, "largura": 0.35},
@@ -1404,10 +1410,17 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
     blocos = []
     for indice, etapa in enumerate(etapas):
         conector = "" if indice == len(etapas) - 1 else '<div class="funil-conector"><i></i><b></b></div>'
+        caminho_imagem = IMAGENS_ETAPAS_FUNIL[indice]
+        imagem_etapa = base64.b64encode(caminho_imagem.read_bytes()).decode("utf-8") if caminho_imagem.exists() else ""
+        visual_etapa = (
+            f"<img src='data:image/png;base64,{imagem_etapa}' alt='{html.escape(etapa['cartao'])}'>"
+            if imagem_etapa
+            else etapa["icone"]
+        )
         resumo_cartoes.append(
             f"""
             <div class="funil-resumo-cartao">
-                <span class="funil-resumo-icone">{etapa['icone']}</span>
+                <span class="funil-resumo-icone">{visual_etapa}</span>
                 <div><span>{html.escape(etapa['cartao'])}</span><strong>{html.escape(formatar_valor(etapa['valor']))}</strong><small>catalisadores</small></div>
             </div>
             """
@@ -1685,7 +1698,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             }}
             .funil-resumo-cartao {{
                 display: grid;
-                grid-template-columns: 54px minmax(0, 1fr) 54px;
+                grid-template-columns: 72px minmax(0, 1fr) 72px;
                 align-items: center;
                 gap: 14px;
                 min-height: 98px;
@@ -1700,21 +1713,23 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             .funil-resumo-cartao::after {{
                 content: "";
                 display: block;
-                width: 54px;
+                width: 72px;
                 height: 1px;
             }}
             .funil-resumo-icone {{
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                width: 54px;
-                height: 54px;
+                width: 72px;
+                height: 72px;
                 border-radius: 8px;
-                background: #EDF5FF;
+                background: #F4F8FC;
                 color: #126ACC;
                 font-size: 2rem;
                 font-weight: 700;
+                overflow: hidden;
             }}
+            .funil-resumo-icone img {{ width: 68px; height: 68px; object-fit: contain; display: block; }}
             .funil-resumo-icone svg {{ width: 34px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }}
             .funil-resumo-cartao div {{ display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; width: 100%; text-align: center; }}
             .funil-resumo-cartao div > span {{ font-size: 0.82rem; font-weight: 750; line-height: 1.18; }}
