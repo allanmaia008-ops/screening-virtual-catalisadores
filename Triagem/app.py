@@ -164,7 +164,9 @@ def t(texto: str) -> str:
 
 def formatar_formula_quimica(formula: object) -> str:
     """Converte algarismos estequiométricos em subscritos apenas para exibição."""
-    return str(formula).translate(str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉"))
+    texto_formula = str(formula).strip()
+    texto_formula = re.sub(r"\s*-\s*", "–", texto_formula)
+    return texto_formula.translate(str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉"))
 
 
 def traduzir_texto_exibicao(texto: str) -> str:
@@ -376,6 +378,10 @@ def corrigir_texto_portugues(texto: str) -> str:
         "confianca": "confiança", "operacao": "operação", "decisao": "decisão",
         "quimicos": "químicos", "quimica": "química", "termica": "térmica",
         "metalica": "metálica", "area": "área", "razao": "razão",
+        "dispersao": "dispersão", "predicao": "predição", "validacao": "validação",
+        "selecao": "seleção", "classificacao": "classificação", "aplicabilidade": "aplicabilidade",
+        "estequiometria": "estequiometria", "catalitico": "catalítico", "catalitica": "catalítica",
+        "energetica": "energética", "evidencia": "evidência", "otimo": "ótimo",
     }
     resultado = str(texto)
     for origem, destino in correcoes.items():
@@ -484,6 +490,76 @@ def extrair_confiabilidade(row: pd.Series) -> str:
         if valor_norm in {"alta", "media", "baixa"}:
             return "média" if valor_norm == "media" else valor_norm
     return "-"
+
+
+def numero_linha_opcoes(row: pd.Series, opcoes: list[list[str]]) -> float | None:
+    """Lê uma métrica numérica usando alternativas de nomes de coluna."""
+    coluna = encontrar_coluna_por_opcoes(pd.DataFrame(columns=row.index), opcoes)
+    if coluna is None:
+        return None
+    valor = pd.to_numeric(pd.Series([row.get(coluna)]), errors="coerce").iloc[0]
+    return None if pd.isna(valor) else float(valor)
+
+
+def texto_linha_opcoes(row: pd.Series, opcoes: list[list[str]], padrao: str = "Não exportada") -> str:
+    """Lê um texto usando alternativas de nomes de coluna."""
+    coluna = encontrar_coluna_por_opcoes(pd.DataFrame(columns=row.index), opcoes)
+    if coluna is None:
+        return padrao
+    valor = row.get(coluna)
+    return padrao if valor is None or pd.isna(valor) or not str(valor).strip() else str(valor)
+
+
+def mostrar_origem_e_confianca(row: pd.Series) -> None:
+    """Expõe a procedência dos principais valores e os critérios de confiança."""
+    if row.empty:
+        return
+    confiabilidade = extrair_confiabilidade(row)
+    estabilidade = numero_linha_opcoes(row, [["estabilidade", "termodinamica"], ["energy", "above", "hull"]])
+    score_confianca = numero_linha_opcoes(row, [["score", "confianca"], ["score", "incerteza"]])
+    score_dft = numero_linha_opcoes(row, [["score", "dft"]])
+    probabilidade_top5 = numero_linha_opcoes(row, [["probabilidade", "monte", "top", "5"], ["probabilidade", "top5"]])
+    desvio_mc = numero_linha_opcoes(row, [["desvio", "monte", "score"], ["score", "final", "mc", "desvio"]])
+    fonte_estabilidade = texto_linha_opcoes(row, [["fonte", "estabilidade"]])
+    fonte_adsorcao = texto_linha_opcoes(row, [["fonte", "volcano"]])
+    modelo_gnn = texto_linha_opcoes(row, [["modelo", "gnn"]])
+    if normalizar_texto(fonte_estabilidade) == "mp":
+        fonte_estabilidade = "Materials Project (MP)"
+
+    def fmt(valor: float | None, casas: int = 3) -> str:
+        return "Não exportado" if valor is None else f"{valor:.{casas}f}".replace(".", ",")
+
+    itens_origem = [
+        ("Composição", "Geração combinatória", "Metais ativos, promotor e passo estequiométrico definidos na configuração."),
+        ("Estabilidade termodinâmica", fonte_estabilidade, "Consulta estrutural ou predição de bulk; não representa atividade catalítica."),
+        ("Adsorção / vulcão", fonte_adsorcao, "Evidência do Catalysis-Hub quando disponível; caso contrário, proxy químico identificado no resultado."),
+        ("Descritores estruturais", modelo_gnn, "GNN aplicada ao bulk ou estrutura proxy; não substitui DFT explícita de superfície."),
+        ("Pontuação final", "Cálculo MCDA", "Soma multicritério normalizada, com pesos e penalizações definidos pelo perfil da reação."),
+        ("Suporte e síntese", "Regra heurística química", "Sugestão baseada na composição e na reação; exige confirmação experimental."),
+    ]
+    origem_html = "".join(
+        f"<article class='audit-item'><b>{html.escape(titulo)}</b><strong>{html.escape(corrigir_texto_portugues(fonte))}</strong><span>{html.escape(descricao)}</span></article>"
+        for titulo, fonte, descricao in itens_origem
+    )
+    criterios = [
+        ("Estabilidade", fmt(estabilidade) + " eV/átomo", estabilidade is not None and estabilidade <= 0.10, "≤ 0,10 eV/átomo"),
+        ("Score de confiança", fmt(score_confianca), score_confianca is not None and score_confianca >= 0.65, "≥ 0,65"),
+        ("Score DFT/proxy", fmt(score_dft), score_dft is not None and score_dft >= 0.60, "≥ 0,60"),
+        ("Probabilidade de Top 5", "Não exportada" if probabilidade_top5 is None else f"{100 * probabilidade_top5:.1f}%".replace(".", ","), probabilidade_top5 is not None and probabilidade_top5 >= 0.30, "≥ 30%"),
+    ]
+    criterios_html = "".join(
+        f"<div class='confidence-factor {'ok' if passou else 'attention'}'><b>{html.escape(nome)}</b><strong>{html.escape(valor)}</strong><span>Critério: {html.escape(limiar)}</span></div>"
+        for nome, valor, passou, limiar in criterios
+    )
+    dispersao = "Não exportada" if desvio_mc is None else fmt(desvio_mc)
+    with st.expander("Origem dos resultados e justificativa da confiança", expanded=False):
+        st.markdown(
+            f"<div class='audit-grid'>{origem_html}</div>"
+            f"<h4 class='confidence-heading'>Confiabilidade classificada como {html.escape(confiabilidade.capitalize())}</h4>"
+            f"<div class='confidence-grid'>{criterios_html}</div>"
+            f"<p class='confidence-method'>A categoria alta exige simultaneamente os quatro critérios acima. A categoria média aceita estabilidade até 0,15 eV/átomo e score final ≥ 0,65. Nos demais casos, a confiança é baixa. Desvio Monte Carlo do score: <b>{html.escape(dispersao)}</b>. A confiança mede consistência da triagem e disponibilidade de evidências; não equivale à probabilidade de sucesso experimental.</p>",
+            unsafe_allow_html=True,
+        )
 
 
 def cartao_html(rotulo: str, valor: str, destaque: bool = False, icone: str = "", nota: str = "", tamanho_valor: str = "clamp(1.35rem, 1.8vw, 1.85rem)") -> str:
@@ -2273,7 +2349,13 @@ def mostrar_tabela(titulo: str, dataframe: pd.DataFrame, linhas: int = 20) -> No
     if dataframe.empty:
         st.info(t("Tabela ainda não disponível."))
         return
-    tabela = dataframe.head(linhas)
+    tabela = dataframe.head(linhas).copy()
+    for coluna in tabela.columns:
+        nome = normalizar_texto(coluna)
+        if any(termo in nome for termo in ["formula", "composicao", "suporte", "adsorbato"]):
+            tabela[coluna] = tabela[coluna].map(lambda valor: formatar_formula_quimica(valor) if pd.notna(valor) else valor)
+        elif tabela[coluna].dtype == object:
+            tabela[coluna] = tabela[coluna].map(lambda valor: corrigir_texto_portugues(valor) if pd.notna(valor) else valor)
     tabela_centralizada = tabela.style.set_properties(**{"text-align": "center"}).set_table_styles(
         [
             {"selector": "th", "props": [("text-align", "center")]},
@@ -2404,6 +2486,7 @@ def mostrar_candidatos_prioritarios(metricas_df: pd.DataFrame, fontes: list[pd.D
         linhas_html.append("<tr>" f"<td>{posicao}</td><td><b>{html.escape(formatar_formula_quimica(linha['Fórmula']))}</b></td>" f"<td>{html.escape(formatar_formula_quimica(linha['Suporte sugerido']))}</td>" f"<td class='candidate-stability'>{html.escape(str(estabilidade))}</td>" f"<td class='candidate-score'>{html.escape(str(score))}</td>" f"<td class='candidate-uncertainty'>{html.escape(str(incerteza))}</td>" f"<td>{html.escape(str(linha['Rota de síntese']))}</td>" f"<td><span class='candidate-confidence {classe_confianca}'>{html.escape(str(confianca).capitalize())}</span></td>" f"<td><div class='candidate-score-stack'>{barras_componentes}</div></td>" "</tr>")
     tabela_html = "".join(linhas_html)
     st.markdown("<div class='candidate-results-layout'><div class='candidate-table-wrap'><table class='candidate-table'><thead><tr>" "<th>#</th><th>Fórmula</th><th>Suporte sugerido</th>" "<th>Estabilidade termodinâmica<br>(eV/átomo) ↓</th><th>Pontuação final<br>(0-1) ↑</th>" "<th>Incerteza<br>(desvio MC)</th><th>Rota de síntese</th><th>Confiança</th><th>Composição do score<br>(0-1)</th>" f"</tr></thead><tbody>{tabela_html}</tbody></table></div>" "<aside class='candidate-mcda-panel'><h4>Composição do score (MCDA)</h4>" "<div class='candidate-donut'><span>PESOS<br>(%)</span></div>" "<div class='candidate-mcda-item'><b>Atividade (40%)</b><span>Desempenho catalítico previsto (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Estabilidade (30%)</b><span>Estabilidade termodinâmica (eV/átomo; mais negativa é melhor)</span></div>" "<div class='candidate-mcda-item'><b>Seletividade (20%)</b><span>Seletividade para o produto-alvo (0-1)</span></div>" "<div class='candidate-mcda-item'><b>Robustez (10%)</b><span>Robustez a variações estruturais e operacionais (0-1)</span></div>" "<p>Score final: soma ponderada normalizada entre 0 e 1.</p></aside></div>" "<div class='candidate-legend'><span>↓ Valores mais negativos indicam maior estabilidade termodinâmica.</span>" "<span>↑ Valores mais altos indicam melhor desempenho global.</span>" "<span><i class='high'></i> Alta &nbsp; <i class='medium'></i> Média &nbsp; <i class='low'></i> Baixa</span></div>", unsafe_allow_html=True)
+    mostrar_origem_e_confianca(fontes[0].iloc[0] if fontes and not fontes[0].empty else pd.Series(dtype=object))
 
 
 def selecionar_classificacao_formula(dataframe: pd.DataFrame, linhas: int = 10) -> pd.DataFrame:
@@ -2856,7 +2939,7 @@ def renderizar_cabecalho() -> None:
         )
         st.markdown(
             f"""
-            <div style="
+            <div class="catialab-institutional-header" style="
                 width: 100%;
                 padding: 12px 18px;
                 margin: 0 auto 14px auto;
@@ -2977,6 +3060,21 @@ def aplicar_estilo_interface() -> None:
                 --catialab-line: #D8EEDC;
                 --catialab-soft: #F5FBF7;
             }
+            html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .main { max-width: 100%; overflow-x: hidden !important; }
+            [data-testid="stMainBlockContainer"] { width: 100%; max-width: 1480px; min-width: 0; padding-inline: clamp(1rem, 3vw, 3.5rem); }
+            [data-testid="stHorizontalBlock"], [data-testid="stColumn"], [data-testid="stVerticalBlock"] { min-width: 0; max-width: 100%; }
+            [data-testid="stPlotlyChart"], [data-testid="stDataFrame"], .stImage, svg, canvas { max-width: 100% !important; }
+            [data-testid="stPills"] { width: 100%; margin: 6px 0 20px; }
+            [data-testid="stPills"] [role="listbox"] { display: flex; flex-wrap: wrap; justify-content: center; gap: 7px 9px; overflow: visible; }
+            [data-testid="stPills"] button { min-height: 42px; padding: 8px 13px; border-radius: 7px; font-weight: 800; white-space: normal; text-align: center; }
+            .audit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 4px 0 18px; }
+            .audit-item { min-height: 116px; padding: 13px; border: 1px solid #DCE6E0; border-radius: 7px; background: #FFFFFF; }
+            .audit-item b, .audit-item strong, .audit-item span { display: block; }
+            .audit-item b { color: #14213D; font-size: .80rem; }.audit-item strong { margin: 7px 0 5px; color: #087A3B; font-size: .78rem; }.audit-item span { color: #5D6B7C; font-size: .73rem; line-height: 1.4; }
+            .confidence-heading { margin: 4px 0 10px; color: #14213D; }.confidence-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+            .confidence-factor { padding: 12px; border: 1px solid #DCE6E0; border-top: 4px solid #D49A12; border-radius: 7px; background: #FFFFFF; }.confidence-factor.ok { border-top-color: #16843C; background: #F6FCF8; }
+            .confidence-factor b, .confidence-factor strong, .confidence-factor span { display: block; }.confidence-factor b { color: #334A69; font-size: .74rem; }.confidence-factor strong { margin: 6px 0; color: #14213D; font-size: 1.05rem; }.confidence-factor span, .confidence-method { color: #5D6B7C; font-size: .72rem; line-height: 1.42; }
+            .confidence-method { margin: 12px 0 2px; padding: 11px 13px; border-left: 4px solid #146CC1; background: #F5F9FD; }
             section[data-testid="stSidebar"] {
                 background: linear-gradient(180deg, #E7F6ED 0%, #F5FBF7 100%);
                 border-right: 1px solid #B9DDC7;
@@ -3091,6 +3189,12 @@ def aplicar_estilo_interface() -> None:
             .candidate-mcda-panel { height: 100%; box-sizing: border-box; padding: 14px; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; color: #14213D; } .candidate-mcda-panel h4 { margin: 0 0 9px; color: #087A3B; font-size: 0.9rem; text-align: center; } .candidate-donut { display: grid; width: 126px; height: 126px; margin: 0 auto 12px; place-items: center; border-radius: 50%; background: conic-gradient(#0D5EBA 0 40%, #3E85CF 40% 70%, #77ADE2 70% 90%, #BCD9F5 90%); } .candidate-donut::before { content: ''; grid-area: 1 / 1; width: 63px; height: 63px; border-radius: 50%; background: #FFFFFF; } .candidate-donut span { z-index: 1; grid-area: 1 / 1; color: #14213D; font-size: 0.72rem; font-weight: 850; line-height: 1.25; text-align: center; } .candidate-mcda-item { margin-top: 9px; padding-left: 10px; border-left: 5px solid #0D5EBA; } .candidate-mcda-item:nth-of-type(3) { border-color: #3E85CF; } .candidate-mcda-item:nth-of-type(4) { border-color: #77ADE2; } .candidate-mcda-item:nth-of-type(5) { border-color: #BCD9F5; } .candidate-mcda-item b { display: block; font-size: 0.76rem; } .candidate-mcda-item span { display: block; margin-top: 2px; color: #4A5B73; font-size: 0.69rem; line-height: 1.28; } .candidate-mcda-panel p { margin: 12px 0 0; padding: 8px; border-radius: 6px; background: #FFF8E9; color: #6D5516; font-size: 0.7rem; line-height: 1.35; }
             @media (max-width: 1080px) { .candidate-results-layout { grid-template-columns: 1fr; } .candidate-mcda-panel { max-width: none; } } @media (max-width: 900px) { .candidate-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-podium { grid-template-columns: 1fr; gap: 26px; } .candidate-podium-card, .candidate-podium-card.first { min-height: 240px; transform: none; } .candidate-podium-card.first { order: -1; } .candidate-legend { display: grid; } } @media (max-width: 560px) { .candidate-podium-card { grid-template-columns: 1fr; text-align: center; } .candidate-podium-image { grid-row: auto; min-height: 145px; } .candidate-podium-image img { height: 145px; } .candidate-podium-card h4, .candidate-podium-label { text-align: center; } }
             .uncertainty-title { margin: 6px 0 12px; color: #14213D; font-size: 1rem; font-weight: 850; text-transform: uppercase; } .uncertainty-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; } .uncertainty-metric { min-height:98px; padding:14px; border:1px solid #DCE6EE; border-radius:8px; background:#FFF; box-shadow:0 3px 10px rgba(20,33,61,.04); } .uncertainty-metric b{display:block;color:#14213D;font-size:.78rem}.uncertainty-metric strong{display:block;margin:9px 0 3px;color:#146CC1;font-size:1.45rem}.uncertainty-metric span{color:#64748B;font-size:.74rem}.uncertainty-alert{min-height:130px;padding:18px;border:1px solid #F2CD72;border-radius:8px;background:#FFF9EA;color:#5F4A11}.uncertainty-alert h4{margin:0 0 9px;color:#4E3A00;font-size:1rem;text-transform:uppercase}.uncertainty-alert strong{color:#B84B16}.uncertainty-alert p,.uncertainty-note p{font-size:.82rem;line-height:1.45}.uncertainty-note{margin-top:12px;padding:18px;border:1px solid #C9DFD0;border-radius:8px;background:#F7FCF8;color:#253D50}.uncertainty-note h4{margin:0;color:#087A3B;font-size:1rem}@media(max-width:900px){.uncertainty-metrics{grid-template-columns:repeat(2,minmax(0,1fr)}}
+            .candidate-results-layout { grid-template-columns: 1fr !important; min-width:0; }
+            .candidate-table-wrap { width:100%; max-width:100%; }
+            .candidate-table { min-width:820px !important; table-layout:fixed; font-size:.74rem !important; }
+            .candidate-table th,.candidate-table td { padding-inline:6px !important; overflow-wrap:anywhere; }
+            .candidate-mcda-panel { display:grid; grid-template-columns:150px repeat(4,minmax(0,1fr)); gap:12px; align-items:center; }
+            .candidate-mcda-panel h4 { grid-column:1/-1; }.candidate-mcda-panel .candidate-donut { grid-row:2/4; margin:auto; }.candidate-mcda-panel p { grid-column:2/-1; }
             .catialab-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 0 20px 0; }
             .catialab-summary-card { min-height: 132px; padding: 17px 18px 14px 18px; border: 1px solid #DCE6EE; border-radius: 9px; background: #FFFFFF; box-shadow: 0 5px 16px rgba(20, 33, 61, 0.06); }
             .catialab-summary-label { color: #14213D; font-size: 0.82rem; font-weight: 800; }
@@ -3100,7 +3204,13 @@ def aplicar_estilo_interface() -> None:
             .catialab-summary-accent { color: #218C3A; font-size: 0.78rem; font-weight: 750; margin-top: 10px; }
             @media (max-width: 860px) {
                 .catialab-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                .candidate-mcda-panel,.audit-grid,.confidence-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+                .candidate-mcda-panel .candidate-donut { grid-row:auto; }.candidate-mcda-panel p { grid-column:1/-1; }
             }
+            @media (max-width: 560px) { [data-testid="stMainBlockContainer"]{padding-inline:.75rem}.candidate-mcda-panel,.audit-grid,.confidence-grid{grid-template-columns:1fr} }
+            .catialab-institutional-header { max-width:100%; box-sizing:border-box; }
+            @media(max-width:1100px){.catialab-institutional-header{grid-template-columns:minmax(160px,1fr) minmax(230px,1.25fr) minmax(160px,1fr)!important;column-gap:8px!important}.catialab-institutional-header>div{transform:none!important}.catialab-institutional-header img{max-width:100%!important}}
+            @media(max-width:700px){.catialab-institutional-header{grid-template-columns:1fr!important;row-gap:12px}.catialab-institutional-header>div:nth-child(1),.catialab-institutional-header>div:nth-child(3){display:none!important}}
             section[data-testid="stSidebar"] h2,
             section[data-testid="stSidebar"] h3 {
                 color: #173D2B;
@@ -3498,15 +3608,23 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
         pretratamento = corrigir_texto_portugues(texto(row, [["pretratamento"]]))
         observacao = corrigir_texto_portugues(texto(row, [["observacao", "sintese"], ["observacao"]]))
         score = numero(row, [["score", "final"], ["score"]])
-        confianca = {"alta": 86, "média": 68, "media": 68, "baixa": 42}.get(normalizar_texto(extrair_confiabilidade(row)), 55)
+        classe_confianca = extrair_confiabilidade(row)
+        score_confianca = numero(row, [["score", "confianca"], ["score", "incerteza"]])
+        confianca = float(100 * np.clip(score_confianca, 0, 1)) if score_confianca is not None else 0.0
+        texto_confianca = (
+            f"{confianca:.1f}% ({classe_confianca})".replace(".", ",")
+            if score_confianca is not None
+            else classe_confianca.capitalize()
+        )
         carga = float(np.clip(numero(row, [["teor", "fase", "ativa"], ["carga", "metal"], ["loading"]]) or 15, 1, 90))
         condicoes = montar_condicao_operacional(row)
         formula = formatar_formula_quimica(formula)
         suporte = formatar_formula_quimica(suporte)
         cor = "#16843C" if posicao == 1 else "#D99A00"
         estrutura = imagem_estrutura(posicao)
-        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Confiabilidade do modelo: {confianca}%</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
+        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Score de confiança: {html.escape(texto_confianca)}</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
     st.markdown(f"<div class='rec-grade'>{traduzir_texto_exibicao(''.join(cards))}</div>", unsafe_allow_html=True)
+    mostrar_origem_e_confianca(prioritarios_df.iloc[0])
 
 
 def mostrar_resumo_dashboard(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFrame, monte_carlo_df: pd.DataFrame) -> None:
@@ -4284,27 +4402,35 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-aba_recomendados, aba_candidatos, aba_quimica, aba_sintese, aba_incerteza, aba_robustez, aba_validacao, aba_figuras, aba_arquivos = st.tabs([
-    f"⌂  {t('Catalisadores recomendados')}",
-    f"⌕  {t('Candidatos')}",
-    f"⚗  {t('Química')}",
-    f"⚖  {t('Síntese')}",
-    f"◌  {t('Incerteza')}",
-    f"◈  {t('Robustez e operação')}",
-    f"✓  {t('Validação')}",
-    f"▥  {t('Visualização científica')}",
-    f"▤  {t('Arquivos')}",
-])
+secoes_resultados = {
+    "recomendados": f"⌂  {t('Catalisadores recomendados')}",
+    "candidatos": f"⌕  {t('Candidatos')}",
+    "quimica": f"⚗  {t('Química')}",
+    "sintese": f"⚖  {t('Síntese')}",
+    "incerteza": f"◌  {t('Incerteza')}",
+    "robustez": f"◈  {t('Robustez e operação')}",
+    "validacao": f"✓  {t('Validação')}",
+    "visualizacao": f"▥  {t('Visualização científica')}",
+    "arquivos": f"▤  {t('Arquivos')}",
+}
+secao_resultados = st.pills(
+    "Seção dos resultados",
+    options=list(secoes_resultados),
+    default=st.session_state.get("secao_resultados_atual", "recomendados"),
+    format_func=lambda chave: secoes_resultados[chave],
+    selection_mode="single",
+    label_visibility="collapsed",
+    key="navegacao_resultados",
+) or "recomendados"
+st.session_state["secao_resultados_atual"] = secao_resultados
 
-with aba_recomendados:
+if secao_resultados == "recomendados":
     renderizar_titulo_dashboard()
     mostrar_recomendacoes_sintese(prioritarios_df)
     mostrar_funil_visual(metricas_df, prioritarios_df, monte_carlo_df)
-
-with aba_candidatos:
+elif secao_resultados == "candidatos":
     mostrar_candidatos_prioritarios(metricas_df, [prioritarios_df, classificacao_df, ranking_df])
-
-with aba_quimica:
+elif secao_resultados == "quimica":
     mostrar_painel_quimica(
         prioritarios_df,
         classificacao_df,
@@ -4313,17 +4439,13 @@ with aba_quimica:
         promotor,
         reacao_resultado,
     )
-
-with aba_sintese:
+elif secao_resultados == "sintese":
     mostrar_planejamento_sintese(prioritarios_df, metais, promotor)
-
-with aba_incerteza:
+elif secao_resultados == "incerteza":
     mostrar_painel_incerteza(monte_carlo_df, dominio_df, validacao_quimio_df)
-
-with aba_robustez:
+elif secao_resultados == "robustez":
     mostrar_simulador_operacional(prioritarios_df, classificacao_df)
-
-with aba_validacao:
+elif secao_resultados == "validacao":
     mostrar_painel_validacao(
         classificacao_df,
         ranking_df,
@@ -4332,8 +4454,7 @@ with aba_validacao:
         validacao_quimio_df,
         validacao_avancada_df,
     )
-
-with aba_figuras:
+elif secao_resultados == "visualizacao":
     mostrar_visualizacao_cientifica_plotly(prioritarios_df, classificacao_df, ranking_df, monte_carlo_df, figuras_df)
-with aba_arquivos:
+elif secao_resultados == "arquivos":
     mostrar_painel_arquivos(paths, metricas_df, classificacao_df, reacao_resultado)
