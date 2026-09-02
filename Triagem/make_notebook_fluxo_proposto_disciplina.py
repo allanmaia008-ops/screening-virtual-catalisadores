@@ -650,7 +650,7 @@ print("Intermediários DFT relevantes:", perfil["intermediarios_dft"])
         """
 ## Etapa 4 - Geração automática de candidatos
 
-O modelo gera candidatos a partir dos metais ativos e do promotor. A fração de promotor é definida pela reação: 2-20% para metanação, 5-30% para reforma e 0,5-10% para RWGS. Quando mais de um metal ativo é informado, o funil inclui ligas entre metais ativos, ligas multimetálicas e versões promovidas antes de aplicar o corte de 1000 candidatos. Depois disso, passa para 100 candidatos viáveis após o filtro, refina 10 candidatos e apresenta 2 candidatos no ranking final.
+O modelo gera candidatos a partir dos metais ativos e do promotor. A fração de promotor é definida pela reação: 2-20% para metanação, 5-30% para reforma e 0,5-10% para RWGS. Antes de completar o espaço de 1000 fórmulas, o gerador reserva 30% da biblioteca para composições que contenham simultaneamente todos os metais ativos selecionados e o promotor. A mesma classe química recebe cota mínima de 30% entre os 100 viáveis e os 10 refinados. Os 2 candidatos finais permanecem livres para serem definidos exclusivamente pelo score, mas o relatório informa se perderam algum componente solicitado.
 """
     ),
     code(
@@ -672,6 +672,15 @@ N_CANDIDATOS_REFINADOS_FUNIL = 10
 
 # Define quantos candidatos aparecem como prioritarios finais para sintese.
 N_CANDIDATOS_RANKING_FINAL = 2
+
+# Reserva 30% da biblioteca inicial para a configuração química completa solicitada.
+FRACAO_MINIMA_CONFIGURACAO_COMPLETA_GERACAO = 0.30
+
+# Reserva 30% dos candidatos viáveis para a configuração química completa solicitada.
+FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS = 0.30
+
+# Reserva 30% dos candidatos refinados para a configuração química completa solicitada.
+FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS = 0.30
 
 # Define as faixas de promotor por reação com base nos limites definidos para a geração.
 FAIXAS_PROMOTOR_POR_REACAO = {
@@ -770,6 +779,98 @@ candidatos = []
 
 # Inicia o conjunto usado para controlar duplicatas durante a geração combinatória.
 candidatos_registrados = set()
+
+# Define uma função recursiva para gerar razões atômicas positivas com passo de 1%.
+def gerar_razoes_ativas_percentuais(n_metais, total=100, minimo=1):
+    # Para o último metal, usa toda a fração percentual restante.
+    if n_metais == 1:
+        # Emite apenas composições positivas para preservar o elemento na fórmula.
+        if total >= minimo:
+            yield [total]
+        return
+    # Reserva ao menos 1% para cada metal que ainda será distribuído.
+    maximo_primeiro = total - minimo * (n_metais - 1)
+    # Varia a fração do metal atual em passos inteiros de 1%.
+    for primeiro in range(minimo, maximo_primeiro + 1):
+        # Distribui recursivamente o restante entre os demais metais.
+        for restante in gerar_razoes_ativas_percentuais(n_metais - 1, total - primeiro, minimo):
+            # Retorna a composição completa na ordem informada pelo usuário.
+            yield [primeiro] + restante
+
+# Calcula a quantidade mínima de fórmulas completas reservadas antes do corte de 1000.
+COTA_GERACAO_CONFIGURACAO_COMPLETA = max(
+    N_CANDIDATOS_VIAVEIS_FUNIL,
+    int(np.ceil(N_CANDIDATOS_GERADOS_FUNIL * FRACAO_MINIMA_CONFIGURACAO_COMPLETA_GERACAO)),
+)
+
+# Gera primeiro uma biblioteca balanceada que contém todos os metais e, quando informado, o promotor.
+n_configuracoes_completas_geradas = 0
+
+# Materializa as razões internas para permitir amostragem distribuída no simplex composicional.
+razoes_ativas_reserva = list(gerar_razoes_ativas_percentuais(len(metais_usuario)))
+
+# Usa toda a faixa de promotor quando ele é distinto dos metais ativos.
+fracoes_promotor_reserva = (
+    PROPORCOES_PROMOTOR_MULTIMETAL
+    if promotor_usuario and promotor_usuario not in metais_usuario
+    else [0.0]
+)
+
+# Monta o produto cartesiano entre razões ativas e frações de promotor.
+combinacoes_reserva = [
+    (razoes_percentuais, fracao_promotor)
+    for razoes_percentuais in razoes_ativas_reserva
+    for fracao_promotor in fracoes_promotor_reserva
+]
+
+# Seleciona primeiro índices espaçados por toda a grade para evitar viés do primeiro metal ou do promotor mínimo.
+if combinacoes_reserva:
+    # Limita o número de pontos prioritários ao espaço químico realmente disponível.
+    n_indices_prioritarios = min(COTA_GERACAO_CONFIGURACAO_COMPLETA, len(combinacoes_reserva))
+    # Distribui os índices da reserva entre o início e o fim da grade combinatória.
+    indices_prioritarios_reserva = list(dict.fromkeys(
+        np.linspace(0, len(combinacoes_reserva) - 1, num=n_indices_prioritarios, dtype=int).tolist()
+    ))
+    # Mantém os demais índices como contingência caso o arredondamento gere fórmulas duplicadas.
+    conjunto_indices_prioritarios = set(indices_prioritarios_reserva)
+    indices_contingencia_reserva = [
+        indice for indice in range(len(combinacoes_reserva))
+        if indice not in conjunto_indices_prioritarios
+    ]
+else:
+    # Usa listas vazias quando não há composição válida para reservar.
+    indices_prioritarios_reserva = []
+    indices_contingencia_reserva = []
+
+# Percorre primeiro a amostra distribuída e depois a contingência para completar a cota sem duplicatas.
+for indice_reserva in indices_prioritarios_reserva + indices_contingencia_reserva:
+    # Recupera a razão ativa e a fração de promotor correspondentes ao índice distribuído.
+    razoes_percentuais, fracao_promotor = combinacoes_reserva[indice_reserva]
+    # Calcula a fração total disponível para os metais ativos.
+    fracao_ativa_total = 1.0 - float(fracao_promotor)
+    # Converte as razões percentuais internas em frações absolutas da fórmula.
+    componentes_ativos = [
+        (metal, fracao_ativa_total * percentual / 100.0)
+        for metal, percentual in zip(metais_usuario, razoes_percentuais)
+    ]
+    # Acrescenta o promotor apenas quando ele é distinto dos metais ativos.
+    componentes_promotor = (
+        [(promotor_usuario, fracao_promotor)]
+        if promotor_usuario and promotor_usuario not in metais_usuario
+        else []
+    )
+    # Monta a fórmula da classe composicional completa.
+    formula_completa = formula_por_composicao(componentes_ativos + componentes_promotor)
+    # Mede o tamanho antes da inserção para contar apenas fórmulas realmente inéditas.
+    n_antes = len(candidatos)
+    # Insere a fórmula completa antes das demais classes químicas.
+    adicionar_candidato(formula_completa, "configuracao_completa_promovida")
+    # Atualiza o contador apenas quando uma fórmula nova foi adicionada.
+    if len(candidatos) > n_antes:
+        n_configuracoes_completas_geradas += 1
+    # Interrompe a reserva quando a cota mínima foi atingida.
+    if n_configuracoes_completas_geradas >= COTA_GERACAO_CONFIGURACAO_COMPLETA:
+        break
 
 # Define uma função para verificar se a biblioteca inicial já chegou a 1000 candidatos.
 def funil_inicial_completo():
@@ -923,6 +1024,11 @@ candidatos_df["n_metais_ativos_presentes"] = candidatos_df["formula"].apply(lamb
 # Marca candidatos que contêm dois ou mais metais ativos escolhidos pelo usuário.
 candidatos_df["candidato_multimetal_ativo"] = candidatos_df["n_metais_ativos_presentes"] >= 2
 
+# Marca candidatos que preservam todos os metais ativos selecionados pelo usuário.
+candidatos_df["candidato_com_todos_metais_ativos"] = (
+    candidatos_df["n_metais_ativos_presentes"] == len(metais_usuario)
+)
+
 # Define uma função para verificar se a fórmula contém o promotor informado.
 def formula_contem_promotor(formula):
     # Extrai símbolos químicos presentes na fórmula candidata.
@@ -932,6 +1038,16 @@ def formula_contem_promotor(formula):
 
 # Marca candidatos que preservam o promotor escolhido pelo usuário.
 candidatos_df["candidato_com_promotor"] = candidatos_df["formula"].apply(formula_contem_promotor)
+
+# Marca a configuração completa: todos os metais ativos e o promotor quando ele foi solicitado.
+candidatos_df["candidato_configuracao_completa"] = (
+    candidatos_df["candidato_com_todos_metais_ativos"]
+    & (
+        candidatos_df["candidato_com_promotor"]
+        if promotor_usuario and promotor_usuario not in metais_usuario
+        else True
+    )
+)
 
 # Separa uma tabela apenas com candidatos que preservam mais de um metal ativo.
 candidatos_multimetal_ativo_df = candidatos_df[candidatos_df["candidato_multimetal_ativo"]].copy()
@@ -967,6 +1083,22 @@ print("Candidatos contendo o promotor:", len(candidatos_promovidos_df))
 
 # Mostra quantos candidatos combinam os metais ativos informados com o promotor na mesma fórmula.
 print("Candidatos com metais ativos e promotor:", len(candidatos_multimetal_promovidos_df))
+
+# Confirma quantos candidatos preservam exatamente a configuração química solicitada.
+print("Candidatos com todos os metais ativos e promotor:", int(candidatos_df["candidato_configuracao_completa"].sum()))
+
+# Interrompe com mensagem clara se o gerador não conseguiu reservar candidatos suficientes para a etapa de 100.
+if (
+    len(metais_usuario) >= 2
+    and promotor_usuario
+    and promotor_usuario not in metais_usuario
+    and int(candidatos_df["candidato_configuracao_completa"].sum()) < min(N_CANDIDATOS_VIAVEIS_FUNIL, len(candidatos_df))
+):
+    # Evita executar uma triagem multicomponente que não representa adequadamente a configuração solicitada.
+    raise RuntimeError(
+        "A biblioteca inicial não contém configurações completas suficientes para sustentar a etapa de 100 viáveis. "
+        "Revise a faixa composicional ou aumente o limite de geração."
+    )
 
 # Mostra candidatos gerais e, quando houver mais de um metal ativo, mostra também a tabela multimetálica.
 try:
@@ -1404,16 +1536,31 @@ def buscar_propriedade_local(formula):
     exata = base_local[base_local["formula"].astype(str).eq(str(formula))]
     # Retorna a primeira correspondência exata se existir.
     if not exata.empty:
-        return exata.iloc[0].to_dict()
+        registro_exato = exata.iloc[0].to_dict()
+        # Marca que os valores numéricos pertencem exatamente à fórmula consultada.
+        registro_exato["tipo_correspondencia_local"] = "exata"
+        # Retorna propriedades numéricas apenas para correspondência química exata.
+        return registro_exato
     # Extrai elementos do candidato.
     elems = elementos_formula(formula)
     # Calcula sobreposição de elementos com cada fórmula da base local.
-    base_local["_overlap_temp"] = base_local["formula"].astype(str).apply(lambda f: len(elems & elementos_formula(f)))
+    sobreposicao = base_local["formula"].astype(str).apply(lambda f: len(elems & elementos_formula(f)))
     # Seleciona linhas com alguma sobreposição.
-    relacionadas = base_local[base_local["_overlap_temp"] > 0].sort_values(["_overlap_temp", "score_multicriterio_v2"], ascending=False)
-    # Retorna a melhor linha relacionada se existir.
+    relacionadas = base_local.assign(_overlap_temp=sobreposicao)
+    relacionadas = relacionadas[relacionadas["_overlap_temp"] > 0].sort_values(
+        ["_overlap_temp", "score_multicriterio_v2"],
+        ascending=False,
+    )
+    # Registra a melhor fórmula análoga sem emprestar seus valores numéricos ao candidato.
     if not relacionadas.empty:
-        return relacionadas.iloc[0].to_dict()
+        analoga = relacionadas.iloc[0]
+        return {
+            "tipo_correspondencia_local": "analoga",
+            "formula_analoga": analoga.get("formula", ""),
+            "material_id_analogo": analoga.get("material_id", ""),
+            "origem_analoga": analoga.get("origem", ""),
+            "sobreposicao_elementar_analoga": int(analoga.get("_overlap_temp", 0)),
+        }
     # Retorna vazio quando não há informação relacionada.
     return {}
 
@@ -2250,8 +2397,15 @@ def selecionar_com_representacao_multimetal_legado(df, n_candidatos, coluna_scor
     # Retorna a quantidade solicitada para a etapa do funil.
     return selecionados.head(n_candidatos).copy()
 
-# Redefine a seleção para preservar simultaneamente multimetálicos e candidatos promovidos.
-def selecionar_com_representacao_multimetal(df, n_candidatos, coluna_score, fracao_minima=0.30, fracao_minima_promotor=0.30):
+# Redefine a seleção para preservar todos os metais ativos e o promotor em uma cota verificável.
+def selecionar_com_representacao_multimetal(
+    df,
+    n_candidatos,
+    coluna_score,
+    fracao_minima=0.30,
+    fracao_minima_promotor=0.30,
+    fracao_minima_configuracao_completa=0.30,
+):
     # Ordena a tabela pelo score escolhido antes de aplicar cotas químicas.
     ordenado = df.sort_values(coluna_score, ascending=False).reset_index(drop=True)
     # Retorna tabela vazia quando não há candidato disponível para a etapa.
@@ -2278,28 +2432,30 @@ def selecionar_com_representacao_multimetal(df, n_candidatos, coluna_score, frac
             # Interrompe quando a cota mínima do subconjunto foi satisfeita.
             if adicionados >= minimo:
                 break
-    # Prioriza candidatos que combinam dois metais ativos e o promotor na mesma fórmula.
-    if len(metais_usuario) >= 2 and {"candidato_multimetal_ativo", "candidato_com_promotor"}.issubset(ordenado.columns):
-        # Filtra candidatos que preservam simultaneamente os metais ativos e o promotor.
-        multimetal_promovido = ordenado[
-            ordenado["candidato_multimetal_ativo"].fillna(False)
-            & ordenado["candidato_com_promotor"].fillna(False)
+    # Prioriza candidatos que preservam exatamente todos os metais e o promotor solicitado.
+    if "candidato_configuracao_completa" in ordenado.columns:
+        # Filtra a classe química completa, evitando considerar apenas dois metais em sistemas trimetálicos.
+        configuracao_completa = ordenado[
+            ordenado["candidato_configuracao_completa"].fillna(False)
         ].copy()
-        # Calcula uma cota mínima para a interseção quimicamente mais fiel ao pedido do usuário.
-        minimo_multimetal_promovido = min(
-            len(multimetal_promovido),
-            max(1, int(np.ceil(n_candidatos * min(fracao_minima, fracao_minima_promotor)))),
-        ) if not multimetal_promovido.empty else 0
-        # Reserva primeiro os candidatos que contêm os dois metais ativos e o promotor.
-        reservar_cota(multimetal_promovido, minimo_multimetal_promovido)
-    # Reserva candidatos com dois ou mais metais ativos quando o usuário informou múltiplos metais.
-    if len(metais_usuario) >= 2 and "candidato_multimetal_ativo" in ordenado.columns:
-        # Filtra candidatos que preservam dois ou mais metais ativos na fórmula.
-        multimetal = ordenado[ordenado["candidato_multimetal_ativo"].fillna(False)].copy()
-        # Calcula a cota mínima de multimetálicos sem inventar candidatos ausentes.
-        minimo_multimetal = min(len(multimetal), max(1, int(np.ceil(n_candidatos * fracao_minima)))) if not multimetal.empty else 0
-        # Reserva os melhores multimetálicos disponíveis.
-        reservar_cota(multimetal, minimo_multimetal)
+        # Calcula a cota mínima da configuração completa para esta etapa do funil.
+        minimo_configuracao_completa = min(
+            len(configuracao_completa),
+            max(1, int(np.ceil(n_candidatos * fracao_minima_configuracao_completa))),
+        ) if not configuracao_completa.empty else 0
+        # Reserva primeiro os candidatos que respondem integralmente à configuração do usuário.
+        reservar_cota(configuracao_completa, minimo_configuracao_completa)
+    # Reserva candidatos com todos os metais ativos, mesmo quando o promotor não está presente.
+    if len(metais_usuario) >= 2 and "candidato_com_todos_metais_ativos" in ordenado.columns:
+        # Filtra candidatos que preservam todos, e não apenas dois, dos metais selecionados.
+        todos_metais = ordenado[ordenado["candidato_com_todos_metais_ativos"].fillna(False)].copy()
+        # Calcula a cota mínima de candidatos com todos os metais ativos.
+        minimo_todos_metais = min(
+            len(todos_metais),
+            max(1, int(np.ceil(n_candidatos * fracao_minima))),
+        ) if not todos_metais.empty else 0
+        # Reserva os melhores candidatos que contêm todos os metais ativos.
+        reservar_cota(todos_metais, minimo_todos_metais)
     # Reserva candidatos que contêm explicitamente o promotor escolhido.
     if promotor_usuario and "candidato_com_promotor" in ordenado.columns:
         # Filtra candidatos em que o promotor aparece na fórmula.
@@ -2335,7 +2491,14 @@ if n_viaveis_alvo_execucao < N_CANDIDATOS_VIAVEIS_FUNIL:
     )
 
 # Mantém apenas a quantidade definida para passar à próxima etapa com cota de multimetálicos.
-viaveis_df = selecionar_com_representacao_multimetal(viaveis_df, n_viaveis_alvo_execucao, "score_estabilidade", fracao_minima=0.30)
+viaveis_df = selecionar_com_representacao_multimetal(
+    viaveis_df,
+    n_viaveis_alvo_execucao,
+    "score_estabilidade",
+    fracao_minima=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS,
+    fracao_minima_promotor=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS,
+    fracao_minima_configuracao_completa=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS,
+)
 
 # Mostra quantos candidatos sobreviveram ao filtro.
 print("Candidatos antes do filtro:", len(triagem_df))
@@ -2346,6 +2509,9 @@ print("Viáveis com dois ou mais metais ativos:", int(viaveis_df.get("candidato_
 
 # Mostra quantos viáveis preservam explicitamente o promotor informado.
 print("Viáveis contendo o promotor:", int(viaveis_df.get("candidato_com_promotor", pd.Series(dtype=bool)).sum()))
+
+# Mostra quantos viáveis preservam simultaneamente todos os metais e o promotor.
+print("Viáveis com configuração completa:", int(viaveis_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()))
 
 # Exibe os candidatos viáveis.
 viaveis_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "candidato_com_promotor", "energy_above_hull_eV_atom", "fonte_estabilidade_triagem", "score_estabilidade", "score_incerteza"]].head(20)
@@ -2376,7 +2542,14 @@ viaveis_df["score_preliminar"] = (
 preliminar_df = viaveis_df.sort_values("score_preliminar", ascending=False).copy()
 
 # Limita a quantidade de candidatos preliminares mantendo representação multimetálica mínima.
-preliminar_df = selecionar_com_representacao_multimetal(preliminar_df, n_viaveis_alvo_execucao, "score_preliminar", fracao_minima=0.30)
+preliminar_df = selecionar_com_representacao_multimetal(
+    preliminar_df,
+    n_viaveis_alvo_execucao,
+    "score_preliminar",
+    fracao_minima=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS,
+    fracao_minima_promotor=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS,
+    fracao_minima_configuracao_completa=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS,
+)
 
 # Mostra o ranking preliminar.
 preliminar_df[["formula", "tipo", "metais_ativos_presentes", "n_metais_ativos_presentes", "score_preliminar", "score_estabilidade", "score_atividade", "score_seletividade", "score_DFT_proxy"]].head(20)
@@ -2392,10 +2565,20 @@ A busca catalítica é aplicada apenas aos melhores candidatos preliminares. O n
     code(
         """
 # Seleciona apenas os melhores candidatos para refinamento DFT mantendo presença multimetálica.
-dft_df = selecionar_com_representacao_multimetal(preliminar_df, N_CANDIDATOS_REFINADOS_FUNIL, "score_preliminar", fracao_minima=0.40)
+dft_df = selecionar_com_representacao_multimetal(
+    preliminar_df,
+    N_CANDIDATOS_REFINADOS_FUNIL,
+    "score_preliminar",
+    fracao_minima=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS,
+    fracao_minima_promotor=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS,
+    fracao_minima_configuracao_completa=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS,
+)
 
 # Mostra quantos candidatos refinados preservam explicitamente o promotor informado.
 print("Refinados contendo o promotor:", int(dft_df.get("candidato_com_promotor", pd.Series(dtype=bool)).sum()))
+
+# Mostra quantos refinados preservam simultaneamente todos os metais e o promotor.
+print("Refinados com configuração completa:", int(dft_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()))
 
 # Define arquivo local para armazenar dados incrementais do Catalysis-Hub.
 CATHUB_CACHE_FILE = PROJECT_DATA_DIR / "catalysis_hub_incremental.csv"
@@ -3578,11 +3761,18 @@ ranking_final_df["confiabilidade"] = ranking_final_df.apply(classificar_confiabi
 # Seleciona a melhor condição por fórmula preservando a ordenação real por score final.
 melhor_por_candidato_df = ranking_final_df.sort_values("score_final", ascending=False).drop_duplicates("formula", keep="first").reset_index(drop=True)
 
-# Mantem os melhores candidatos refinados para classificacao top 10 com representação multimetálica.
-melhor_por_candidato_df = selecionar_com_representacao_multimetal(melhor_por_candidato_df, N_CANDIDATOS_REFINADOS_FUNIL, "score_final", fracao_minima=0.40)
+# Mantém o Top 10 com cota mínima da configuração completa antes da decisão final.
+melhor_por_candidato_df = selecionar_com_representacao_multimetal(
+    melhor_por_candidato_df,
+    N_CANDIDATOS_REFINADOS_FUNIL,
+    "score_final",
+    fracao_minima=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS,
+    fracao_minima_promotor=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS,
+    fracao_minima_configuracao_completa=FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS,
+)
 
-# Mantem a tabela de ranking final com os candidatos prioritarios finais e ao menos um multimetalico quando aplicavel.
-ranking_final_df = selecionar_com_representacao_multimetal(melhor_por_candidato_df, N_CANDIDATOS_RANKING_FINAL, "score_final", fracao_minima=0.50)
+# Mantém o Top 2 livre de obrigação composicional e estritamente ordenado pelo score final.
+ranking_final_df = melhor_por_candidato_df.sort_values("score_final", ascending=False).head(N_CANDIDATOS_RANKING_FINAL).copy()
 
 # Seleciona top candidatos prioritários para síntese.
 prioritarios_df = ranking_final_df.copy()
@@ -3592,6 +3782,9 @@ print("Prioritários finais com dois ou mais metais ativos:", int(prioritarios_d
 
 # Mostra quantos candidatos finais preservam explicitamente o promotor informado.
 print("Prioritários finais contendo o promotor:", int(prioritarios_df.get("candidato_com_promotor", pd.Series(dtype=bool)).sum()))
+
+# Informa se os candidatos finais preservam integralmente a configuração solicitada, sem forçar essa decisão.
+print("Prioritários finais com configuração completa:", int(prioritarios_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()))
 
 # Exibe a tabela de síntese recomendada.
 prioritarios_df[[
@@ -6326,10 +6519,21 @@ resumo = {
     "produto": perfil["produto"],
     "metais_ativos": metais_usuario,
     "promotor": promotor_usuario,
+    "regra_composicional": "cota_configuracao_completa_1000_100_10_top2_livre",
+    "fracao_minima_configuracao_completa_geracao": FRACAO_MINIMA_CONFIGURACAO_COMPLETA_GERACAO,
+    "fracao_minima_configuracao_completa_viaveis": FRACAO_MINIMA_CONFIGURACAO_COMPLETA_VIAVEIS,
+    "fracao_minima_configuracao_completa_refinados": FRACAO_MINIMA_CONFIGURACAO_COMPLETA_REFINADOS,
+    "n_configuracao_completa_gerados": int(candidatos_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()),
+    "n_configuracao_completa_viaveis": int(viaveis_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()),
+    "n_configuracao_completa_refinados": int(dft_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()),
+    "n_configuracao_completa_top10": int(melhor_por_candidato_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()),
+    "n_configuracao_completa_top2": int(prioritarios_df.get("candidato_configuracao_completa", pd.Series(dtype=bool)).sum()),
     "descritores": perfil["descritores"],
     "intermediarios_dft": perfil["intermediarios_dft"],
     "n_candidatos_gerados": int(len(candidatos_df)),
     "n_candidatos_viaveis": int(len(viaveis_df)),
+    "n_candidatos_refinados": int(len(dft_df)),
+    "n_candidatos_finais": int(len(prioritarios_df)),
     "n_candidatos_ranqueados": int(len(melhor_por_candidato_df)),
     "arquivo_excel": str(OUTPUT_DIR / f"{prefixo}_resultados.xlsx"),
     "arquivo_relatorio_html": str(relatorio_html_path),
