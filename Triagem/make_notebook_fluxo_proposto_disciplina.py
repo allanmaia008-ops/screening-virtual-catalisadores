@@ -5250,11 +5250,13 @@ validacao_quimiometrica_df
     ),
     md(
         """
-## Etapa 14 - Validacao avancada dos candidatos prioritarios
+## Etapa 14 - Validação físico-química avançada do Top 10
 
 Esta etapa reavalia os candidatos finais para verificar se o Top 2 continua quimicamente defensavel quando se consideram fragilidades que nao aparecem completamente no score principal: qualidade da evidencia, compatibilidade metal-suporte, risco de sinterizacao, estabilidade redox em condicao operando, equilibrio de adsorcao, tendencia a coque em reforma e vies sistematico dos proxies.
 
-Como validacao fina adicional, o Top 10 recebe uma correcao termodinamica aproximada de temperatura. O codigo parte da energia de adsorcao estatica/proxy do volcano e estima uma energia efetiva em temperatura operacional, usando termos aproximados de energia de ponto zero, contribuicao entalpica vibracional e perda entropica por adsorbato guia. Em seguida, recalcula o score de vulcao e o score final corrigido por temperatura. Essa rotina nao substitui frequencias vibracionais DFT explicitas, mas indica se o ranking permanece robusto nas temperaturas reais de operacao.
+O Top 10 recebe seis avaliações adicionais: correção termodinâmica de temperatura e fugacidade; segregação superficial em sistemas multimetálicos; adsorção competitiva por cobertura de Langmuir; transformação precursor–óxido–fase ativa; limitações de transferência de massa por Thiele, Weisz–Prater e Mears; e microcinética reduzida específica da reação. Cada parcela permanece disponível para auditoria.
+
+Na ausência de parâmetros obtidos por DFT, CFD ou ajuste cinético, os cálculos são explicitamente marcados como proxies parametrizados. O `score_final_fisicoquimico` combina 75% do ranking anterior com 25% desta nova camada e pode reordenar os candidatos finais. A propagação conjunta de incertezas não é aplicada nesta implementação.
 """
     ),
     code(VALIDACAO_AVANCADA_CODE),
@@ -6248,6 +6250,27 @@ nomes_colunas_pt = {
     "impacto_correcao_temperatura": "impacto da correção de temperatura",
     "score_robustez_vies_sistematico": "score de robustez contra viés sistemático",
     "score_cenario_pessimista": "score em cenário pessimista",
+    "coeficiente_fugacidade_proxy": "coeficiente de fugacidade (proxy)",
+    "score_termodinamica_TP": "score termodinâmico em temperatura e pressão",
+    "metal_superficial_previsto": "metal previsto na superfície",
+    "score_segregacao_superficial": "score de segregação superficial",
+    "cobertura_intermediario_chave": "cobertura do intermediário-chave",
+    "cobertura_bloqueadores": "cobertura de espécies bloqueadoras",
+    "score_adsorcao_competitiva": "score de adsorção competitiva",
+    "fase_ativa_prevista": "fase ativa prevista",
+    "score_formacao_fase_ativa": "score de formação da fase ativa",
+    "modulo_thiele_proxy": "módulo de Thiele (proxy)",
+    "fator_efetividade_interno": "fator de efetividade interno",
+    "criterio_weisz_prater_proxy": "critério de Weisz–Prater (proxy)",
+    "criterio_mears_proxy": "critério de Mears (proxy)",
+    "score_transporte": "score de transporte",
+    "etapa_limitante_microcinetica": "etapa limitante microcinética",
+    "tof_microcinetico_relativo": "TOF microcinético relativo",
+    "seletividade_microcinetica_proxy": "seletividade microcinética (proxy)",
+    "score_microcinetico": "score microcinético",
+    "score_modelagem_fisicoquimica": "score de modelagem físico-química",
+    "score_final_fisicoquimico": "score final físico-químico",
+    "score_final_antes_modelagem_fisicoquimica": "score final antes da modelagem físico-química",
     "acao_validacao_avancada": "ação da validação avançada",
     "justificativa_validacao_avancada": "justificativa da validação avançada",
     "objetivo": "objetivo",

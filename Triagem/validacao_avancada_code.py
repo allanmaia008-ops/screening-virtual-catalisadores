@@ -26,6 +26,26 @@ colunas_validacao_avancada = [
     "score_volcano_corrigido_temperatura",
     "score_robustez_vies_sistematico",
     "score_cenario_pessimista",
+    "coeficiente_fugacidade_proxy",
+    "score_termodinamica_TP",
+    "metal_superficial_previsto",
+    "score_segregacao_superficial",
+    "cobertura_intermediario_chave",
+    "cobertura_bloqueadores",
+    "score_adsorcao_competitiva",
+    "fase_ativa_prevista",
+    "score_formacao_fase_ativa",
+    "modulo_thiele_proxy",
+    "fator_efetividade_interno",
+    "criterio_weisz_prater_proxy",
+    "criterio_mears_proxy",
+    "score_transporte",
+    "etapa_limitante_microcinetica",
+    "tof_microcinetico_relativo",
+    "seletividade_microcinetica_proxy",
+    "score_microcinetico",
+    "score_modelagem_fisicoquimica",
+    "score_final_fisicoquimico",
     "acao_validacao_avancada",
     "justificativa_validacao_avancada",
 ]
@@ -489,6 +509,101 @@ def avaliar_vies_sistematico_avancado(row, score_evidencia):
         1,
     ))
 
+# Estima efeito de nao idealidade gasosa por uma correcao virial conservadora.
+def avaliar_termodinamica_tp(row):
+    temperatura_K = valor_float_avancado(row, "temperatura_C", 400.0) + 273.15
+    pressao_bar = max(valor_float_avancado(row, "pressao_bar", 1.0), 0.01)
+    # Coeficientes pequenos mantem phi proximo de 1 em baixa pressao e registram a aproximacao.
+    b_mix = {"metanacao": -7.0e-4, "reforma": 3.0e-4, "rwgs": -3.0e-4}.get(reacao, 0.0)
+    ln_phi = b_mix * pressao_bar * (500.0 / max(temperatura_K, 250.0))
+    phi = float(np.clip(math.exp(ln_phi), 0.80, 1.20))
+    correcao = abs(math.log(phi))
+    score = float(np.clip(math.exp(-4.0 * correcao), 0, 1))
+    return phi, score
+
+# Estima qual metal tende a enriquecer a superficie e penaliza segregacao excessiva.
+def avaliar_segregacao_superficial(row):
+    parametros = {
+        "Ni": (2.45, 1.91), "Co": (2.55, 1.88), "Fe": (2.42, 1.83), "Cu": (1.79, 1.90),
+        "Mo": (2.95, 2.16), "W": (3.48, 2.36), "Ru": (3.05, 2.20), "Rh": (2.70, 2.28),
+        "Pd": (2.05, 2.20), "Pt": (2.49, 2.28),
+    }
+    presentes = [m for m in metais_usuario if m in elementos_formula(row.get("formula", "")) and m in parametros]
+    if len(presentes) < 2:
+        return (presentes[0] if presentes else "indeterminado"), 0.85
+    # Menor energia superficial favorece enriquecimento; eletronegatividade modula afinidade de liga.
+    propensoes = {m: -parametros[m][0] + 0.20 * parametros[m][1] for m in presentes}
+    ordenados = sorted(propensoes, key=propensoes.get, reverse=True)
+    amplitude = propensoes[ordenados[0]] - propensoes[ordenados[-1]]
+    score = float(np.clip(math.exp(-0.85 * amplitude), 0, 1))
+    return ordenados[0], score
+
+# Resolve uma isoterma competitiva simplificada para intermediario, hidrogenio e bloqueadores.
+def avaliar_adsorcao_competitiva(row):
+    temperatura_K = valor_float_avancado(row, "temperatura_C", 400.0) + 273.15
+    pressao = max(valor_float_avancado(row, "pressao_bar", 1.0), 0.01)
+    razao = max(valor_float_avancado(row, "razao", 1.0), 0.05)
+    energia = abs(valor_float_avancado(row, "energia_adsorcao_corrigida_temperatura_eV", valor_float_avancado(row, "energia_adsorcao_volcano_eV", 0.8)))
+    kb = 8.617333262e-5
+    k_chave = float(np.clip(math.exp(min(energia / (kb * temperatura_K), 18.0)) * 1e-7, 1e-5, 1e3))
+    k_h = float(np.clip(0.15 * math.exp(0.20 / (kb * temperatura_K)), 0.01, 50.0))
+    k_bloq = float(np.clip(0.08 * math.exp(0.35 / (kb * temperatura_K)), 0.01, 80.0))
+    p_chave = pressao / (1.0 + razao)
+    p_h = pressao - p_chave
+    p_bloq = 0.08 * pressao if reacao != "reforma" else 0.14 * pressao
+    denominador = 1.0 + k_chave * p_chave + k_h * p_h + k_bloq * p_bloq
+    theta_chave = k_chave * p_chave / denominador
+    theta_bloq = k_bloq * p_bloq / denominador
+    score = float(np.clip(4.0 * theta_chave * (1.0 - theta_chave) * (1.0 - theta_bloq), 0, 1))
+    return float(theta_chave), float(theta_bloq), score
+
+# Estima a conversao precursor-oxido-fase ativa a partir da rota e da severidade de ativacao.
+def avaliar_formacao_fase_ativa(row):
+    elementos = elementos_formula(row.get("formula", ""))
+    temperatura = valor_float_avancado(row, "temperatura_C", 400.0)
+    rota = str(row.get("rota_sintese_sugerida", "")).lower()
+    redutiveis = elementos & {"Ni", "Co", "Fe", "Cu", "Ru", "Rh", "Pt", "Pd"}
+    refratarios = elementos & {"Mo", "W"}
+    fase = "metal suportado" if redutiveis else "oxido ou fase mista"
+    if refratarios:
+        fase = "fase parcialmente reduzida/oxi-carbeto possivel"
+    score_temp = 1.0 / (1.0 + math.exp(-(temperatura - (500.0 if refratarios else 350.0)) / 90.0))
+    score_rota = 0.90 if any(x in rota for x in ["impreg", "coprecip", "sol-gel"]) else 0.65
+    score = float(np.clip(0.55 * score_temp + 0.45 * score_rota, 0, 1))
+    return fase, score
+
+# Estima limitacoes intraparticula e de filme com parametros conservadores declarados.
+def avaliar_transporte(row):
+    temperatura_K = valor_float_avancado(row, "temperatura_C", 400.0) + 273.15
+    ghsv = max(valor_float_avancado(row, "ghsv_h-1", 30000.0), 1.0)
+    atividade = max(valor_float_avancado(row, "score_atividade", 0.5), 1e-6)
+    raio_particula_m = 5.0e-4
+    difusividade_efetiva = 2.0e-6 * (temperatura_K / 673.15) ** 1.5
+    k_aparente = 0.012 * atividade * math.exp(-35000.0 / 8.314 * (1.0 / temperatura_K - 1.0 / 673.15))
+    phi = float(np.clip(raio_particula_m * math.sqrt(max(k_aparente, 0.0) / max(difusividade_efetiva, 1e-12)), 0, 20))
+    eta = float(math.tanh(phi) / phi) if phi > 1e-9 else 1.0
+    weisz = float(np.clip(phi ** 2 * eta, 0, 100))
+    mears = float(np.clip((k_aparente * raio_particula_m / max(0.02 * (ghsv / 30000.0), 1e-8)), 0, 100))
+    score = float(np.clip(min(eta, math.exp(-max(weisz - 0.3, 0.0)), math.exp(-max(mears - 0.15, 0.0))), 0, 1))
+    return phi, eta, weisz, mears, score
+
+# Calcula uma microcinetica reduzida, especifica por reacao, com balanco estacionario de sitios.
+def avaliar_microcinetica(row, theta_chave, theta_bloq, fator_efetividade):
+    temperatura_K = valor_float_avancado(row, "temperatura_C", 400.0) + 273.15
+    energia = abs(valor_float_avancado(row, "energia_adsorcao_corrigida_temperatura_eV", valor_float_avancado(row, "energia_adsorcao_volcano_eV", 0.8)))
+    parametros = {
+        "metanacao": (0.82, 0.72, "hidrogenacao de CO*"),
+        "reforma": (1.05, 0.66, "ativacao de CH4*"),
+        "rwgs": (0.76, 0.88, "dissociacao de CO2*/COOH*"),
+    }
+    barreira_base, seletividade_base, etapa = parametros.get(reacao, parametros["rwgs"])
+    barreira = barreira_base + 0.35 * abs(energia - valor_float_avancado(globals().get("volcano_cfg", {}), "energia_otima_eV", 0.8))
+    taxa = math.exp(-barreira / (8.617333262e-5 * temperatura_K)) * theta_chave * max(1.0 - theta_bloq, 0.0) * fator_efetividade
+    tof_rel = float(np.clip(taxa / 1e-4, 0, 1))
+    seletividade = float(np.clip(seletividade_base + 0.18 * valor_float_avancado(row, "score_seletividade", 0.5) - 0.12 * theta_bloq, 0, 1))
+    score = float(np.clip(math.sqrt(tof_rel * seletividade), 0, 1))
+    return etapa, tof_rel, seletividade, score
+
 # Gera uma justificativa textual curta para a validacao avancada.
 def justificar_validacao_avancada(nivel_evidencia, risco_sinterizacao, risco_redox, risco_adsorcao, risco_coque, recomendacao):
     # Junta os principais alertas em uma frase de leitura direta.
@@ -501,8 +616,8 @@ def justificar_validacao_avancada(nivel_evidencia, risco_sinterizacao, risco_red
 # Cria linhas da validacao avancada.
 linhas_validacao_avancada = []
 
-# Avalia apenas os candidatos prioritarios finais.
-for _, row in prioritarios_df.head(N_CANDIDATOS_RANKING_FINAL).copy().iterrows():
+# Avalia o Top 10 para permitir reordenacao fisico-quimica antes da selecao final.
+for _, row in melhor_por_candidato_df.head(N_CANDIDATOS_REFINADOS_FUNIL).copy().iterrows():
     # Caracteriza suporte sugerido.
     suporte_caracteristicas = caracterizar_suporte_avancado(row.get("suporte_sugerido", ""))
     # Le temperatura operacional para scores de interface.
@@ -527,8 +642,20 @@ for _, row in prioritarios_df.head(N_CANDIDATOS_RANKING_FINAL).copy().iterrows()
     correcao_adsorcao_temperatura = calcular_correcao_temperatura_adsorcao(row)
     # Calcula robustez contra vies sistematico.
     score_vies = avaliar_vies_sistematico_avancado(row, score_evidencia)
+    coef_fugacidade, score_tp = avaliar_termodinamica_tp(row)
+    metal_superficie, score_segregacao = avaliar_segregacao_superficial(row)
+    theta_chave, theta_bloq, score_cobertura = avaliar_adsorcao_competitiva(row)
+    fase_ativa, score_fase = avaliar_formacao_fase_ativa(row)
+    phi, eta, weisz, mears, score_transporte = avaliar_transporte(row)
+    etapa_micro, tof_micro, seletividade_micro, score_micro = avaliar_microcinetica(row, theta_chave, theta_bloq, eta)
     # Le score final nominal.
     score_final_nominal = valor_float_avancado(row, "score_final", 0.0)
+    score_modelagem = float(np.clip(
+        0.18 * score_tp + 0.16 * score_segregacao + 0.18 * score_cobertura
+        + 0.14 * score_fase + 0.14 * score_transporte + 0.20 * score_micro,
+        0, 1,
+    ))
+    score_final_fisicoquimico = float(np.clip(0.75 * score_final_nominal + 0.25 * score_modelagem, 0, 1))
     # Calcula cenario pessimista reduzindo scores sensiveis a proxy.
     score_cenario_pessimista = float(np.clip(
         score_final_nominal
@@ -613,6 +740,26 @@ for _, row in prioritarios_df.head(N_CANDIDATOS_RANKING_FINAL).copy().iterrows()
         "score_volcano_corrigido_temperatura": correcao_adsorcao_temperatura.get("score_volcano_corrigido_temperatura", np.nan),
         "score_robustez_vies_sistematico": score_vies,
         "score_cenario_pessimista": score_cenario_pessimista,
+        "coeficiente_fugacidade_proxy": coef_fugacidade,
+        "score_termodinamica_TP": score_tp,
+        "metal_superficial_previsto": metal_superficie,
+        "score_segregacao_superficial": score_segregacao,
+        "cobertura_intermediario_chave": theta_chave,
+        "cobertura_bloqueadores": theta_bloq,
+        "score_adsorcao_competitiva": score_cobertura,
+        "fase_ativa_prevista": fase_ativa,
+        "score_formacao_fase_ativa": score_fase,
+        "modulo_thiele_proxy": phi,
+        "fator_efetividade_interno": eta,
+        "criterio_weisz_prater_proxy": weisz,
+        "criterio_mears_proxy": mears,
+        "score_transporte": score_transporte,
+        "etapa_limitante_microcinetica": etapa_micro,
+        "tof_microcinetico_relativo": tof_micro,
+        "seletividade_microcinetica_proxy": seletividade_micro,
+        "score_microcinetico": score_micro,
+        "score_modelagem_fisicoquimica": score_modelagem,
+        "score_final_fisicoquimico": score_final_fisicoquimico,
         "acao_validacao_avancada": acao,
         "justificativa_validacao_avancada": justificar_validacao_avancada(
             nivel_evidencia,
@@ -727,6 +874,26 @@ colunas_validacao_avancada_merge = [
     "score_volcano_corrigido_temperatura",
     "score_robustez_vies_sistematico",
     "score_cenario_pessimista",
+    "coeficiente_fugacidade_proxy",
+    "score_termodinamica_TP",
+    "metal_superficial_previsto",
+    "score_segregacao_superficial",
+    "cobertura_intermediario_chave",
+    "cobertura_bloqueadores",
+    "score_adsorcao_competitiva",
+    "fase_ativa_prevista",
+    "score_formacao_fase_ativa",
+    "modulo_thiele_proxy",
+    "fator_efetividade_interno",
+    "criterio_weisz_prater_proxy",
+    "criterio_mears_proxy",
+    "score_transporte",
+    "etapa_limitante_microcinetica",
+    "tof_microcinetico_relativo",
+    "seletividade_microcinetica_proxy",
+    "score_microcinetico",
+    "score_modelagem_fisicoquimica",
+    "score_final_fisicoquimico",
     "acao_validacao_avancada",
     "justificativa_validacao_avancada",
 ]
@@ -750,6 +917,18 @@ ranking_final_df = incorporar_validacao_avancada(ranking_final_df)
 # Incorpora validacao avancada na melhor condicao por candidato.
 melhor_por_candidato_df = incorporar_validacao_avancada(melhor_por_candidato_df)
 
+# Reordena o Top 10 pelo score que combina ranking original e modelagem fisico-quimica.
+melhor_por_candidato_df = melhor_por_candidato_df.sort_values(
+    ["score_final_fisicoquimico", "score_final"], ascending=False, na_position="last"
+).reset_index(drop=True)
+
+# Preserva o score anterior e torna o score fisico-quimico o resultado final exibido.
+melhor_por_candidato_df["score_final_antes_modelagem_fisicoquimica"] = melhor_por_candidato_df["score_final"]
+melhor_por_candidato_df["score_final"] = melhor_por_candidato_df["score_final_fisicoquimico"].fillna(melhor_por_candidato_df["score_final"])
+
+# Atualiza os dois candidatos finais sem descartar as colunas de auditoria do ranking.
+prioritarios_df = melhor_por_candidato_df.head(N_CANDIDATOS_RANKING_FINAL).copy()
+
 # Registra score medio de validacao avancada.
 adicionar_metrica("validacao_avancada", "score medio validacao avancada Top 2", float(pd.to_numeric(validacao_avancada_df.get("score_validacao_avancada", pd.Series(dtype=float)), errors="coerce").mean()) if not validacao_avancada_df.empty else np.nan, "0-1", "Reavaliacao dos candidatos finais por evidencia, suporte, sinterizacao, redox, adsorcao, coque, temperatura e vies sistematico.")
 
@@ -769,6 +948,9 @@ adicionar_metrica("validacao_avancada", "deslocamento medio absoluto por correca
 top2_nominal_temperatura = set(top10_correcao_temperatura_df.sort_values("posicao_original_temperatura").head(2).get("formula", pd.Series(dtype=str)).astype(str)) if not top10_correcao_temperatura_df.empty else set()
 top2_corrigido_temperatura = set(top10_correcao_temperatura_df.sort_values("posicao_corrigida_temperatura").head(2).get("formula", pd.Series(dtype=str)).astype(str)) if not top10_correcao_temperatura_df.empty else set()
 adicionar_metrica("validacao_avancada", "candidatos Top 2 mantidos apos correcao de temperatura", int(len(top2_nominal_temperatura & top2_corrigido_temperatura)), "n", "Conta quantos candidatos do Top 2 original continuam no Top 2 apos corrigir energia de adsorcao para temperatura operacional.")
+
+# Registra a contribuicao dos seis modelos fisico-quimicos solicitados.
+adicionar_metrica("modelagem_fisicoquimica", "score medio da modelagem fisico-quimica Top 10", float(pd.to_numeric(validacao_avancada_df.get("score_modelagem_fisicoquimica", pd.Series(dtype=float)), errors="coerce").mean()) if not validacao_avancada_df.empty else np.nan, "0-1", "Combina termodinamica T-P, segregacao, cobertura, formacao de fase, transporte e microcinetica reduzida.")
 
 # Atualiza tabela consolidada de metricas apos acrescentar validacao avancada.
 metricas_triagem_df = pd.DataFrame(linhas_metricas_triagem)
