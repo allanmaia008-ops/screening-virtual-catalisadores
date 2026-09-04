@@ -3382,6 +3382,24 @@ PRECURSORES_PADRAO = {
     "Zn": {"nome": "Nitrato de zinco hexahidratado", "formula": "Zn(NO3)2·6H2O", "massa_molar": 297.49, "atomos_metal": 1},
 }
 
+# Fases de referência usadas quando a carga é informada como óxido após calcinação.
+OXIDOS_REFERENCIA = {
+    "Ce": ("CeO2", 172.114, 1), "Co": ("Co3O4", 240.795, 3), "Cu": ("CuO", 79.545, 1),
+    "Fe": ("Fe2O3", 159.687, 2), "La": ("La2O3", 325.808, 2), "Mg": ("MgO", 40.304, 1),
+    "Mo": ("MoO3", 143.948, 1), "Ni": ("NiO", 74.692, 1), "Ti": ("TiO2", 79.865, 1),
+    "W": ("WO3", 231.837, 1), "Y": ("Y2O3", 225.809, 2), "Zn": ("ZnO", 81.379, 1),
+    "Zr": ("ZrO2", 123.222, 1),
+}
+
+
+def massa_elementar_da_fase(elemento: str, massa_fase: float, base_carga: str) -> tuple[float, str, float]:
+    """Converte massa da fase final em equivalente metálico para calcular o precursor."""
+    if base_carga == "Óxido após calcinação" and elemento in OXIDOS_REFERENCIA:
+        formula, massa_molar, atomos = OXIDOS_REFERENCIA[elemento]
+        fracao_metal = atomos * MASSAS_ATOMICAS_G_MOL[elemento] / massa_molar
+        return massa_fase * fracao_metal, formula, fracao_metal
+    return massa_fase, elemento, 1.0
+
 
 def composicao_metalica_formula(formula: str, metais_preferidos: list[str]) -> list[tuple[str, float]]:
     """Extrai a razão atômica dos metais da fórmula do candidato sem interpretar o suporte."""
@@ -3480,15 +3498,25 @@ def mostrar_planejamento_sintese(
         carga_promotor = c3.number_input("Promotor (% m/m)", min_value=0.0, max_value=50.0, value=5.0 if promotor_configurado else 0.0, step=0.5, key="sintese_carga_promotor")
         rota = c4.selectbox("Procedimento de síntese", ["Impregnação por umidade incipiente", "Impregnação úmida", "Coprecipitação", "Sol-gel"], key="sintese_rota")
 
+        base_carga = st.radio(
+            "Base das cargas informadas",
+            ["Metal após ativação/redução", "Óxido após calcinação"],
+            horizontal=True,
+            key="sintese_base_carga",
+            help="Define se a porcentagem da fase ativa/promotor representa metal elementar ou a massa do óxido de referência.",
+        )
+
         d1, d2, d3, d4 = st.columns(4)
         pureza = d1.number_input("Pureza dos precursores (%)", min_value=1.0, max_value=100.0, value=100.0, step=0.1, key="sintese_pureza")
         recuperacao = d2.number_input("Recuperação global estimada (%)", min_value=1.0, max_value=100.0, value=100.0, step=0.5, key="sintese_recuperacao")
         volume_poroso = d3.number_input("Volume de poros (cm³/g)", min_value=0.0, value=0.80, step=0.05, key="sintese_volume_poroso")
         preenchimento = d4.number_input("Preenchimento dos poros (%)", min_value=1.0, max_value=150.0, value=90.0, step=5.0, key="sintese_preenchimento")
 
-        e1, e2 = st.columns(2)
+        e1, e2, e3, e4 = st.columns(4)
         temperatura_secagem = e1.number_input("Temperatura de secagem (°C)", min_value=20.0, max_value=300.0, value=100.0, step=5.0, key="sintese_secagem")
         temperatura_calcinacao = e2.number_input("Temperatura de calcinação (°C)", min_value=100.0, max_value=1200.0, value=500.0, step=25.0, key="sintese_calcinacao")
+        perda_suporte = e3.number_input("Perda prevista do suporte (%)", min_value=0.0, max_value=50.0, value=0.0, step=0.5, key="sintese_perda_suporte")
+        limite_molaridade = e4.number_input("Concentração máxima por ciclo (mol/L)", min_value=0.01, value=2.0, step=0.1, key="sintese_limite_molaridade")
 
         if carga_ativa + carga_promotor >= 100.0:
             st.error("A soma da fase ativa e do promotor deve ser menor que 100%.")
@@ -3502,7 +3530,8 @@ def mostrar_planejamento_sintese(
             mols_precursores = 0.0
             for elemento, indice in componentes:
                 fracao_massica = MASSAS_ATOMICAS_G_MOL[elemento] * indice / denominador if denominador else 0.0
-                massa_elemento = massa_ativa * fracao_massica
+                massa_fase_elemento = massa_ativa * fracao_massica
+                massa_elemento, fase_referencia, fracao_metal = massa_elementar_da_fase(elemento, massa_fase_elemento, base_carga)
                 precursor = PRECURSORES_PADRAO.get(elemento)
                 if precursor:
                     massa_pura = massa_elemento * precursor["massa_molar"] / (precursor["atomos_metal"] * MASSAS_ATOMICAS_G_MOL[elemento])
@@ -3513,11 +3542,12 @@ def mostrar_planejamento_sintese(
                     massa_pura = np.nan
                     massa_pesar = np.nan
                     nome_precursor = "Definir precursor e massa molar na calculadora livre"
-                linhas.append({"Função": "Fase ativa", "Elemento/fase": elemento, "Precursor": nome_precursor, "Massa final alvo (g)": massa_elemento, "Massa de precursor puro (g)": massa_pura, "Massa corrigida a pesar (g)": massa_pesar})
+                linhas.append({"Função": "Fase ativa", "Elemento": elemento, "Fase de referência": fase_referencia, "Fração metálica na fase": fracao_metal, "Massa da fase final (g)": massa_fase_elemento, "Equivalente metálico (g)": massa_elemento, "Precursor": nome_precursor, "Massa de precursor puro (g)": massa_pura, "Massa corrigida a pesar (g)": massa_pesar})
             if promotor_configurado and carga_promotor > 0:
                 precursor = PRECURSORES_PADRAO.get(promotor_configurado)
+                massa_elemento_promotor, fase_referencia, fracao_metal = massa_elementar_da_fase(promotor_configurado, massa_promotor, base_carga)
                 if precursor and promotor_configurado in MASSAS_ATOMICAS_G_MOL:
-                    massa_pura = massa_promotor * precursor["massa_molar"] / (precursor["atomos_metal"] * MASSAS_ATOMICAS_G_MOL[promotor_configurado])
+                    massa_pura = massa_elemento_promotor * precursor["massa_molar"] / (precursor["atomos_metal"] * MASSAS_ATOMICAS_G_MOL[promotor_configurado])
                     massa_pesar = massa_pura / (pureza / 100.0) / (recuperacao / 100.0)
                     mols_precursores += massa_pura / precursor["massa_molar"]
                     nome_precursor = f'{precursor["nome"]} ({formatar_formula_quimica(precursor["formula"])})'
@@ -3525,8 +3555,9 @@ def mostrar_planejamento_sintese(
                     massa_pura = np.nan
                     massa_pesar = np.nan
                     nome_precursor = "Definir precursor e massa molar na calculadora livre"
-                linhas.append({"Função": "Promotor", "Elemento/fase": promotor_configurado, "Precursor": nome_precursor, "Massa final alvo (g)": massa_promotor, "Massa de precursor puro (g)": massa_pura, "Massa corrigida a pesar (g)": massa_pesar})
-            linhas.append({"Função": "Suporte", "Elemento/fase": suporte, "Precursor": f"{formatar_formula_quimica(suporte)} fornecido na forma final", "Massa final alvo (g)": massa_suporte, "Massa de precursor puro (g)": massa_suporte, "Massa corrigida a pesar (g)": massa_suporte / (recuperacao / 100.0)})
+                linhas.append({"Função": "Promotor", "Elemento": promotor_configurado, "Fase de referência": fase_referencia, "Fração metálica na fase": fracao_metal, "Massa da fase final (g)": massa_promotor, "Equivalente metálico (g)": massa_elemento_promotor, "Precursor": nome_precursor, "Massa de precursor puro (g)": massa_pura, "Massa corrigida a pesar (g)": massa_pesar})
+            massa_suporte_pesar = massa_suporte / max(1.0 - perda_suporte / 100.0, 1e-6)
+            linhas.append({"Função": "Suporte", "Elemento": suporte, "Fase de referência": suporte, "Fração metálica na fase": np.nan, "Massa da fase final (g)": massa_suporte, "Equivalente metálico (g)": np.nan, "Precursor": f"{formatar_formula_quimica(suporte)} fornecido na forma final", "Massa de precursor puro (g)": massa_suporte_pesar, "Massa corrigida a pesar (g)": massa_suporte_pesar})
             receita_df = pd.DataFrame(linhas)
             colunas_numericas = receita_df.select_dtypes(include=[np.number]).columns
             receita_df[colunas_numericas] = receita_df[colunas_numericas].round(3)
@@ -3539,6 +3570,7 @@ def mostrar_planejamento_sintese(
             else:
                 volume_solucao = np.nan
             molaridade_aproximada = mols_precursores / (volume_solucao / 1000.0) if np.isfinite(volume_solucao) and volume_solucao > 0 else np.nan
+            numero_ciclos = max(1, int(np.ceil(molaridade_aproximada / limite_molaridade))) if np.isfinite(molaridade_aproximada) else 1
             volume_exibicao = f"{volume_solucao:.2f} mL" if np.isfinite(volume_solucao) else "Definir por concentração"
             st.markdown(
                 f"<div class='synthesis-grid'><div class='synthesis-kpi'><b>Catalisador final</b><strong>{massa_final:.2f} g</strong></div>"
@@ -3549,12 +3581,14 @@ def mostrar_planejamento_sintese(
             )
             st.dataframe(receita_df, width="stretch", hide_index=True)
             if np.isfinite(molaridade_aproximada):
-                st.caption(f"Concentração metálica total aproximada da solução: {molaridade_aproximada:.3f} mol/L. Verifique solubilidade individual, pH e volume real dos sais.")
+                st.caption(f"Concentração metálica total aproximada: {molaridade_aproximada:.3f} mol/L; planejamento mínimo: {numero_ciclos} ciclo(s), cerca de {molaridade_aproximada / numero_ciclos:.3f} mol/L por ciclo.")
+                if numero_ciclos > 1:
+                    st.warning("A concentração calculada supera o limite definido. Divida a deposição em ciclos, com secagem intermediária compatível com a rota.")
             else:
                 st.caption("Na coprecipitação e no sol-gel, defina o volume a partir da concentração dos precursores, do pH, do complexante e da cinética de adição; o volume de poros não determina essa quantidade.")
             st.html(procedimento_sintese_html(rota, temperatura_secagem, temperatura_calcinacao))
             st.markdown(
-                "<div class='synthesis-warning'><b>Base do cálculo:</b> as cargas da fase ativa e do promotor são tratadas como equivalentes metálicos. "
+                f"<div class='synthesis-warning'><b>Base do cálculo:</b> {html.escape(base_carga)}. As massas dos sais incluem hidratação estequiométrica, pureza e recuperação global. "
                 "O suporte é considerado já disponível na fase final. Caso seja preparado a partir de boehmita, hidróxido, carbonato ou gel, use a calculadora abaixo "
                 "com a massa molar da fase final ou o fator de resíduo obtido por TGA. A receita é nominal e deve ser confirmada por análise química e balanço após calcinação.</div>",
                 unsafe_allow_html=True,
@@ -3790,7 +3824,11 @@ def mostrar_painel_quimica(
             "rwgs": {"redox": 0.30, "vacancia_oxigenio": 0.25, "afinidade_co2": 0.20, "dispersao": 0.15, "estabilidade_termica": 0.10},
         }.get(reacao, {"dispersao": 0.30, "redox": 0.25, "estabilidade_termica": 0.20, "afinidade_co2": 0.15, "vacancia_oxigenio": 0.10})
         indice = sum(float(suporte.get(eixo, 0.0)) * peso for eixo, peso in pesos.items())
-        penalidade_smsi = 0.08 * max(float(suporte.get("risco_smsi", 0.0)) - 0.75, 0.0) / 0.25
+        # A interação deve permanecer em uma janela intermediária: interação
+        # fraca reduz ancoragem, enquanto SMSI excessiva pode bloquear sítios.
+        alvo_smsi = {"metanacao": 0.48, "reforma": 0.45, "rwgs": 0.52}.get(reacao, 0.48)
+        score_smsi_janela = np.exp(-0.5 * ((float(suporte.get("risco_smsi", 0.0)) - alvo_smsi) / 0.27) ** 2)
+        penalidade_smsi = 0.10 * (1.0 - score_smsi_janela)
         return float(np.clip(indice - penalidade_smsi, 0.0, 1.0))
 
     top = prioritarios_df.iloc[0]
@@ -4402,13 +4440,12 @@ with st.sidebar:
             output_dir_texto = ""
 
     resumo_metais = ", ".join(metais) if metais else "não definidos"
-    resumo_regra = "metais garantidos nos 100 viáveis"
     resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
     resumo_reacao = nomes_reacao.get(reacao, "não definida")
     st.markdown(
         f"<div class='catialab-config-status'><strong>Configuração atual</strong><br>"
         f"{html.escape(resumo_reacao)}<br>{html.escape(resumo_metais)}<br>"
-        f"{html.escape(resumo_regra)}<br>{html.escape(resumo_promotor)}</div>",
+        f"{html.escape(resumo_promotor)}</div>",
         unsafe_allow_html=True,
     )
     espaco_esquerdo, coluna_executar, espaco_direito = st.columns([0.35, 1.8, 0.35])

@@ -3191,6 +3191,58 @@ sintese_df = refinado_df["formula"].apply(recomendar_sintese)
 # Junta recomendações ao dataframe refinado.
 refinado_df = pd.concat([refinado_df.reset_index(drop=True), sintese_df.reset_index(drop=True)], axis=1)
 
+# Traduz a sugestão de suporte em propriedades funcionais normalizadas e auditáveis.
+def propriedades_suporte_bifuncional(suporte):
+    texto = str(suporte).lower()
+    props = {"basicidade": 0.45, "redox": 0.45, "dispersao": 0.65, "estabilidade": 0.70, "smsi": 0.45}
+    if "ceo2" in texto or "zro2" in texto:
+        props.update(redox=0.88, dispersao=0.78, estabilidade=0.82, smsi=0.68)
+    if "mgo" in texto or "la2o3" in texto or "mgal" in texto:
+        props.update(basicidade=0.90, estabilidade=0.86, dispersao=max(props["dispersao"], 0.74))
+    if "al2o3" in texto:
+        props.update(dispersao=max(props["dispersao"], 0.88), estabilidade=max(props["estabilidade"], 0.80))
+    if "tio2" in texto:
+        props.update(redox=0.72, smsi=0.82)
+    if "sio2" in texto and "al2o3" not in texto:
+        props.update(basicidade=0.22, redox=0.20, smsi=0.30)
+    return props
+
+# Calcula as funções metálica, suporte/promotor e interface sem permitir compensação excessiva.
+def calcular_modelo_bifuncional(row):
+    suporte = propriedades_suporte_bifuncional(row["suporte_sugerido"])
+    funcao_metal = np.clip(
+        0.45 * row["score_atividade"] + 0.30 * row["score_DFT_refinado"] + 0.25 * row["score_volcano"], 0, 1
+    )
+    if reacao == "metanacao":
+        funcao_suporte = 0.35 * suporte["basicidade"] + 0.40 * suporte["redox"] + 0.25 * row["score_basicidade"]
+    elif reacao == "reforma":
+        funcao_suporte = 0.35 * suporte["basicidade"] + 0.30 * suporte["redox"] + 0.20 * row["score_basicidade"] + 0.15 * (1.0 - row["penalidade_tendencia_coque"])
+    else:
+        funcao_suporte = 0.30 * suporte["basicidade"] + 0.45 * suporte["redox"] + 0.25 * row["score_redox"]
+    smsi_alvo = {"metanacao": 0.62, "reforma": 0.68, "rwgs": 0.58}[reacao]
+    score_smsi = math.exp(-0.5 * ((suporte["smsi"] - smsi_alvo) / 0.22) ** 2)
+    funcao_interface = np.clip(
+        0.35 * suporte["dispersao"] + 0.25 * suporte["estabilidade"] + 0.25 * row["score_estabilidade"] + 0.15 * score_smsi, 0, 1
+    )
+    componentes = np.clip([funcao_metal, funcao_suporte, funcao_interface], 1e-6, 1.0)
+    score_bifuncional = 3.0 / np.sum(1.0 / componentes)
+    nomes = ["função metálica", "suporte/promotor", "interface metal-suporte"]
+    return pd.Series({
+        "score_funcao_metal": float(componentes[0]),
+        "score_funcao_suporte_promotor": float(componentes[1]),
+        "score_funcao_interface": float(componentes[2]),
+        "score_bifuncional_explicito": float(score_bifuncional),
+        "funcao_limitante_bifuncional": nomes[int(np.argmin(componentes))],
+    })
+
+bifuncional_df = refinado_df.apply(calcular_modelo_bifuncional, axis=1)
+refinado_df = pd.concat([refinado_df.reset_index(drop=True), bifuncional_df.reset_index(drop=True)], axis=1)
+refinado_df["score_final_material_antes_bifuncional"] = refinado_df["score_final_material"]
+refinado_df["score_final_material"] = (
+    0.80 * refinado_df["score_final_material_antes_bifuncional"]
+    + 0.20 * refinado_df["score_bifuncional_explicito"]
+).clip(0, 1)
+
 # Mostra suporte, rota e justificativa para os principais candidatos.
 refinado_df.sort_values("score_final_material", ascending=False)[[
     "formula",
@@ -3198,6 +3250,11 @@ refinado_df.sort_values("score_final_material", ascending=False)[[
     "rota_sintese_sugerida",
     "pretratamento_sugerido",
     "justificativa_suporte_sintese",
+    "score_funcao_metal",
+    "score_funcao_suporte_promotor",
+    "score_funcao_interface",
+    "score_bifuncional_explicito",
+    "funcao_limitante_bifuncional",
 ]].head(20)
 """
     ),
@@ -3214,6 +3271,52 @@ Cada candidato é avaliado nas condições desejáveis da reação. O score fina
 def limitar_0_100(valor):
     # Usa numpy.clip para restringir o valor.
     return float(np.clip(valor, 0, 100))
+
+# Estima Kp com ΔH° e ΔS° de reação a 298 K. O cálculo considera gás ideal
+# e omite a variação de Cp, devendo ser interpretado como teto aproximado.
+def constante_equilibrio_aproximada(reacao_alvo, temperatura_K):
+    parametros = {
+        "metanacao": (-164.9e3, -172.8),
+        "reforma": (247.3e3, 256.8),
+        "rwgs": (41.2e3, 42.1),
+    }
+    delta_h_J_mol, delta_s_J_mol_K = parametros[reacao_alvo]
+    delta_g_J_mol = delta_h_J_mol - temperatura_K * delta_s_J_mol_K
+    return float(np.exp(np.clip(-delta_g_J_mol / (8.314462618 * temperatura_K), -700, 700)))
+
+# Calcula ln(Qp) a partir da extensão e das pressões parciais ideais.
+def log_quociente_reacao(extensao, reacao_alvo, razao, pressao_bar):
+    eps = 1e-30
+    if reacao_alvo == "metanacao":
+        mols = {"CO2": 1.0 - extensao, "H2": razao - 4.0 * extensao, "CH4": extensao, "H2O": 2.0 * extensao}
+        nu = {"CO2": -1.0, "H2": -4.0, "CH4": 1.0, "H2O": 2.0}
+    elif reacao_alvo == "reforma":
+        mols = {"CH4": razao - extensao, "CO2": 1.0 - extensao, "CO": 2.0 * extensao, "H2": 2.0 * extensao}
+        nu = {"CH4": -1.0, "CO2": -1.0, "CO": 2.0, "H2": 2.0}
+    else:
+        mols = {"CO2": 1.0 - extensao, "H2": razao - extensao, "CO": extensao, "H2O": extensao}
+        nu = {"CO2": -1.0, "H2": -1.0, "CO": 1.0, "H2O": 1.0}
+    total = max(sum(mols.values()), eps)
+    return float(sum(coef * math.log(max((mols[especie] / total) * pressao_bar, eps)) for especie, coef in nu.items()))
+
+# Resolve Qp = Kp por bisseção e retorna a conversão máxima aproximada de CO2.
+def conversao_equilibrio_aproximada(condicao, reacao_alvo):
+    temperatura_K = float(condicao["temperatura_C"]) + 273.15
+    pressao_bar = max(float(condicao["pressao_bar"]), 1e-6)
+    razao = max(float(condicao["razao"]), 1e-8)
+    extensao_maxima = min(1.0, razao / 4.0) if reacao_alvo == "metanacao" else min(1.0, razao)
+    if extensao_maxima <= 0:
+        return 0.0
+    log_k = math.log(max(constante_equilibrio_aproximada(reacao_alvo, temperatura_K), 1e-300))
+    inferior = extensao_maxima * 1e-12
+    superior = extensao_maxima * (1.0 - 1e-10)
+    for _ in range(120):
+        meio = 0.5 * (inferior + superior)
+        if log_quociente_reacao(meio, reacao_alvo, razao, pressao_bar) < log_k:
+            inferior = meio
+        else:
+            superior = meio
+    return limitar_0_100(100.0 * 0.5 * (inferior + superior))
 
 # Define fatores de condição para cada reação.
 def fator_condicao(condicao, reacao_alvo):
@@ -3261,7 +3364,9 @@ for _, row in refinado_df.iterrows():
         # Usa atividade corrigida por coque para reforma e atividade original para as demais reações.
         atividade_operacional = float(coque_condicao["score_atividade_corrigida_coque"]) if reacao == "reforma" else float(row["score_atividade"])
         # Estima conversão a partir do score de atividade operacional.
-        conversao = limitar_0_100((35 + 45 * atividade_operacional) * fator_conv)
+        conversao_sem_limite_equilibrio = limitar_0_100((35 + 45 * atividade_operacional) * fator_conv)
+        conversao_equilibrio_pct = conversao_equilibrio_aproximada(condicao, reacao)
+        conversao = min(conversao_sem_limite_equilibrio, conversao_equilibrio_pct)
         # Estima seletividade a partir do score de seletividade.
         seletividade = limitar_0_100((45 + 50 * row["score_seletividade"]) * fator_sel)
         # Calcula rendimento/produtividade relativa.
@@ -3319,6 +3424,11 @@ for _, row in refinado_df.iterrows():
             "taxa_relativa_volcano": row.get("taxa_relativa_volcano", np.nan),
             "score_volcano": row.get("score_volcano", np.nan),
             "score_final_material": row["score_final_material"],
+            "score_funcao_metal": row.get("score_funcao_metal", np.nan),
+            "score_funcao_suporte_promotor": row.get("score_funcao_suporte_promotor", np.nan),
+            "score_funcao_interface": row.get("score_funcao_interface", np.nan),
+            "score_bifuncional_explicito": row.get("score_bifuncional_explicito", np.nan),
+            "funcao_limitante_bifuncional": row.get("funcao_limitante_bifuncional", ""),
             "score_cathub_incremental": row.get("score_cathub_incremental", np.nan),
             "energia_cathub_media_eV": row.get("energia_cathub_media_eV", np.nan),
             "n_evidencias_cathub_incremental": row.get("n_evidencias_cathub_incremental", 0),
@@ -3326,6 +3436,9 @@ for _, row in refinado_df.iterrows():
             "cathub_incremental_usado": row.get("cathub_incremental_usado", False),
             **condicao,
             "conversao_prevista_pct": conversao,
+            "conversao_prevista_sem_limite_equilibrio_pct": conversao_sem_limite_equilibrio,
+            "conversao_equilibrio_aproximada_pct": conversao_equilibrio_pct,
+            "limitada_pelo_equilibrio": bool(conversao_sem_limite_equilibrio > conversao_equilibrio_pct),
             "seletividade_produto_prevista_pct": seletividade,
             "rendimento_ou_produtividade_prevista_pct": rendimento,
             "score_final": score_final,
@@ -3367,7 +3480,9 @@ for _, row in refinado_df.iterrows():
                     # Usa atividade corrigida por coque em reforma também na análise de robustez por faixa.
                     atividade_operacional_faixa = float(coque_condicao_variada["score_atividade_corrigida_coque"]) if reacao == "reforma" else float(row["score_atividade"])
                     # Estima conversão para a condição variada.
-                    conversao = limitar_0_100((35 + 45 * atividade_operacional_faixa) * fator_conv)
+                    conversao_sem_limite_equilibrio = limitar_0_100((35 + 45 * atividade_operacional_faixa) * fator_conv)
+                    conversao_equilibrio_pct = conversao_equilibrio_aproximada(condicao_variada, reacao)
+                    conversao = min(conversao_sem_limite_equilibrio, conversao_equilibrio_pct)
                     # Estima seletividade para a condição variada.
                     seletividade = limitar_0_100((45 + 50 * row["score_seletividade"]) * fator_sel)
                     # Calcula rendimento ou produtividade para a condição variada.
