@@ -4195,10 +4195,8 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "Dulce Maria de Araújo Melo. The scientific software was designed to support catalysis "
                 "laboratories in screening and prioritizing candidate materials, interpreting chemical "
                 "descriptors, selecting supports and promoters, assessing uncertainty and operational "
-                "stability, and planning initial experimental validation. It also provides recommended "
-                "synthesis routes, operating conditions, and theoretical component quantities, which "
-                "must be confirmed and adjusted by the laboratory according to precursor purity, the "
-                "preparation method, characterization results, and catalytic tests."
+                "stability, planning initial experimental validation, and accessing recommended "
+                "synthesis routes and other technical information for candidate assessment."
             )
             titulo_perfil, titulo_citacao = "Development", "Suggested citation (ABNT)"
             citacao = (
@@ -4214,11 +4212,9 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "Araújo Melo. O software científico foi concebido para apoiar laboratórios de catálise "
                 "na triagem e priorização de materiais candidatos, na interpretação de descritores "
                 "químicos, na seleção de suportes e promotores, na avaliação da incerteza e da "
-                "estabilidade operacional e no planejamento da validação experimental inicial. O "
-                "sistema também apresenta rotas de síntese recomendadas, condições de operação e "
-                "quantidades teóricas dos componentes, que devem ser confirmadas e ajustadas pelo "
-                "laboratório conforme a pureza dos precursores, o método de preparação, os resultados "
-                "de caracterização e os ensaios catalíticos."
+                "estabilidade operacional, no planejamento da validação experimental inicial e no "
+                "acesso a rotas de síntese recomendadas e outras informações técnicas para a avaliação "
+                "dos candidatos."
             )
             titulo_perfil, titulo_citacao = "Desenvolvimento", "Forma de citação (ABNT)"
             citacao = (
@@ -4227,7 +4223,7 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "Disponível em: https://triagemufrn.streamlit.app/. "
                 f"Acesso em: {data_acesso_abnt}."
             )
-        col1, col2 = st.columns([1.35, 0.65])
+        col1, col2 = st.columns(2)
         col1.markdown(cartao_texto_html(titulo_perfil, perfil), unsafe_allow_html=True)
         col2.markdown(cartao_texto_html(titulo_citacao, citacao), unsafe_allow_html=True)
         st.link_button("Curriculum Lattes" if idioma_atual() == "en" else "Currículo Lattes", dados["lattes"])
