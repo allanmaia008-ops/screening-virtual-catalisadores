@@ -4202,7 +4202,9 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             )
             titulo_perfil, titulo_citacao = "Development", "Suggested citation (ABNT)"
             citacao = (
-                "MAIA, Allan da Silva. CatAiLab: virtual screening of catalysts and synthesis conditions. "
+                "MAIA, Allan da Silva; MELO, Dulce Maria de Araújo; MEDEIROS, Rodolfo Luiz B. A.; "
+                "OLIVEIRA, Ângelo Anderson S. de; SILVA, Alexsandro Rocha da. CatAiLab: virtual "
+                "screening of catalysts and synthesis conditions. "
                 "Version 1.0. Natal: Federal University of Rio Grande do Norte, 2026. "
                 "Available at: https://triagemufrn.streamlit.app/. "
                 f"Accessed on: {data_acesso.strftime('%d %b. %Y')}."
@@ -4222,7 +4224,9 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             )
             titulo_perfil, titulo_citacao = "Desenvolvimento", "Forma de citação (ABNT)"
             citacao = (
-                "MAIA, Allan da Silva. CatAiLab: triagem virtual de catalisadores e condições de síntese. "
+                "MAIA, Allan da Silva; MELO, Dulce Maria de Araújo; MEDEIROS, Rodolfo Luiz B. A.; "
+                "OLIVEIRA, Ângelo Anderson S. de; SILVA, Alexsandro Rocha da. CatAiLab: triagem "
+                "virtual de catalisadores e condições de síntese. "
                 "Versão 1.0. Natal: Universidade Federal do Rio Grande do Norte, 2026. "
                 "Disponível em: https://triagemufrn.streamlit.app/. "
                 f"Acesso em: {data_acesso_abnt}."
