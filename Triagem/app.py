@@ -4192,7 +4192,9 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             perfil = (
                 "CatAiLab was developed at the Environmental Technology Laboratory (LabTam/UFRN) "
                 "by doctoral researcher Allan da Silva Maia, under the supervision of Professor "
-                "Dulce Maria de Araújo Melo. The scientific software was designed to support catalysis "
+                "Dulce Maria de Araújo Melo, with co-supervision by Rodolfo Luiz B. A. Medeiros and "
+                "Ângelo Anderson S. de Oliveira, and collaboration from Alexsandro Rocha da Silva. "
+                "The scientific software was designed to support catalysis "
                 "laboratories in screening and prioritizing candidate materials, interpreting chemical "
                 "descriptors, selecting supports and promoters, assessing uncertainty and operational "
                 "stability, planning initial experimental validation, and accessing recommended "
@@ -4209,7 +4211,9 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             perfil = (
                 "O CatAiLab foi desenvolvido no Laboratório de Tecnologia Ambiental (LabTam/UFRN) "
                 "pelo doutorando Allan da Silva Maia, sob orientação da professora Dulce Maria de "
-                "Araújo Melo. O software científico foi concebido para apoiar laboratórios de catálise "
+                "Araújo Melo, com coorientação de Rodolfo Luiz B. A. Medeiros e Ângelo Anderson S. de "
+                "Oliveira e colaboração de Alexsandro Rocha da Silva. O software científico foi "
+                "concebido para apoiar laboratórios de catálise "
                 "na triagem e priorização de materiais candidatos, na interpretação de descritores "
                 "químicos, na seleção de suportes e promotores, na avaliação da incerteza e da "
                 "estabilidade operacional, no planejamento da validação experimental inicial e no "
