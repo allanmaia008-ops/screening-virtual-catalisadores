@@ -11,6 +11,7 @@ import sys
 import textwrap
 import traceback
 import unicodedata
+from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
 
@@ -485,6 +486,8 @@ def valor_linha(row: pd.Series, termos: list[str], padrao: str = "-") -> str:
 
 def extrair_confiabilidade(row: pd.Series) -> str:
     """Extrai a confiabilidade evitando colunas incorretas ou texto corrompido."""
+    if "validacao_experimental" in row.index:
+        return "não validada experimentalmente"
     coluna = encontrar_coluna(pd.DataFrame(columns=row.index), ["confiabilidade"])
     if coluna:
         valor = str(row.get(coluna, "")).strip()
@@ -2343,7 +2346,8 @@ def executar_triagem(
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     metais_slug = slug_texto("_".join(metais))
     promotor_slug = slug_texto(promotor) or "sem_promotor"
-    output_notebook = APP_DIR / f"execucao_streamlit_{reacao}_{metais_slug}_{promotor_slug}_{timestamp}.ipynb"
+    from report_contract import output_prefix
+    output_notebook = output_dir / f"{output_prefix(reacao, metais, promotor)}_notebook_executado_{timestamp}.ipynb"
     client = NotebookClient(
         notebook,
         timeout=1800,
@@ -2351,6 +2355,14 @@ def executar_triagem(
         resources={"metadata": {"path": str(APP_DIR)}},
     )
     client.execute()
+    resultados = caminhos_resultado(output_dir, reacao)
+    for chave in ("resumo", "html", "prioritarios", "ranking", "excel"):
+        if not resultados[chave].is_file():
+            raise RuntimeError(f"A execução não gerou o arquivo obrigatório: {chave}")
+    resumo_execucao = json.loads(resultados["resumo"].read_text(encoding="utf-8-sig"))
+    if (resumo_execucao.get("metais_ativos") != metais
+            or (resumo_execucao.get("promotor") or "") != promotor):
+        raise RuntimeError("Os resultados gerados não correspondem aos metais/promotor solicitados.")
     nbformat.write(notebook, output_notebook)
     return output_notebook
 
@@ -2358,6 +2370,20 @@ def executar_triagem(
 def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
     """Agrupa os caminhos de saída gerados pelo notebook para a reação selecionada."""
     prefixo = f"disciplina_fluxo_{reacao}"
+    # New exports carry a reaction/material prefix; retain legacy report support.
+    summaries = list(output_dir.glob("catailab_*_resumo.json"))
+    matching = []
+    for summary_path in summaries:
+        try:
+            metadata = json.loads(summary_path.read_text(encoding="utf-8-sig"))
+            if metadata.get("reacao") == reacao and metadata.get("prefixo_arquivos"):
+                matching.append(metadata["prefixo_arquivos"])
+        except (OSError, ValueError):
+            continue
+    if len(matching) > 1:
+        raise ValueError("Mais de uma execução encontrada. Selecione a pasta de uma única triagem.")
+    if matching:
+        prefixo = matching[0]
     return {
         "prioritarios": output_dir / f"{prefixo}_prioritarios_sintese.csv",
         "ranking": output_dir / f"{prefixo}_ranking_condicoes.csv",
@@ -2371,6 +2397,7 @@ def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
         "validacao_quimio": output_dir / f"{prefixo}_validacao_quimiometrica.csv",
         "validacao_avancada": output_dir / f"{prefixo}_validacao_avancada.csv",
         "correcao_temperatura": output_dir / f"{prefixo}_correcao_temperatura_top10.csv",
+        "score_hierarquico": output_dir / f"{prefixo}_score_hierarquico_comparativo.csv",
         "excel": output_dir / f"{prefixo}_resultados.xlsx",
         "html": output_dir / f"{prefixo}_relatorio.html",
         "resumo": output_dir / f"{prefixo}_resumo.json",
@@ -4478,13 +4505,18 @@ if executar:
     elif modo_promotor == "Com promotor" and not promotor:
         st.error("Selecione ou digite o promotor.")
     else:
+        # Uma tentativa nova nunca pode herdar resultados de uma execução anterior.
+        for chave in ("ultima_reacao", "ultima_saida", "ultimo_notebook", "ultima_configuracao"):
+            st.session_state.pop(chave, None)
+        saida_execucao = output_dir / f"execucao_{datetime.now():%Y%m%d_%H%M%S}_{uuid4().hex}"
+        saida_execucao.mkdir(parents=True, exist_ok=False)
         try:
             with st.spinner("Executando consultas, descritores, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
                 notebook_executado = executar_triagem(
                     reacao,
                     metais,
                     promotor,
-                    output_dir,
+                    saida_execucao,
                     garantir_metais_nos_100,
                 )
         except Exception as erro_execucao:
@@ -4493,11 +4525,19 @@ if executar:
                 st.code("".join(traceback.format_exception(erro_execucao))[-6000:])
         else:
             st.session_state["ultima_reacao"] = reacao
-            st.session_state["ultima_saida"] = str(output_dir)
+            st.session_state["ultima_saida"] = str(saida_execucao)
+            st.session_state["ultima_configuracao"] = (reacao, tuple(metais), promotor)
             st.session_state["ultimo_notebook"] = str(notebook_executado)
             st.success("Triagem concluída.")
 
-reacao_resultado = st.session_state.get("ultima_reacao") or reacao or "metanacao"
+if not st.session_state.get("ultimo_notebook"):
+    st.info("Execute a triagem para visualizar e baixar os resultados desta sessão.")
+    st.stop()
+if st.session_state.get("ultima_configuracao") != (reacao, tuple(metais), promotor):
+    st.warning("A configuração foi alterada. Execute novamente a triagem; os resultados anteriores não serão exibidos nem exportados.")
+    st.stop()
+
+reacao_resultado = st.session_state["ultima_reacao"]
 saida_resultado = Path(st.session_state.get("ultima_saida", str(output_dir)))
 paths = caminhos_resultado(saida_resultado, reacao_resultado)
 

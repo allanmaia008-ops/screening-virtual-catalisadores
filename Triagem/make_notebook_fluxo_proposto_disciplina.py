@@ -13,6 +13,7 @@ NOTEBOOK = SCRIPT_DIR / "notebook_disciplina_triagem_virtual_fluxo_proposto.ipyn
 
 # Carrega o codigo da etapa de validacao avancada para embutir no notebook final.
 VALIDACAO_AVANCADA_CODE = (SCRIPT_DIR / "validacao_avancada_code.py").read_text(encoding="utf-8")
+HIERARCHICAL_SCORE_CODE = (SCRIPT_DIR / "hierarchical_score_code.py").read_text(encoding="utf-8")
 
 
 def corrigir_markdown_segmento(texto):
@@ -5262,6 +5263,14 @@ Na ausência de parâmetros obtidos por DFT, CFD ou ajuste cinético, os cálcul
     code(VALIDACAO_AVANCADA_CODE),
     md(
         """
+## Score hierárquico proposto (avaliação paralela)
+
+Esta avaliação separa material, catálise bifuncional, operação e síntese; aplica um fator de qualidade da evidência computacional e penalizações explícitas. Os pesos são técnico-heurísticos, não foram calibrados experimentalmente e o resultado não representa probabilidade de sucesso. O ranking vigente é preservado para comparação e auditoria.
+"""
+    ),
+    code(HIERARCHICAL_SCORE_CODE),
+    md(
+        """
 ## Etapa 15 - Visualização científica dos resultados
 
 Esta etapa aplica os princípios da aula de gráficos científicos com Matplotlib para transformar as tabelas finais em figuras interpretáveis. As imagens são salvas em PNG e PDF para uso no relatório ou apresentação.
@@ -5287,7 +5296,7 @@ except ModuleNotFoundError:
     import matplotlib.pyplot as plt
 
 # Define prefixo dos arquivos de saída com o nome da reação.
-prefixo = f"disciplina_fluxo_{reacao}"
+prefixo = output_prefix(reacao, metais_usuario, promotor_usuario)
 
 # Define a pasta em que as figuras serão salvas.
 FIGURE_DIR = OUTPUT_DIR / f"{prefixo}_figuras"
@@ -5312,9 +5321,9 @@ figuras_geradas = []
 # Define uma função auxiliar para salvar a figura em PNG e PDF.
 def salvar_figura(nome_base):
     # Monta o caminho do arquivo PNG.
-    caminho_png = FIGURE_DIR / f"{nome_base}.png"
+    caminho_png = FIGURE_DIR / f"{prefixo}_{nome_base}.png"
     # Monta o caminho do arquivo PDF.
-    caminho_pdf = FIGURE_DIR / f"{nome_base}.pdf"
+    caminho_pdf = FIGURE_DIR / f"{prefixo}_{nome_base}.pdf"
     # Salva a figura em PNG com resolução adequada para apresentação.
     plt.savefig(caminho_png, dpi=300, bbox_inches="tight")
     # Salva a mesma figura em PDF para relatório.
@@ -6044,7 +6053,7 @@ As tabelas finais são salvas em CSV e Excel para uso no relatório ou apresenta
     code(
         """
 # Define prefixo dos arquivos de saída com o nome da reação.
-prefixo = f"disciplina_fluxo_{reacao}"
+prefixo = output_prefix(reacao, metais_usuario, promotor_usuario)
 
 # Define nomes em português para as colunas exportadas nos resultados.
 nomes_colunas_pt = {
@@ -6295,7 +6304,14 @@ nomes_colunas_pt = {
 # Define função auxiliar para traduzir apenas os nomes das colunas exportadas.
 def traduzir_colunas(df):
     # Renomeia colunas conhecidas e mantém as demais sem alteração.
-    return df.rename(columns={col: nomes_colunas_pt.get(col, col) for col in df.columns})
+    df = audited_export(df, reacao)
+    labels = {**nomes_colunas_pt, **EXPORT_LABELS}
+    return df.rename(columns={col: labels.get(col, col) for col in df.columns})
+
+alternativas_formulacao_df = support_alternatives(melhor_por_candidato_df)
+alternativas_formulacao_df.to_csv(OUTPUT_DIR / f"{prefixo}_alternativas_formulacao.csv", index=False, encoding="utf-8-sig")
+
+traduzir_colunas(score_hierarquico_comparativo_df).to_csv(OUTPUT_DIR / f"{prefixo}_score_hierarquico_comparativo.csv", index=False, encoding="utf-8-sig")
 
 # Salva o ranking completo catalisador-condição.
 traduzir_colunas(ranking_final_df).to_csv(OUTPUT_DIR / f"{prefixo}_ranking_condicoes.csv", index=False, encoding="utf-8-sig")
@@ -6383,6 +6399,8 @@ traduzir_colunas(relatorio_validacao_metodo_df).to_csv(OUTPUT_DIR / f"{prefixo}_
 
 # Salva um arquivo Excel com abas organizadas.
 with pd.ExcelWriter(OUTPUT_DIR / f"{prefixo}_resultados.xlsx", engine="openpyxl") as writer:
+    # Aba de comparação: não substitui o ranking vigente.
+    traduzir_colunas(score_hierarquico_comparativo_df).to_excel(writer, sheet_name="Score_hierarquico", index=False)
     # Aba com candidatos prioritários.
     traduzir_colunas(prioritarios_df).to_excel(writer, sheet_name="Prioritarios_sintese", index=False)
     # Aba com melhor condição por candidato.
@@ -6598,11 +6616,16 @@ figcaption {{
 <h1>Relat&oacute;rio da Triagem Virtual</h1>
 <p class="subtitulo">Resumo autom&aacute;tico dos candidatos, condi&ccedil;&otilde;es operacionais, incerteza e recomenda&ccedil;&otilde;es de s&iacute;ntese.</p>
 {cartoes_html}
+{REPORT_NOTICE}
+<h2>Alternativas de formulação: suporte e cargas a definir</h2>
+{tabela_html(alternativas_formulacao_df, linhas=len(alternativas_formulacao_df))}
 <h2>Configura&ccedil;&atilde;o da execu&ccedil;&atilde;o</h2>
 <p><strong>Metais ativos:</strong> {html.escape(', '.join(metais_usuario))}</p>
 <p><strong>Promotor:</strong> {html.escape(str(promotor_usuario))}</p>
 <p><strong>Perfil:</strong> {html.escape(str(perfil['nome']))}</p>
-<h2>Top 2 candidatos recomendados</h2>
+<h2>Comparação: score vigente e score hierárquico proposto</h2>
+{tabela_html(score_hierarquico_comparativo_df, linhas=10)}
+<h2>Top 2 candidatos recomendados pelo ranking vigente</h2>
 {tabela_html(prioritarios_df, linhas=2)}
 <h2>Melhor condi&ccedil;&atilde;o por candidato</h2>
 {tabela_html(melhor_por_candidato_df, linhas=10)}
@@ -6652,6 +6675,11 @@ relatorio_html_path.write_text(relatorio_html, encoding="utf-8")
 
 # Cria resumo da execução.
 resumo = {
+    "prefixo_arquivos": prefixo,
+    "arquivo_score_hierarquico_comparativo": str(OUTPUT_DIR / f"{prefixo}_score_hierarquico_comparativo.csv"),
+    "score_hierarquico_status": "proposta técnico-heurística sem calibração experimental; ranking vigente preservado",
+    "prefixo_arquivos": prefixo,
+    "prefixo_arquivos": prefixo,
     "reacao": reacao,
     "perfil": perfil["nome"],
     "produto": perfil["produto"],
@@ -6737,6 +6765,8 @@ print(json.dumps(resumo, ensure_ascii=False, indent=2))
     ),
 ]
 
+contract_position = next(i for i, cell in enumerate(nb.cells) if "prefixo = output_prefix" in cell.source)
+nb.cells.insert(contract_position, code((SCRIPT_DIR / "report_contract.py").read_text(encoding="utf-8")))
 nbf.write(nb, NOTEBOOK)
 print(NOTEBOOK)
 
