@@ -36,6 +36,12 @@ TRIAGEM_GITHUB_TOKEN = "token_github_com_permissao_contents_write"
 - O token GitHub deve ter permissao de leitura e escrita em **Contents** no repositorio do app.
 # Expansão planejada: Fischer–Tropsch
 
+O núcleo `Triagem/asf.py` calcula a distribuição ideal a partir de alpha informado,
+com bases molar, de carbono e de massa de parafinas e cauda infinita explícita.
+Exemplo local: `python Triagem/demo_asf.py --alpha 0.85 --output outputs/asf_demo`.
+O perfil FT para aviação está detalhado em `Triagem/FT_SAF_PERFIL.md`.
+O núcleo não estima alpha nem conversão a partir do catalisador.
+
 O primeiro escopo científico para a expansão foi definido em
 `Triagem/fischer_tropsch_scope.py`. O alvo inicial é Fischer–Tropsch de baixa
 temperatura para hidrocarbonetos `C5+`, com janela inicial de 200–250 °C,

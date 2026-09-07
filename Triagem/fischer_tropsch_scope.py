@@ -8,6 +8,7 @@ descritores específicos, das fases ativas e do score Fischer-Tropsch.
 FISCHER_TROPSCH_LTFT_SCOPE = {
     "id": "fischer_tropsch_ltft_c5plus",
     "status": "definido_nao_executavel",
+    "nucleo_distribuicao": {"modulo": "asf.py", "status": "implementado", "alpha": "informado_pelo_usuario", "base_padrao": "carbono_nos_hidrocarbonetos"},
     "nome": "Fischer-Tropsch de baixa temperatura para hidrocarbonetos C5+",
     "objetivo_primario": "maximizar_seletividade_C5plus",
     "objetivos_secundarios": [
