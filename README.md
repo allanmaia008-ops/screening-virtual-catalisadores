@@ -48,7 +48,22 @@ temperatura para hidrocarbonetos `C5+`, com janela inicial de 200–250 °C,
 10–30 bar e razão H₂/CO de 1,5–2,2. Co e Fe serão tratados como famílias
 catalíticas distintas, pois exigem representações diferentes da fase ativa.
 
-Este perfil permanece deliberadamente **não executável**. Ele só deverá ser
-incluído no seletor do aplicativo após a implementação do modelo ASF, dos
-descritores específicos, das fases ativas, do score FT e dos testes de balanço
-de carbono e consistência de unidades definidos no próprio contrato.
+O perfil LTFT está disponível no seletor e no notebook
+`Triagem/notebook_fischer_tropsch_ltft.ipynb`, para Co, Fe e Co-Fe exploratório.
+O módulo `ltft.py` calcula alpha por priors declarados de família, suporte,
+promotor e condições, ou aceita alpha informado. Isso não é uma regressão
+calibrada. Magpie/pymatgen são obrigatórios e registrados para auditoria;
+o score não afirma uma contribuição aprendida desses descritores.
+
+A triagem seleciona até 1000 formulações únicas, 100 selecionadas, 10 refinadas
+e 2 prioritárias; a grade monometálica sem promotor contém 105 formulações.
+As cargas variam de 5 a 25% de metais ativos e de 1 a 5% de promotor, em massa,
+como grade de estudo, não como faixa experimental validada. As misturas de
+metais têm passo atômico de 1%. Carga, preço e precursor não modificam o score
+nesta versão. Empates têm desempate determinístico pelo identificador.
+
+Exporta CSV, Excel, HTML e configuração JSON; conversão, WGS, produtividade,
+coque e oxidação continuam não quantificados. A fase ativa é uma hipótese.
+Referência para dependência qualitativa do crescimento com condições:
+https://pubs.acs.org/doi/10.1021/acscatal.7b02758 . Os coeficientes numéricos
+do módulo são escolhas heurísticas do projeto, não valores extraídos do artigo.

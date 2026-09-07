@@ -4434,10 +4434,12 @@ with st.sidebar:
     st.caption("Configurações da Triagem")
 
     nomes_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}
+    nomes_reacao['fischer_tropsch'] = 'Fischer–Tropsch LTFT (C₅₊)'
     equacoes_reacao = {"metanacao": "CO₂ + 4H₂ → CH₄ + 2H₂O", "reforma": "CH₄ + CO₂ → 2CO + 2H₂", "rwgs": "CO₂ + H₂ → CO + H₂O"}
+    equacoes_reacao['fischer_tropsch'] = 'nCO + (2n+1)H₂ → CₙH₂ₙ₊₂ + nH₂O'
 
     with st.popover("Reação", icon=":material/science:", width="stretch"):
-        reacao = st.selectbox("Reação-alvo", ["metanacao", "reforma", "rwgs"], index=None, placeholder="Selecione a reação", format_func=lambda x: {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}[x], key="config_reacao")
+        reacao = st.selectbox("Reação-alvo", list(nomes_reacao), index=None, placeholder="Selecione a reação", format_func=nomes_reacao.get, key="config_reacao")
     if reacao:
         st.markdown("<div class='catialab-config-preview'>" f"<div class='reaction-name'>{nomes_reacao[reacao]}</div>" f"<div class='reaction-equation'>{equacoes_reacao[reacao]}</div>" "</div>", unsafe_allow_html=True)
 
@@ -4492,6 +4494,12 @@ if metais_repetidos:
     st.warning("Há metais ativos repetidos. Cada metal ativo deve ser informado apenas uma vez.")
 elif n_metais and len(metais) != n_metais:
     st.warning("Preencha todos os campos de metal ativo antes de executar.")
+
+if reacao == 'fischer_tropsch':
+    from ltft_ui import render as render_ltft
+    render_ltft(metais, promotor, output_dir, executar,
+                bool(n_metais and len(metais) == n_metais and not metais_repetidos and modo_promotor is not None and (modo_promotor == 'Sem promotor' or promotor)))
+    st.stop()
 
 if executar:
     if not reacao:

@@ -4,9 +4,9 @@ from fischer_tropsch_scope import FISCHER_TROPSCH_LTFT_SCOPE, validar_escopo_fis
 
 
 class FischerTropschScopeTests(unittest.TestCase):
-    def test_scope_is_valid_but_not_executable(self):
+    def test_scope_is_valid_and_heuristic(self):
         self.assertTrue(validar_escopo_fischer_tropsch())
-        self.assertEqual(FISCHER_TROPSCH_LTFT_SCOPE["status"], "definido_nao_executavel")
+        self.assertEqual(FISCHER_TROPSCH_LTFT_SCOPE["status"], "executavel_heuristico")
 
     def test_product_distribution_is_explicit(self):
         bands = FISCHER_TROPSCH_LTFT_SCOPE["produtos"]["faixas_a_reportar"]

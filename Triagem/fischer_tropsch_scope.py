@@ -1,13 +1,15 @@
 """Escopo científico aprovado para a futura triagem Fischer-Tropsch.
 
-Este módulo define o alvo; ele não habilita a reação no pipeline. A execução só
-deve ser liberada após a implementação e os testes do modelo ASF, dos
-descritores específicos, das fases ativas e do score Fischer-Tropsch.
+Este módulo define o alvo da execução heurística disponível em ltft.py.
+Fases ativas e alpha são hipóteses; não há cinética calibrada.
 """
 
 FISCHER_TROPSCH_LTFT_SCOPE = {
     "id": "fischer_tropsch_ltft_c5plus",
-    "status": "definido_nao_executavel",
+    "status": "executavel_heuristico",
+    "modulo_execucao": "ltft.py",
+    "metais_habilitados": ["Co", "Fe"],
+    "limites_execucao": "Não calcula conversão, WGS, coque ou produtividade; fase e alpha são hipóteses heurísticas",
     "nucleo_distribuicao": {"modulo": "asf.py", "status": "implementado", "alpha": "informado_pelo_usuario", "base_padrao": "carbono_nos_hidrocarbonetos"},
     "nome": "Fischer-Tropsch de baixa temperatura para hidrocarbonetos C5+",
     "objetivo_primario": "maximizar_seletividade_C5plus",
@@ -61,7 +63,7 @@ def validar_escopo_fischer_tropsch(escopo=None):
     temperatura = escopo["janela_operacional_inicial"]["temperatura_C"]
     pressao = escopo["janela_operacional_inicial"]["pressao_bar"]
     razao = escopo["alimentacao"]["razao_H2_CO"]
-    assert escopo["status"] == "definido_nao_executavel"
+    assert escopo["status"] == "executavel_heuristico"
     assert escopo["produtos"]["alvo"] == "C5+"
     assert temperatura[0] < temperatura[1]
     assert pressao[0] < pressao[1]
