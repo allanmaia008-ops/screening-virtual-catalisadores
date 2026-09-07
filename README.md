@@ -34,3 +34,15 @@ TRIAGEM_GITHUB_TOKEN = "token_github_com_permissao_contents_write"
 - Ao executar uma nova triagem, os novos arquivos sao gerados na pasta de saida definida na interface.
 - Se `TRIAGEM_GITHUB_TOKEN` estiver configurado, o app baixa e atualiza os bancos incrementais em `outputs/ranking_multicriterio_v2_incerteza_explicabilidade.csv`, `outputs/consultas_bases_externas.csv`, `outputs/catalysis_hub_incremental.csv` e `outputs/proxy_gnn_local.csv`.
 - O token GitHub deve ter permissao de leitura e escrita em **Contents** no repositorio do app.
+# Expansão planejada: Fischer–Tropsch
+
+O primeiro escopo científico para a expansão foi definido em
+`Triagem/fischer_tropsch_scope.py`. O alvo inicial é Fischer–Tropsch de baixa
+temperatura para hidrocarbonetos `C5+`, com janela inicial de 200–250 °C,
+10–30 bar e razão H₂/CO de 1,5–2,2. Co e Fe serão tratados como famílias
+catalíticas distintas, pois exigem representações diferentes da fase ativa.
+
+Este perfil permanece deliberadamente **não executável**. Ele só deverá ser
+incluído no seletor do aplicativo após a implementação do modelo ASF, dos
+descritores específicos, das fases ativas, do score FT e dos testes de balanço
+de carbono e consistência de unidades definidos no próprio contrato.
