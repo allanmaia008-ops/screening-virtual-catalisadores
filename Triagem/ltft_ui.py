@@ -5,6 +5,7 @@ import streamlit as st
 import plotly.express as px
 from asf import distribution
 from ltft import run
+from ltft_cards import recommendations_html
 
 
 def render(metals, promoter, output_dir, execute, configured):
@@ -44,14 +45,7 @@ def render(metals, promoter, output_dir, execute, configured):
         'C5plus_carbon_pct':'C₅₊ (% carbono)', 'CH4_carbon_pct':'CH₄ (% carbono)', 'score_LTFT':'Score LTFT'}
     cols = list(labels)
     with tabs[0]:
-        for col, (_, candidate) in zip(st.columns(2), tables['prioritarios_2'].iterrows()):
-            with col:
-                st.markdown(f"### {candidate['formula']} / {candidate['support']}")
-                st.metric('C₅₊ (% carbono ASF)', f"{candidate['C5plus_carbon_pct']:.2f}")
-                st.write('Fase ativa proposta: '+candidate['phase_hypothesis'])
-                st.write('Suporte recomendado na comparação: '+candidate['recommended_support'])
-                st.caption(candidate['support_rationale'])
-                st.write(f"Carga metálica: {candidate['metal_loading_wt_pct']}% massa; promotor: {candidate['promoter'] or 'nenhum'} ({candidate['promoter_loading_wt_pct']}% massa).")
+        st.markdown(recommendations_html(tables['prioritarios_2']), unsafe_allow_html=True)
     with tabs[1]:
         st.dataframe(tables['refinados_10'][cols].rename(columns=labels), hide_index=True, width='stretch')
         st.caption('Os 100 selecionados são priorizados pelo modelo heurístico; não são materiais com estabilidade termodinâmica comprovada. Empates podem ocorrer entre cargas ainda não modeladas.')
