@@ -10,7 +10,7 @@ class ASFTests(unittest.TestCase):
                 result = distribution(a, 30, basis)
                 self.assertAlmostEqual(sum(result['exclusive_groups'].values()), 1)
                 self.assertAlmostEqual(sum(r['fraction'] for r in result['rows'])+result['tail_fraction'], 1)
-                self.assertAlmostEqual(result['C5plus_subtotal'], result['exclusive_groups']['C5-C11']+result['exclusive_groups']['C12+'])
+                self.assertAlmostEqual(result['C5plus_subtotal'], sum(result['exclusive_groups'][k] for k in ('C5-C11', 'C12-C20', 'C21+')))
 
     def test_analytical_values(self):
         self.assertAlmostEqual(band_fraction(.8, 1, 1), .04)

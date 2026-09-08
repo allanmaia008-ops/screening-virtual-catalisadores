@@ -9,7 +9,24 @@ import pandas as pd
 from asf import distribution, tail_fraction
 from report_contract import output_prefix
 
-MODEL_VERSION = 'ltft-heuristic-1'
+MODEL_VERSION = 'ltft-heuristic-2'
+CHEMICAL_PROFILES = {
+    'Co': {
+        'activation': 'Avaliar redução dos precursores para Co metálico; confirmar fase e dispersão.',
+        'wgs_status': 'Baixa atividade WGS como hipótese qualitativa; não assumir taxa zero.',
+        'phase_warning': 'Água, reoxidação e interação com suporte não são resolvidas pelo modelo.',
+    },
+    'Fe': {
+        'activation': 'Avaliar ativação e carburização; confirmar carbetos e óxidos coexistentes.',
+        'wgs_status': 'WGS relevante: CO + H2O ⇌ CO2 + H2. Extensão e taxas não calculadas.',
+        'phase_warning': 'Distribuição de fases depende da ativação e do ambiente; não presumir um carbeto único.',
+    },
+    'Co-Fe exploratório': {
+        'activation': 'Avaliar redução e carburização de forma conjunta; caracterizar as fases presentes.',
+        'wgs_status': 'WGS possível pela presença de Fe; não interpolar taxas entre Co e Fe.',
+        'phase_warning': 'Mistura exploratória: não comprova liga, sinergia ou fases ativas coexistentes.',
+    },
+}
 # Engineering priors, not fitted parameters or measured catalyst properties.
 PRIORS = {
     'Co': {'alpha': .86, 'activity': .75, 'phase': 'Co0 (hipótese)', 'phase_score': .75},
@@ -95,15 +112,19 @@ def evaluate(candidate, temperature=225, pressure=20, ratio=2, alpha_override=No
     penalty = .10*methane+.07*sintering
     score = max(0.0, sum(WEIGHTS[k]*v for k,v in components.items())-penalty)
     family = next(iter(fractions)) if len(fractions)==1 else 'Co-Fe exploratório'
+    product_distribution = distribution(alpha)
     return {**{k:v for k,v in candidate.items() if k!='fractions'}, 'family': family,
+        **CHEMICAL_PROFILES[family], 'WGS_extent': None,
         'phase_hypothesis': ' + '.join(PRIORS[m]['phase'] for m in fractions),
         'temperature_C': temperature, 'pressure_bar': pressure, 'H2_CO': ratio,
         'alpha': alpha, 'alpha_origin': 'informado' if alpha_override is not None else 'heurística não calibrada',
         'C5plus_carbon_pct':100*c5, 'CH4_carbon_pct':100*methane,
+        **{name+'_carbon_pct':100*fraction for name,fraction in product_distribution['exclusive_groups'].items()},
+        'carbon_closure_error':product_distribution['closure_error'],
         'score_LTFT':score, **{'component_'+k:v for k,v in components.items()},
         'penalty_total':penalty, 'CO_conversion_pct':None, 'CO2_selectivity_pct':None,
         'coke_rate':None, 'validation':'Sem calibração experimental',
-        'synthesis_route':'Impregnação: definir precursores, secagem e calcinação; validar redução para Co e ativação/carburização para Fe',
+        'synthesis_route':'Rota proposta: impregnação; definir precursores e tratamentos. '+CHEMICAL_PROFILES[family]['activation'],
         'model_version':MODEL_VERSION}
 
 
@@ -121,11 +142,20 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
         for row in distribution(float(c['alpha']))['rows']:
             rows.append({'candidate_id':c['candidate_id'], **row})
     asf_table = pd.DataFrame(rows)
+    product_rows = []
+    for _, candidate in refined.iterrows():
+        dist = distribution(float(candidate['alpha']))
+        for group, fraction in dist['exclusive_groups'].items():
+            product_rows.append({'candidate_id':candidate['candidate_id'], 'group':group,
+                                 'carbon_pct':100*fraction, 'basis':'carbono nos hidrocarbonetos',
+                                 'closure_error':dist['closure_error']})
+    products = pd.DataFrame(product_rows)
     out = Path(output)
     out.mkdir(parents=True, exist_ok=True)
     prefix = output_prefix('fischer_tropsch_LTFT', metals, promoter)
     tables = {'gerados':generated, 'selecionados_100':selected, 'refinados_10':refined,
-              'prioritarios_2':final, 'descritores_magpie':descriptor_table, 'distribuicao_ASF':asf_table}
+              'prioritarios_2':final, 'descritores_magpie':descriptor_table, 'distribuicao_ASF':asf_table,
+              'grupos_produtos':products}
     for name, frame in tables.items():
         frame.to_csv(out/f'{prefix}_{name}.csv', index=False, encoding='utf-8-sig')
     with pd.ExcelWriter(out/f'{prefix}_resultados.xlsx') as writer:
@@ -133,6 +163,9 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     metadata = {'version':MODEL_VERSION,'metals':metals,'promoter':promoter,'seed':seed,
         'temperature_C':temperature,'pressure_bar':pressure,'H2_CO':ratio,'alpha_override':alpha_override,
         'counts':{k:len(v) for k,v in tables.items()}, 'weights':WEIGHTS, 'priors':PRIORS,
+        'chemical_profiles':CHEMICAL_PROFILES,
+        'product_basis':'Fração do carbono dos hidrocarbonetos; não inclui CO/CO2, oxigenados ou coque. C5+ é subtotal, não somar novamente.',
+        'chemical_references':['https://doi.org/10.1016/j.cattod.2015.11.005', 'https://www.sciencedirect.com/science/article/pii/S0021951718302550'],
         'alpha_equation':'clip(weighted_alpha - .001*(T-225) - .04*(H2/CO-2) + .008*ln(P/20) + promoter_shift + support_shift, .50, .98)',
         'status':'Triagem heurística LTFT; sem conversão ou produtividade calibradas',
         'descriptor_role':'Magpie e massa atômica registrados para auditoria; sem contribuição aprendida no score',
@@ -140,6 +173,7 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     (out/f'{prefix}_resumo.json').write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding='utf-8')
     report = '<!doctype html><meta charset="utf-8"><title>LTFT</title><style>body{font-family:Arial;margin:32px}table{border-collapse:collapse}td,th{padding:8px;border:1px solid #ccc}</style><h1>Fischer–Tropsch LTFT</h1>'
     report += '<p>'+html.escape(metadata['status'])+'</p><p>'+html.escape(metadata['limitations'])+'</p>'
+    report += '<h2>Distribuição de produtos</h2><p>'+html.escape(metadata['product_basis'])+'</p>'+products.to_html(index=False, escape=True)
     report += '<h2>Top 10</h2>'+refined.to_html(index=False, escape=True)+'<h2>Configuração auditável</h2><pre>'+html.escape(json.dumps(metadata, indent=2, ensure_ascii=False))+'</pre>'
     (out/f'{prefix}_relatorio.html').write_text(report, encoding='utf-8')
     return {'tables':tables, 'metadata':metadata, 'output':str(out), 'prefix':prefix}

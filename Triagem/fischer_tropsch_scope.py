@@ -30,7 +30,7 @@ FISCHER_TROPSCH_LTFT_SCOPE = {
     },
     "produtos": {
         "alvo": "C5+",
-        "faixas_a_reportar": ["CH4", "C2-C4", "C5-C11", "C12+", "C5+"],
+        "faixas_a_reportar": ["CH4", "C2-C4", "C5-C11", "C12-C20", "C21+", "C5+"],
         "coprodutos_a_reportar": ["H2O", "CO2"],
     },
     "familias_ativas_iniciais": {

@@ -10,7 +10,7 @@ class FischerTropschScopeTests(unittest.TestCase):
 
     def test_product_distribution_is_explicit(self):
         bands = FISCHER_TROPSCH_LTFT_SCOPE["produtos"]["faixas_a_reportar"]
-        self.assertEqual(bands, ["CH4", "C2-C4", "C5-C11", "C12+", "C5+"])
+        self.assertEqual(bands, ["CH4", "C2-C4", "C5-C11", "C12-C20", "C21+", "C5+"])
 
     def test_cobalt_and_iron_are_separate_families(self):
         families = FISCHER_TROPSCH_LTFT_SCOPE["familias_ativas_iniciais"]

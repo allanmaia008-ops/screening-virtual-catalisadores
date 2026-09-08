@@ -52,7 +52,8 @@ def distribution(alpha, max_carbon=60, basis="carbon"):
         raise ValueError("max_carbon must not exceed 10000")
     rows = [{"carbon_number": n, "fraction": band_fraction(a, n, n, basis)} for n in range(1, max_carbon+1)]
     groups = {name: band_fraction(a, low, high, basis) for name, low, high in
-              [("CH4", 1, 1), ("C2-C4", 2, 4), ("C5-C11", 5, 11), ("C12+", 12, None)]}
+              [("CH4", 1, 1), ("C2-C4", 2, 4), ("C5-C11", 5, 11),
+               ("C12-C20", 12, 20), ("C21+", 21, None)]}
     return {"alpha": a, "basis": basis, "model": "ideal_ASF_user_supplied_alpha",
             "rows": rows, "tail_start": max_carbon+1,
             "tail_fraction": tail_fraction(a, max_carbon+1, basis),

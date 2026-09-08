@@ -62,10 +62,20 @@ def render(metals, promoter, output_dir, execute, configured):
         fig = px.bar(data, x='carbon_number', y='Carbono (%)', labels={'carbon_number':'Número de carbonos'}, color_discrete_sequence=['#16805c'])
         st.plotly_chart(fig, width='stretch')
         st.caption(f"Cauda C₆₁₊: {100*distribution(float(row['alpha']))['tail_fraction']:.6f}% do carbono. C₅₊ é subtotal.")
+        groups = tables['grupos_produtos'].query('candidate_id == @selected')
+        st.plotly_chart(px.bar(groups, x='group', y='carbon_pct',
+            labels={'group':'Faixa de produtos', 'carbon_pct':'Carbono nos hidrocarbonetos (%)'},
+            color_discrete_sequence=['#16805c']), width='stretch')
+        st.caption(result['metadata']['product_basis'])
+        st.write(f"Fechamento das cinco faixas: {groups['carbon_pct'].sum():.8f}%. Inclui a cauda infinita C₂₁₊.")
     with tabs[3]:
+        for _, candidate in tables['prioritarios_2'].iterrows():
+            st.markdown(f"**{candidate['formula']} / {candidate['support']} · {candidate['family']}**")
+            st.write(candidate['synthesis_route'])
+            st.write(candidate['wgs_status'])
+            st.caption(candidate['phase_warning'])
         st.write('Co: hipótese de fase metálica após redução. Fe: hipótese de carbetos após ativação apropriada. Co–Fe é exploratório e não implica formação de liga comprovada.')
         st.write('As cargas expressam equivalentes elementares no catalisador final. A fórmula informa somente a proporção atômica dos metais ativos. Precursores, água de hidratação, pureza e oxigênio retido exigem cálculo de síntese próprio.')
-        st.write(tables['prioritarios_2']['synthesis_route'].iloc[0])
         st.json(result['metadata'])
     with tabs[4]:
         for path in sorted(Path(result['output']).iterdir()):

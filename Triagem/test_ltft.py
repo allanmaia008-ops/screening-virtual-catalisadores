@@ -5,6 +5,20 @@ from ltft import generate_candidates, evaluate, run
 
 
 class LTFTTests(unittest.TestCase):
+    def test_profiles_and_product_balance(self):
+        from asf import distribution
+        for metals in (['Co'], ['Fe'], ['Co','Fe']):
+            candidate = generate_candidates(metals)[0]
+            result = evaluate(candidate)
+            self.assertIsNone(result['WGS_extent'])
+            self.assertIn('WGS', result['wgs_status'])
+            self.assertIn('activation', result)
+        for alpha in (0, .5, .85, .98, .999999):
+            result = distribution(alpha)
+            groups = result['exclusive_groups']
+            self.assertEqual(list(groups), ['CH4','C2-C4','C5-C11','C12-C20','C21+'])
+            self.assertAlmostEqual(sum(groups.values()), 1)
+            self.assertAlmostEqual(sum(groups[k] for k in ('C5-C11','C12-C20','C21+')), result['C5plus_subtotal'])
     def test_generation_identity_and_mass(self):
         for metals, promoter in ((['Co'], ''), (['Fe'], 'K'), (['Co','Fe'], 'Mn')):
             rows = generate_candidates(metals, promoter)
@@ -40,6 +54,9 @@ class LTFTTests(unittest.TestCase):
             from pathlib import Path
             workbook = next(Path(folder).glob('*.xlsx'))
             self.assertEqual(len(pd.read_excel(workbook, sheet_name='refinados_10')), 10)
+            groups = pd.read_excel(workbook, sheet_name='grupos_produtos')
+            self.assertEqual(len(groups), 50)
+            self.assertTrue((groups.groupby('candidate_id').carbon_pct.sum().round(8) == 100).all())
             self.assertIn('sem conversão ou produtividade calibradas', next(Path(folder).glob('*.html')).read_text(encoding='utf-8'))
             self.assertTrue(next(Path(folder).glob('*_resumo.json')).is_file())
 
