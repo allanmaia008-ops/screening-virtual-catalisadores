@@ -41,7 +41,8 @@ def audited_export(frame, reaction):
     if "suporte_sugerido" in result:
         result["alternativas_suporte"] = result["suporte_sugerido"].fillna("").astype(str)
         ambiguous = result["alternativas_suporte"].str.contains(r"\s+ou\s+", regex=True)
-        result.loc[ambiguous, "suporte_sugerido"] = "Não definido; selecionar uma alternativa"
+        # Preserve the proposed alternatives; status records that none was selected.
+        result.loc[ambiguous, "suporte_sugerido"] = result.loc[ambiguous, "alternativas_suporte"]
         result["formulacao_status"] = np.where(ambiguous, "Incompleta: suporte e cargas devem ser definidos", "Carga total e preparação precisam de confirmação")
     result["base_formula"] = "Proporção atômica; não representa teor em massa do catalisador suportado"
     result["teores_massa_catalisador_final"] = "Não definidos nesta triagem; não inferir da fórmula atômica"

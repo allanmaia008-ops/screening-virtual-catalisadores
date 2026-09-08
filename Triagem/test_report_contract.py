@@ -22,7 +22,9 @@ class ReportContractTests(unittest.TestCase):
         self.assertFalse(out.gnn_execucao_comprovada)
         self.assertIn("heurística", out.fonte_estabilidade_triagem)
         self.assertIn("Extrapolação", out.aviso_dominio)
-        self.assertIn("Não definido", out.suporte_sugerido)
+        self.assertEqual(out.suporte_sugerido, "MgAl2O4 ou Al2O3")
+        self.assertIn("Incompleta", out.formulacao_status)
+        self.assertEqual(len(support_alternatives(pd.DataFrame([out]))), 2)
         self.assertTrue(pd.isna(out.rendimento_H2_validado_pct))
         self.assertIn("score_incerteza", source.columns)
 

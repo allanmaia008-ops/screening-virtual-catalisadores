@@ -3984,8 +3984,8 @@ def mostrar_painel_quimica(
     for indice, suporte in enumerate(suportes_exibidos):
         propriedades = sorted(nomes_propriedades, key=lambda chave: float(suporte[chave]), reverse=True)[:3]
         itens = "".join(f"<li>{html.escape(nomes_propriedades[chave])}: {fmt(float(suporte[chave]), 2)}</li>" for chave in propriedades)
-        classe = " selected" if indice == 0 else ""
-        selo_suporte = "<em>Sugestão da triagem</em>" if indice == 0 else ""
+        classe = " selected" if suporte in sugeridos else ""
+        selo_suporte = "<em>Alternativa sugerida pela triagem</em>" if suporte in sugeridos else "<em>Alternativa da biblioteca heurística</em>"
         cards_suporte.append(
             f"<article class='chem-support-card{classe}'><h4>{formula_html(str(suporte['suporte']))}</h4>{selo_suporte}"
             f"<ul>{itens}</ul><strong>Índice heurístico: {fmt(adequacao_suporte(suporte), 2)}</strong></article>"
