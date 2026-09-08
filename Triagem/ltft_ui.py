@@ -7,6 +7,7 @@ from asf import distribution
 from ltft import run
 from ltft_cards import recommendations_html
 from ltft_panels import candidates_view, chemistry_view
+from ltft_synthesis import render_synthesis
 
 
 def render(metals, promoter, output_dir, execute, configured):
@@ -39,7 +40,7 @@ def render(metals, promoter, output_dir, execute, configured):
     metrics = st.columns(4)
     for col, key, title in zip(metrics, ['gerados','selecionados_100','refinados_10','prioritarios_2'], ['Gerados','Selecionados','Refinados','Prioritários']):
         col.metric(title, len(tables[key]))
-    tabs = st.tabs(['Catalisadores recomendados', 'Candidatos', 'Distribuição ASF', 'Química e síntese', 'Arquivos'])
+    tabs = st.tabs(['Catalisadores recomendados', 'Candidatos', 'Distribuição ASF', 'Química', 'Síntese', 'Arquivos'])
     with tabs[0]:
         st.markdown(recommendations_html(tables['prioritarios_2']), unsafe_allow_html=True)
     with tabs[1]:
@@ -62,6 +63,8 @@ def render(metals, promoter, output_dir, execute, configured):
     with tabs[3]:
         chemistry_view(result)
     with tabs[4]:
+        render_synthesis(result)
+    with tabs[5]:
         for path in sorted(Path(result['output']).iterdir()):
             if path.is_file():
                 st.download_button(path.name, path.read_bytes(), file_name=path.name, key='ltft_download_'+path.name)
