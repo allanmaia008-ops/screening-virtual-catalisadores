@@ -149,7 +149,7 @@ prioritarios_df = prioritarios_df.drop(columns=colunas_hierarquicas, errors="ign
 ranking_hierarquico_proposto_df = melhor_por_candidato_df.sort_values("score_hierarquico_proposto", ascending=False).reset_index(drop=True)
 
 adicionar_metrica("score_hierarquico", "score hierárquico médio Top 10", float(score_hierarquico_comparativo_df["score_hierarquico_proposto"].mean()), "0-1", "Score técnico-heurístico paralelo, sem calibração experimental.")
-metricas_triagem_df = pd.DataFrame(metricas_triagem)
+metricas_triagem_df = pd.DataFrame(linhas_metricas_triagem)
 
 print("Comparação entre ranking vigente e score hierárquico proposto:")
 display(score_hierarquico_comparativo_df.head(10))

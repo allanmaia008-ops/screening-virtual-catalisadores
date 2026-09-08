@@ -12,6 +12,31 @@ calculate = NAMESPACE["calcular_score_hierarquico"]
 
 
 class HierarchicalScoreTests(unittest.TestCase):
+    def test_complete_notebook_stage_preserves_metrics(self):
+        import json
+        notebook = json.loads(Path(__file__).with_name(
+            "notebook_disciplina_triagem_virtual_fluxo_proposto.ipynb"
+        ).read_text(encoding="utf-8"))
+        embedded = next("".join(cell["source"]) for cell in notebook["cells"]
+                        if cell["cell_type"] == "code" and
+                        "def calcular_score_hierarquico" in "".join(cell["source"]))
+        for source in (SOURCE, embedded):
+            for reaction in ("reforma", "metanacao", "rwgs"):
+                with self.subTest(reaction=reaction, embedded=source is embedded):
+                    metrics = [{"grupo": "anterior", "valor": 100}]
+                    def add(group, name, value, unit, interpretation):
+                        metrics.append(dict(grupo=group, metrica=name, valor=value,
+                                            unidade=unit, interpretacao=interpretation))
+                    namespace = dict(np=np, pd=pd, reacao=reaction,
+                        melhor_por_candidato_df=self.fixture(),
+                        prioritarios_df=self.fixture().head(1),
+                        linhas_metricas_triagem=metrics, adicionar_metrica=add,
+                        display=lambda _: None)
+                    exec(compile(source, "<complete-stage>", "exec"), namespace)
+                    self.assertEqual(len(namespace["metricas_triagem_df"]), 2)
+                    self.assertEqual(namespace["metricas_triagem_df"].iloc[-1]["grupo"],
+                                     "score_hierarquico")
+
     def fixture(self):
         common = dict(score_final=.8, score_estabilidade=.8, score_redox=.8,
             score_redox_operando=.8, score_basicidade=.8, score_estabilidade_termica_operando=.8,
