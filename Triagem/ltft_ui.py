@@ -49,6 +49,8 @@ def render(metals, promoter, output_dir, execute, configured):
                 st.markdown(f"### {candidate['formula']} / {candidate['support']}")
                 st.metric('C₅₊ (% carbono ASF)', f"{candidate['C5plus_carbon_pct']:.2f}")
                 st.write('Fase ativa proposta: '+candidate['phase_hypothesis'])
+                st.write('Suporte recomendado na comparação: '+candidate['recommended_support'])
+                st.caption(candidate['support_rationale'])
                 st.write(f"Carga metálica: {candidate['metal_loading_wt_pct']}% massa; promotor: {candidate['promoter'] or 'nenhum'} ({candidate['promoter_loading_wt_pct']}% massa).")
     with tabs[1]:
         st.dataframe(tables['refinados_10'][cols].rename(columns=labels), hide_index=True, width='stretch')
@@ -69,6 +71,27 @@ def render(metals, promoter, output_dir, execute, configured):
         st.caption(result['metadata']['product_basis'])
         st.write(f"Fechamento das cinco faixas: {groups['carbon_pct'].sum():.8f}%. Inclui a cauda infinita C₂₁₊.")
     with tabs[3]:
+        selected_id = st.selectbox('Candidato para análise de α e suporte', tables['refinados_10'].candidate_id.tolist())
+        st.markdown('#### Comparação de suportes')
+        comparison = tables['comparacao_suportes'].query('candidate_id == @selected_id')
+        st.dataframe(comparison.rename(columns={'support':'Suporte', 'support_index':'Índice heurístico',
+            'recommendation_rank':'Ordem', 'score_delta_to_best':'Diferença para o maior score',
+            'selected_formulation':'Suporte da formulação'}), hide_index=True)
+        st.caption(result['metadata']['support_limits'])
+        st.markdown('#### Sensibilidade de α')
+        sensitivity = tables['sensibilidade_alpha'].query('candidate_id == @selected_id')
+        axis = st.selectbox('Parâmetro', sensitivity.parameter.unique().tolist())
+        view = sensitivity[sensitivity.parameter == axis].copy()
+        if axis != 'Promotor':
+            view['value'] = view['value'].astype(float)
+            figure = px.line(view, x='value', y='alpha', markers=True, labels={'value':axis, 'alpha':'α'})
+        else:
+            figure = px.bar(view, x='value', y='delta_alpha', labels={'value':axis, 'delta_alpha':'Variação de α'})
+        st.plotly_chart(figure, width='stretch')
+        st.caption(result['metadata']['sensitivity_limits'])
+        candidate_row = tables['refinados_10'].set_index('candidate_id').loc[selected_id]
+        st.write('Decomposição auditável de α')
+        st.json({key:float(candidate_row[key]) for key in candidate_row.index if key.startswith('alpha_term_')})
         for _, candidate in tables['prioritarios_2'].iterrows():
             st.markdown(f"**{candidate['formula']} / {candidate['support']} · {candidate['family']}**")
             st.write(candidate['synthesis_route'])

@@ -9,7 +9,11 @@ import pandas as pd
 from asf import distribution, tail_fraction
 from report_contract import output_prefix
 
-MODEL_VERSION = 'ltft-heuristic-2'
+MODEL_VERSION = 'ltft-heuristic-3'
+ALPHA_ASSUMPTIONS = {'temperature_per_C': -.001, 'H2_CO_per_unit': -.04,
+    'log_pressure': .008, 'K_Na_shift': .015, 'support_multiplier': .02,
+    'reference_temperature_C':225, 'reference_pressure_bar':20,
+    'reference_H2_CO':2, 'reference_support_index':.70, 'clip':[.50,.98]}
 CHEMICAL_PROFILES = {
     'Co': {
         'activation': 'Avaliar redução dos precursores para Co metálico; confirmar fase e dispersão.',
@@ -87,17 +91,32 @@ def descriptors(candidates):
     return pd.DataFrame([{'candidate_id': c['candidate_id'], **cache[c['formula']]} for c in candidates])
 
 
+def alpha_terms(candidate, temperature=225, pressure=20, ratio=2, alpha_override=None):
+    validate_config(list(candidate['fractions']), candidate['promoter'], temperature, pressure, ratio)
+    p = ALPHA_ASSUMPTIONS
+    terms = {
+        'base':sum(PRIORS[m]['alpha']*x for m,x in candidate['fractions'].items()),
+        'temperature':p['temperature_per_C']*(temperature-p['reference_temperature_C']),
+        'ratio':p['H2_CO_per_unit']*(ratio-p['reference_H2_CO']),
+        'pressure':p['log_pressure']*math.log(pressure/p['reference_pressure_bar']),
+        'promoter':p['K_Na_shift'] if candidate['promoter'] in ('K','Na') else 0.0,
+        'support':p['support_multiplier']*(SUPPORTS[candidate['support']]-p['reference_support_index']),
+    }
+    raw = sum(terms.values())
+    clipped = float(np.clip(raw, *p['clip']))
+    used = clipped
+    if alpha_override is not None:
+        from asf import validate_alpha
+        used = validate_alpha(alpha_override)
+    return {**terms, 'raw':raw, 'clipping_adjustment':clipped-raw,
+            'manual_adjustment':used-clipped, 'used':used}
+
+
 def evaluate(candidate, temperature=225, pressure=20, ratio=2, alpha_override=None):
     fractions = candidate['fractions']
     validate_config(list(fractions), candidate['promoter'], temperature, pressure, ratio)
-    base_alpha = sum(PRIORS[m]['alpha']*x for m, x in fractions.items())
-    # Declared prior sensitivities; no assertion of quantitative predictive accuracy.
-    promoter_shift = .015 if candidate['promoter'] in ('K', 'Na') else 0.0
-    support_shift = .02*(SUPPORTS[candidate['support']]-.70)
-    alpha = float(np.clip(base_alpha-.001*(temperature-225)-.04*(ratio-2)+.008*math.log(pressure/20)+promoter_shift+support_shift, .50, .98))
-    if alpha_override is not None:
-        from asf import validate_alpha
-        alpha = validate_alpha(alpha_override)
+    terms = alpha_terms(candidate, temperature, pressure, ratio, alpha_override)
+    alpha = terms['used']
     c5 = tail_fraction(alpha, 5)
     methane = (1-alpha)**2
     activity = sum(PRIORS[m]['activity']*x for m, x in fractions.items())
@@ -118,6 +137,7 @@ def evaluate(candidate, temperature=225, pressure=20, ratio=2, alpha_override=No
         'phase_hypothesis': ' + '.join(PRIORS[m]['phase'] for m in fractions),
         'temperature_C': temperature, 'pressure_bar': pressure, 'H2_CO': ratio,
         'alpha': alpha, 'alpha_origin': 'informado' if alpha_override is not None else 'heurística não calibrada',
+        **{'alpha_term_'+k:v for k,v in terms.items()},
         'C5plus_carbon_pct':100*c5, 'CH4_carbon_pct':100*methane,
         **{name+'_carbon_pct':100*fraction for name,fraction in product_distribution['exclusive_groups'].items()},
         'carbon_closure_error':product_distribution['closure_error'],
@@ -128,6 +148,43 @@ def evaluate(candidate, temperature=225, pressure=20, ratio=2, alpha_override=No
         'model_version':MODEL_VERSION}
 
 
+def compare_supports(candidate, temperature=225, pressure=20, ratio=2, alpha_override=None):
+    rows = []
+    for support in SUPPORTS:
+        result = evaluate({**candidate, 'support':support}, temperature, pressure, ratio, alpha_override)
+        rows.append({'candidate_id':candidate['candidate_id'], 'support':support,
+            'support_index':SUPPORTS[support], 'alpha':result['alpha'],
+            'score_LTFT':result['score_LTFT'], 'C5plus_carbon_pct':result['C5plus_carbon_pct'],
+            'selected_formulation':support == candidate['support']})
+    table = pd.DataFrame(rows).sort_values(['score_LTFT','support'], ascending=[False,True]).reset_index(drop=True)
+    table['recommendation_rank'] = np.arange(1, len(table)+1)
+    table['score_delta_to_best'] = table['score_LTFT']-table['score_LTFT'].max()
+    table['basis'] = 'Comparação controlada com índice de suporte heurístico; sem DFT de interface ou recalibração por família.'
+    return table
+
+
+def alpha_sensitivity(candidate, temperature=225, pressure=20, ratio=2, alpha_override=None):
+    nominal = evaluate(candidate, temperature, pressure, ratio, alpha_override)
+    rows = []
+    grids = {'Temperatura (°C)':np.linspace(200,250,11), 'Pressão (bar)':np.linspace(10,30,11),
+             'H2/CO':np.linspace(1.5,2.2,15), 'Promotor':['']+list(PROMOTERS)}
+    for axis, values in grids.items():
+        for value in values:
+            varied = dict(candidate)
+            t,p,r = temperature,pressure,ratio
+            if axis == 'Temperatura (°C)': t = float(value)
+            elif axis == 'Pressão (bar)': p = float(value)
+            elif axis == 'H2/CO': r = float(value)
+            else: varied['promoter'] = value
+            result = evaluate(varied,t,p,r,alpha_override)
+            rows.append({'candidate_id':candidate['candidate_id'], 'parameter':axis,
+                'value':value if value != '' else 'Sem promotor', 'alpha':result['alpha'],
+                'delta_alpha':result['alpha']-nominal['alpha'],
+                'C5plus_carbon_pct':result['C5plus_carbon_pct'],
+                'mode':'α fixo informado' if alpha_override is not None else 'Cenário heurístico, um fator por vez'})
+    return pd.DataFrame(rows)
+
+
 def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42, alpha_override=None):
     validate_config(metals, promoter, temperature, pressure, ratio)
     candidates = generate_candidates(metals, promoter, seed)
@@ -136,6 +193,14 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     # All satisfy compositional bounds; the cap is prioritization, not proven thermodynamic viability.
     selected = generated.sort_values(['score_LTFT','candidate_id'], ascending=[False,True]).head(100).copy()
     refined = selected.head(10).copy()
+    by_id = {c['candidate_id']:c for c in candidates}
+    supports = pd.concat([compare_supports(by_id[cid], temperature, pressure, ratio, alpha_override)
+                          for cid in refined.candidate_id], ignore_index=True)
+    sensitivity = pd.concat([alpha_sensitivity(by_id[cid], temperature, pressure, ratio, alpha_override)
+                             for cid in refined.candidate_id], ignore_index=True)
+    recommendations = supports[supports.recommendation_rank == 1].set_index('candidate_id').support
+    refined['recommended_support'] = refined.candidate_id.map(recommendations)
+    refined['support_rationale'] = 'Maior score no cenário de comparação controlada dos cinco suportes; depende dos índices heurísticos declarados. Não comprova superioridade experimental.'
     final = refined.head(2).copy()
     rows = []
     for _, c in refined.iterrows():
@@ -155,7 +220,7 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     prefix = output_prefix('fischer_tropsch_LTFT', metals, promoter)
     tables = {'gerados':generated, 'selecionados_100':selected, 'refinados_10':refined,
               'prioritarios_2':final, 'descritores_magpie':descriptor_table, 'distribuicao_ASF':asf_table,
-              'grupos_produtos':products}
+              'grupos_produtos':products, 'comparacao_suportes':supports, 'sensibilidade_alpha':sensitivity}
     for name, frame in tables.items():
         frame.to_csv(out/f'{prefix}_{name}.csv', index=False, encoding='utf-8-sig')
     with pd.ExcelWriter(out/f'{prefix}_resultados.xlsx') as writer:
@@ -164,6 +229,9 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
         'temperature_C':temperature,'pressure_bar':pressure,'H2_CO':ratio,'alpha_override':alpha_override,
         'counts':{k:len(v) for k,v in tables.items()}, 'weights':WEIGHTS, 'priors':PRIORS,
         'chemical_profiles':CHEMICAL_PROFILES,
+        'alpha_assumptions':ALPHA_ASSUMPTIONS, 'support_indices':SUPPORTS,
+        'sensitivity_limits':'Um fator por vez, não intervalo de confiança. Promotores distintos de K/Na têm efeito não parametrizado (zero assumido, não comprovado). Carga do promotor não influencia alpha. Modo manual mantém alpha constante.',
+        'support_limits':'Os índices atuais são comuns às famílias. A recomendação pode ser igual para Co, Fe e misturas; não modela interação química específica. O suporte original da formulação é preservado, e alternativas são cenários separados.',
         'product_basis':'Fração do carbono dos hidrocarbonetos; não inclui CO/CO2, oxigenados ou coque. C5+ é subtotal, não somar novamente.',
         'chemical_references':['https://doi.org/10.1016/j.cattod.2015.11.005', 'https://www.sciencedirect.com/science/article/pii/S0021951718302550'],
         'alpha_equation':'clip(weighted_alpha - .001*(T-225) - .04*(H2/CO-2) + .008*ln(P/20) + promoter_shift + support_shift, .50, .98)',
@@ -174,6 +242,8 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     report = '<!doctype html><meta charset="utf-8"><title>LTFT</title><style>body{font-family:Arial;margin:32px}table{border-collapse:collapse}td,th{padding:8px;border:1px solid #ccc}</style><h1>Fischer–Tropsch LTFT</h1>'
     report += '<p>'+html.escape(metadata['status'])+'</p><p>'+html.escape(metadata['limitations'])+'</p>'
     report += '<h2>Distribuição de produtos</h2><p>'+html.escape(metadata['product_basis'])+'</p>'+products.to_html(index=False, escape=True)
+    report += '<h2>Suportes: comparação controlada</h2><p>'+html.escape(metadata['support_limits'])+'</p>'+supports.to_html(index=False, escape=True)
+    report += '<h2>Sensibilidade de alpha</h2><p>'+html.escape(metadata['sensitivity_limits'])+'</p>'+sensitivity.to_html(index=False, escape=True)
     report += '<h2>Top 10</h2>'+refined.to_html(index=False, escape=True)+'<h2>Configuração auditável</h2><pre>'+html.escape(json.dumps(metadata, indent=2, ensure_ascii=False))+'</pre>'
     (out/f'{prefix}_relatorio.html').write_text(report, encoding='utf-8')
     return {'tables':tables, 'metadata':metadata, 'output':str(out), 'prefix':prefix}

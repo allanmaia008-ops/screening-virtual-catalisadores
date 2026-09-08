@@ -5,6 +5,23 @@ from ltft import generate_candidates, evaluate, run
 
 
 class LTFTTests(unittest.TestCase):
+    def test_supports_and_sensitivity(self):
+        from ltft import alpha_terms, compare_supports, alpha_sensitivity
+        for metals in (['Co'], ['Fe'], ['Co','Fe']):
+            candidate = generate_candidates(metals, 'K')[0]
+            original = dict(candidate)
+            terms = alpha_terms(candidate)
+            self.assertAlmostEqual(terms['used'], terms['raw']+terms['clipping_adjustment']+terms['manual_adjustment'])
+            supports = compare_supports(candidate)
+            self.assertEqual(len(supports), 5)
+            self.assertEqual(int(supports.selected_formulation.sum()), 1)
+            self.assertTrue(supports.score_LTFT.is_monotonic_decreasing)
+            sensitivity = alpha_sensitivity(candidate, alpha_override=.9)
+            self.assertTrue((sensitivity.alpha == .9).all())
+            self.assertTrue((sensitivity.delta_alpha == 0).all())
+            self.assertEqual(candidate, original)
+            automatic = alpha_sensitivity(candidate)
+            self.assertGreater(automatic.delta_alpha.abs().max(), 0)
     def test_profiles_and_product_balance(self):
         from asf import distribution
         for metals in (['Co'], ['Fe'], ['Co','Fe']):
@@ -49,6 +66,9 @@ class LTFTTests(unittest.TestCase):
             self.assertEqual([counts[k] for k in ('gerados','selecionados_100','refinados_10','prioritarios_2')], [1000,100,10,2])
             self.assertGreater(len(result['tables']['descritores_magpie'].columns), 100)
             top = result['tables']['refinados_10']
+            self.assertTrue(top.recommended_support.notna().all())
+            self.assertEqual(len(result['tables']['comparacao_suportes']), 50)
+            self.assertEqual(set(result['tables']['sensibilidade_alpha'].candidate_id), set(top.candidate_id))
             self.assertTrue(top['score_LTFT'].between(0,1).all())
             self.assertTrue(top['alpha'].between(0,1).all())
             from pathlib import Path

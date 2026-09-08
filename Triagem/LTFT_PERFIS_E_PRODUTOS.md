@@ -1,6 +1,23 @@
 # LTFT: perfis e produtos
 
-Versao: ltft-heuristic-2.
+Versao: ltft-heuristic-3.
+
+## Alpha e suportes
+
+A decomposicao de alpha registra base, temperatura, pressao, H2/CO,
+promotor, suporte, limitacao numerica e ajuste manual. Os coeficientes
+anteriores foram centralizados e exportados, sem alegacao de recalibracao.
+Os cenarios variam um fator por vez; nao representam intervalos de confianca.
+No modo manual, alpha e mantido fixo. A carga do promotor nao afeta alpha;
+promotores sem coeficiente especifico usam efeito zero assumido.
+
+Cada candidato Top 10 tem cinco cenarios de suporte avaliados nas mesmas
+condicoes. A recomendacao maximiza o score existente, com desempate por
+nome. O suporte original da formulacao nao e substituido silenciosamente.
+Os indices de suporte sao comuns a Co e Fe e podem produzir recomendacoes
+iguais: nao representam interacoes de interface calculadas. Comparacao,
+alternativas, justificativa e sensibilidade sao exportadas em CSV, Excel
+e HTML; parametros e limitacoes constam do JSON e da interface.
 
 Os perfis de Co, Fe e Co-Fe apresentam separadamente as hipoteses de fase,
 ativacao e participacao da WGS. Co-Fe continua exploratorio, sem comprovacao
