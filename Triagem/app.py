@@ -4439,10 +4439,19 @@ with st.sidebar:
     equacoes_reacao = {"metanacao": "CO₂ + 4H₂ → CH₄ + 2H₂O", "reforma": "CH₄ + CO₂ → 2CO + 2H₂", "rwgs": "CO₂ + H₂ → CO + H₂O"}
     equacoes_reacao['fischer_tropsch'] = 'nCO + (2n+1)H₂ → CₙH₂ₙ₊₂ + nH₂O'
 
-    with st.popover("Reação", icon=":material/science:", width="stretch"):
-        reacao = st.selectbox("Reação-alvo", list(nomes_reacao), index=None, placeholder="Selecione a reação", format_func=nomes_reacao.get, key="config_reacao")
+    # Keeps the primary choice visible: one click opens the list and choosing an
+    # item closes it automatically, avoiding the extra popover interaction.
+    reacao = st.selectbox(
+        "Reação-alvo",
+        list(nomes_reacao),
+        index=None,
+        placeholder="Selecione a reação",
+        format_func=nomes_reacao.get,
+        key="config_reacao",
+    )
     if reacao:
-        st.markdown("<div class='catialab-config-preview'>" f"<div class='reaction-name'>{nomes_reacao[reacao]}</div>" f"<div class='reaction-equation'>{equacoes_reacao[reacao]}</div>" "</div>", unsafe_allow_html=True)
+        # The selected name already appears in the control; show only the useful equation.
+        st.caption(equacoes_reacao[reacao])
 
     with st.popover("Número de metais ativos", icon=":material/format_list_numbered:", width="stretch"):
         n_metais_selecionado = st.selectbox("Quantidade de metais ativos", [1, 2, 3, 4], index=None, placeholder="Selecione a quantidade", key="config_n_metais")
