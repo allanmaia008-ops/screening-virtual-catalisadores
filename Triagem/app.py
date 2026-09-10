@@ -22,6 +22,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from nbclient import NotebookClient
+from reaction_options import promoter_options
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -4459,7 +4460,8 @@ with st.sidebar:
         modo_promotor = st.radio("Uso de promotor", ["Sem promotor", "Com promotor"], index=None, horizontal=True, key="config_modo_promotor")
         promotor = ""
         if modo_promotor == "Com promotor":
-            opcoes_promotores = ["Ce", "La", "Mg", "K", "Na", "Zr", "Sr", "Pr", "Nd", "Ca", "Y", "Outro"]
+            # Uses the reaction contract so LTFT exposes every promoter accepted by its engine.
+            opcoes_promotores = promoter_options(reacao)
             opcao_promotor = st.selectbox("Elemento promotor", opcoes_promotores, index=None, placeholder="Selecione o promotor", key="config_promotor_opcao")
             if opcao_promotor == "Outro":
                 opcao_promotor = st.text_input("Símbolo do promotor", value="", max_chars=2, key="config_promotor_outro")
