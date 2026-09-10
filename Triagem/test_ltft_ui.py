@@ -28,6 +28,7 @@ class InterfaceTest(unittest.TestCase):
             self.assertFalse(app.exception)
             self.assertFalse(app.error)
             self.assertTrue(any('Suporte seco:' in item.value for item in app.success))
+            self.assertTrue(any('Modelo cinético ainda bloqueado' in item.value for item in app.warning))
             selector = next(s for s in app.selectbox if s.label == 'Candidato para análise de α e suporte')
             selector.select_index(1).run(timeout=120)
             self.assertFalse(app.exception)

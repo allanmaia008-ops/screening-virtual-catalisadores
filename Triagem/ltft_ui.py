@@ -8,6 +8,30 @@ from ltft import run
 from ltft_cards import recommendations_html
 from ltft_panels import candidates_view, chemistry_view
 from ltft_synthesis import render_synthesis
+from ltft_experimental import PI012_REFERENCE, kinetic_readiness, observed_totals
+
+
+def render_experimental_anchor():
+    """Show the institutional observation without presenting it as calibrated kinetics."""
+    reference = PI012_REFERENCE
+    st.markdown('### Âncora experimental LABPROBIO/NUPPRAR')
+    st.info('Dado experimental publicado para uma condição específica. Não é uma lei cinética e não deve ser extrapolado para outros catalisadores ou condições.')
+    cols = st.columns(4)
+    cols[0].markdown(f"**Catalisador**  \n{reference['catalyst']}")
+    cols[1].markdown(f"**Temperatura**  \n{reference['temperature_C']:.0f} °C")
+    cols[2].markdown(f"**Pressão**  \n{reference['pressure_bar']:.0f} bar")
+    cols[3].markdown(f"**GHSV**  \n{reference['GHSV_h-1']:.0f} h⁻¹")
+    st.caption(f"H₂/CO = {reference['H2_CO']:.0f}. Fonte integral: CBCAT 2023, PI.012.")
+    # Limits the calculation to the duration explicitly reported by the authors.
+    hours = st.slider('Período integrado dentro do ensaio publicado (h)', 1, int(reference['reported_operation_h']), 24)
+    totals = observed_totals(hours)
+    st.dataframe(totals.style.format({'Produção média reportada (g/h)': '{:.3f}', 'Massa no período (g)': '{:.2f}'}), hide_index=True, width='stretch')
+    st.caption('Massa no período = produção média publicada × duração selecionada. O cálculo não estima conversão, produtividade normalizada ou comportamento fora das 192 h observadas.')
+    readiness = kinetic_readiness()
+    st.warning('Modelo cinético ainda bloqueado: o artigo não informa conversões, vazão absoluta, massa/volume do leito, balanço de carbono, equação de taxa ou parâmetros com incerteza.')
+    with st.expander('Campos necessários para liberar a calibração'):
+        st.code('\n'.join(readiness['missing_fields']), language=None)
+    st.markdown(f"[Abrir a fonte institucional]({reference['source_url']})")
 
 
 def render(metals, promoter, output_dir, execute, configured):
@@ -40,7 +64,7 @@ def render(metals, promoter, output_dir, execute, configured):
     metrics = st.columns(4)
     for col, key, title in zip(metrics, ['gerados','selecionados_100','refinados_10','prioritarios_2'], ['Gerados','Selecionados','Refinados','Prioritários']):
         col.metric(title, len(tables[key]))
-    tabs = st.tabs(['Catalisadores recomendados', 'Candidatos', 'Distribuição ASF', 'Química', 'Síntese', 'Arquivos'])
+    tabs = st.tabs(['Catalisadores recomendados', 'Candidatos', 'Distribuição ASF', 'Química', 'Síntese', 'Dados experimentais', 'Arquivos'])
     with tabs[0]:
         st.markdown(recommendations_html(tables['prioritarios_2']), unsafe_allow_html=True)
     with tabs[1]:
@@ -65,6 +89,8 @@ def render(metals, promoter, output_dir, execute, configured):
     with tabs[4]:
         render_synthesis(result)
     with tabs[5]:
+        render_experimental_anchor()
+    with tabs[6]:
         for path in sorted(Path(result['output']).iterdir()):
             if path.is_file():
                 st.download_button(path.name, path.read_bytes(), file_name=path.name, key='ltft_download_'+path.name)
