@@ -1,8 +1,9 @@
 import unittest
 
 from ltft_experimental import (BEZERRA_2010_REFERENCE, PI012_REFERENCE,
-    kinetic_readiness, mello_selectivity_table, observed_totals,
+    compare_candidates_with_mello, kinetic_readiness, mello_selectivity_table, observed_totals,
     thesis_evidence_readiness)
+import pandas as pd
 
 
 class ExperimentalAnchorTests(unittest.TestCase):
@@ -45,6 +46,18 @@ class ExperimentalAnchorTests(unittest.TestCase):
         self.assertFalse(gate['kinetic_calibration_ready'])
         self.assertIsNone(BEZERRA_2010_REFERENCE['cobalt_k'])
         self.assertNotEqual(mello_selectivity_table()['CO2_pct'].max(), 0.0)
+
+    def test_candidate_comparison_preserves_non_equivalence(self):
+        candidates = pd.DataFrame([
+            {'candidate_id':'a', 'formula':'Co1.00', 'family':'Co', 'support':'Al2O3', 'promoter':'Ru', 'metal_loading_wt_pct':20, 'promoter_loading_wt_pct':1, 'temperature_C':220, 'pressure_bar':20, 'H2_CO':2},
+            {'candidate_id':'b', 'formula':'Co1.00', 'family':'Co', 'support':'TiO2', 'promoter':'Ru', 'metal_loading_wt_pct':20, 'promoter_loading_wt_pct':1, 'temperature_C':225, 'pressure_bar':20, 'H2_CO':2},
+            {'candidate_id':'c', 'formula':'Fe1.00', 'family':'Fe', 'support':'C', 'promoter':'K', 'metal_loading_wt_pct':15, 'promoter_loading_wt_pct':2, 'temperature_C':220, 'pressure_bar':20, 'H2_CO':2},
+        ])
+        result = compare_candidates_with_mello(candidates).set_index('candidate_id')
+        self.assertEqual(result.loc['a', 'reference_catalyst'], 'CoRu/AO')
+        self.assertEqual(result.loc['b', 'support_match'], 'analogo_nao_equivalente')
+        self.assertEqual(result.loc['c', 'applicability'], 'fora_do_domínio_experimental')
+        self.assertIn('não são previsão', result.loc['a', 'interpretation'])
 
 
 if __name__ == '__main__':

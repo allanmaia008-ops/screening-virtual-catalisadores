@@ -69,6 +69,9 @@ class LTFTTests(unittest.TestCase):
             self.assertTrue(top.recommended_support.notna().all())
             self.assertEqual(len(result['tables']['comparacao_suportes']), 50)
             self.assertEqual(set(result['tables']['sensibilidade_alpha'].candidate_id), set(top.candidate_id))
+            comparison = result['tables']['comparacao_experimental']
+            self.assertEqual(set(comparison.candidate_id), set(top.candidate_id))
+            self.assertTrue((comparison.interpretation.str.contains('não são previsão')).all())
             self.assertTrue(top['score_LTFT'].between(0,1).all())
             self.assertTrue(top['alpha'].between(0,1).all())
             from pathlib import Path

@@ -19,7 +19,8 @@ class InterfaceTest(unittest.TestCase):
             app.button[0].click().run(timeout=120)
             self.assertFalse(app.exception)
             self.assertFalse(app.error)
-            self.assertEqual(len(app.metric), 4)
+            # Four funnel metrics plus four experimental-comparison indicators.
+            self.assertEqual(len(app.metric), 8)
             self.assertTrue(any('ltft-card' in item.value and 'Fração C₅₊' in item.value for item in app.markdown))
             self.assertTrue(any('ft-podium' in item.value and 'ft-medal' in item.value for item in app.markdown))
             table = next(item.value for item in app.markdown if '<table class="ft-table">' in item.value)

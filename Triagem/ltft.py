@@ -202,6 +202,9 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     refined['recommended_support'] = refined.candidate_id.map(recommendations)
     refined['support_rationale'] = 'Maior score no cenário de comparação controlada dos cinco suportes; depende dos índices heurísticos declarados. Não comprova superioridade experimental.'
     final = refined.head(2).copy()
+    # Adds an evidence-proximity table without modifying the heuristic ranking.
+    from ltft_experimental import compare_candidates_with_mello
+    experimental_comparison = compare_candidates_with_mello(refined)
     rows = []
     for _, c in refined.iterrows():
         for row in distribution(float(c['alpha']))['rows']:
@@ -220,7 +223,8 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     prefix = output_prefix('fischer_tropsch_LTFT', metals, promoter)
     tables = {'gerados':generated, 'selecionados_100':selected, 'refinados_10':refined,
               'prioritarios_2':final, 'descritores_magpie':descriptor_table, 'distribuicao_ASF':asf_table,
-              'grupos_produtos':products, 'comparacao_suportes':supports, 'sensibilidade_alpha':sensitivity}
+              'grupos_produtos':products, 'comparacao_suportes':supports, 'sensibilidade_alpha':sensitivity,
+              'comparacao_experimental':experimental_comparison}
     for name, frame in tables.items():
         frame.to_csv(out/f'{prefix}_{name}.csv', index=False, encoding='utf-8-sig')
     with pd.ExcelWriter(out/f'{prefix}_resultados.xlsx') as writer:
@@ -237,6 +241,7 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
         'alpha_equation':'clip(weighted_alpha - .001*(T-225) - .04*(H2/CO-2) + .008*ln(P/20) + promoter_shift + support_shift, .50, .98)',
         'status':'Triagem heurística LTFT; sem conversão ou produtividade calibradas',
         'descriptor_role':'Magpie e massa atômica registrados para auditoria; sem contribuição aprendida no score',
+        'experimental_comparison_role':'Classificação de proximidade com Mello 2017; não altera score, conversão ou seletividade do candidato.',
         'limitations':'ASF condicional aos hidrocarbonetos; fases não calculadas; WGS, coque e oxidação não quantificados; misturas Co-Fe exploratórias'}
     (out/f'{prefix}_resumo.json').write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding='utf-8')
     report = '<!doctype html><meta charset="utf-8"><title>LTFT</title><style>body{font-family:Arial;margin:32px}table{border-collapse:collapse}td,th{padding:8px;border:1px solid #ccc}</style><h1>Fischer–Tropsch LTFT</h1>'
@@ -244,6 +249,7 @@ def run(metals, promoter, output, temperature=225, pressure=20, ratio=2, seed=42
     report += '<h2>Distribuição de produtos</h2><p>'+html.escape(metadata['product_basis'])+'</p>'+products.to_html(index=False, escape=True)
     report += '<h2>Suportes: comparação controlada</h2><p>'+html.escape(metadata['support_limits'])+'</p>'+supports.to_html(index=False, escape=True)
     report += '<h2>Sensibilidade de alpha</h2><p>'+html.escape(metadata['sensitivity_limits'])+'</p>'+sensitivity.to_html(index=False, escape=True)
+    report += '<h2>Comparação com evidência experimental</h2><p>'+html.escape(metadata['experimental_comparison_role'])+'</p>'+experimental_comparison.to_html(index=False, escape=True)
     report += '<h2>Top 10</h2>'+refined.to_html(index=False, escape=True)+'<h2>Configuração auditável</h2><pre>'+html.escape(json.dumps(metadata, indent=2, ensure_ascii=False))+'</pre>'
     (out/f'{prefix}_relatorio.html').write_text(report, encoding='utf-8')
     return {'tables':tables, 'metadata':metadata, 'output':str(out), 'prefix':prefix}

@@ -13,7 +13,7 @@ from ltft_experimental import (BEZERRA_2010_REFERENCE, MELLO_2017_REFERENCE,
     thesis_evidence_readiness)
 
 
-def render_experimental_anchor():
+def render_experimental_anchor(result):
     """Show the institutional observation without presenting it as calibrated kinetics."""
     reference = PI012_REFERENCE
     st.markdown('### Âncora experimental LABPROBIO/NUPPRAR')
@@ -51,6 +51,25 @@ def render_experimental_anchor():
     st.success('Maior C₁₃₊ medido: CoRu/TaOx@AO (40,8%). O texto reporta CTY de 0,23 mol CO gCo⁻¹ h⁻¹ e produtividade C₁₃₊ >0,09 mol C gCo⁻¹ h⁻¹ para CoRu/TiOx@AO.')
     st.caption('Seletividades de hidrocarbonetos em base carbono livre de CO₂; cada linha fecha em 100%. CO₂ medido: 0,4–0,8%, portanto WGS é baixa, mas não experimentalmente nula.')
     st.markdown(f"[Abrir a tese no Repositório UFRN]({mello['source_url']})")
+
+    st.markdown('#### Comparação dos candidatos com a série experimental')
+    comparison = result['tables']['comparacao_experimental']
+    selected_id = st.selectbox(
+        'Candidato para comparação experimental', comparison['candidate_id'].tolist(),
+        format_func=lambda cid: f"{comparison.set_index('candidate_id').loc[cid, 'formula']} / {comparison.set_index('candidate_id').loc[cid, 'support']} · {cid}",
+    )
+    selected = comparison.set_index('candidate_id').loc[selected_id]
+    cols = st.columns(4)
+    cols[0].metric('Família ativa', selected['family_match'])
+    cols[1].metric('Promotor', selected['promoter_match'])
+    cols[2].metric('Suporte', selected['support_match'].replace('_', ' '))
+    cols[3].metric('Aplicabilidade', selected['applicability'].replace('_', ' '))
+    st.write(f"**Referência mais próxima:** {selected['reference_catalyst']}. {selected['support_relation']}.")
+    if selected['reference_catalyst'] != 'Nenhum':
+        st.info(f"Na referência: C5–C12 = {selected['reference_C5_C12_pct']:.1f}%, C13+ = {selected['reference_C13plus_pct']:.1f}% e CO2 = {selected['reference_CO2_pct']:.1f}%. Estes valores não são previsão para o candidato.")
+    st.caption(f"Condições: {selected['condition_match']}. A carga experimental era 20% Co e 0,5% Ru; diferenças de carga permanecem explícitas na tabela.")
+    with st.expander('Tabela auditável dos dez candidatos'):
+        st.dataframe(comparison, hide_index=True, width='stretch')
 
     with st.expander('Equações da dissertação de Bezerra (2010): uso permitido e limites'):
         bez = BEZERRA_2010_REFERENCE
@@ -117,7 +136,7 @@ def render(metals, promoter, output_dir, execute, configured):
     with tabs[4]:
         render_synthesis(result)
     with tabs[5]:
-        render_experimental_anchor()
+        render_experimental_anchor(result)
     with tabs[6]:
         for path in sorted(Path(result['output']).iterdir()):
             if path.is_file():

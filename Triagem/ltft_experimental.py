@@ -133,3 +133,56 @@ def thesis_evidence_readiness():
         "missing_fields": missing,
         "reason": "Mello fornece desempenho em uma condição controlada; Bezerra não estimou k para Co.",
     }
+
+
+def compare_candidates_with_mello(candidates):
+    """Classify candidate proximity to Mello without turning measurements into predictions."""
+    measurements = mello_selectivity_table().set_index("Catalisador")
+    support_links = {
+        "Al2O3": ("CoRu/AO", "mesmo substrato Al2O3", "direto_com_ressalvas"),
+        # Bulk TiO2 is not the TiOx coating deposited over alumina in the thesis.
+        "TiO2": ("CoRu/TiOx@AO", "TiO2 maciço versus recobrimento TiOx@Al2O3", "analogo_nao_equivalente"),
+    }
+    rows = []
+    for _, candidate in candidates.iterrows():
+        family = str(candidate.get("family", ""))
+        promoter = str(candidate.get("promoter", "") or "")
+        support = str(candidate.get("support", ""))
+        reference_id, support_relation, support_status = support_links.get(
+            support, ("", "sem sistema de suporte correspondente na série", "sem_correspondencia")
+        )
+        family_status = "compatível" if family == "Co" else "não compatível"
+        promoter_status = "mesmo promotor" if promoter == "Ru" else ("Ru ausente" if not promoter else "promotor diferente")
+        condition_status = (
+            "mesmas T/P/H2:CO" if abs(float(candidate["temperature_C"]) - 220.0) < 1e-12
+            and abs(float(candidate["pressure_bar"]) - 20.0) < 1e-12
+            and abs(float(candidate["H2_CO"]) - 2.0) < 1e-12
+            else "condições diferentes"
+        )
+        if family_status == "compatível" and promoter_status == "mesmo promotor" and support_status != "sem_correspondencia":
+            applicability = "comparável_com_ressalvas"
+        elif family_status == "compatível":
+            applicability = "família_relacionada"
+        else:
+            applicability = "fora_do_domínio_experimental"
+        measured = measurements.loc[reference_id] if reference_id else None
+        rows.append({
+            "candidate_id": candidate["candidate_id"],
+            "formula": candidate["formula"],
+            "support": support,
+            "promoter": promoter or "Sem promotor",
+            "metal_loading_wt_pct": candidate.get("metal_loading_wt_pct"),
+            "promoter_loading_wt_pct": candidate.get("promoter_loading_wt_pct"),
+            "family_match": family_status,
+            "promoter_match": promoter_status,
+            "support_match": support_status,
+            "support_relation": support_relation,
+            "condition_match": condition_status,
+            "reference_catalyst": reference_id or "Nenhum",
+            "reference_C5_C12_pct": None if measured is None else measured["C5_C12_pct"],
+            "reference_C13plus_pct": None if measured is None else measured["C13plus_pct"],
+            "reference_CO2_pct": None if measured is None else measured["CO2_pct"],
+            "applicability": applicability,
+            "interpretation": "Comparação de proximidade; os valores de referência não são previsão para o candidato.",
+        })
+    return pd.DataFrame(rows)
