@@ -9,6 +9,20 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('reacao = st.selectbox(', source)
         self.assertIn('key="config_reacao"', source)
 
+    def test_metal_count_is_direct_and_output_folder_is_hidden(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertNotIn('with st.popover("Número de metais ativos"', source)
+        self.assertIn('n_metais_selecionado = st.selectbox(', source)
+        self.assertNotIn('with st.popover("Pasta de saída"', source)
+        self.assertNotIn('output_dir_texto', source)
+        self.assertIn('output_dir = DEFAULT_OUTPUT_DIR.resolve()', source)
+
+    def test_periodic_table_uses_compact_full_grid(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn('min-width: 540px', source)
+        self.assertIn('min-height: 25px', source)
+        self.assertIn('max-height: none', source)
+
 
 if __name__ == "__main__":
     unittest.main()

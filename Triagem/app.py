@@ -4324,50 +4324,60 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
     # Estiliza os elementos como teclas físicas sem alterar a lógica de seleção química.
     st.markdown(
         """
+        <span class="periodic-table-marker"></span>
         <style>
-        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] {
-            min-width: 900px;
-            gap: 4px !important;
-            padding: 1px 2px 7px;
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) {
+            width: min(620px, calc(100vw - 20px)) !important;
+            max-width: min(620px, calc(100vw - 20px)) !important;
+            max-height: none !important;
+            overflow: visible !important;
         }
-        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] {
-            min-width: 44px !important;
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stVerticalBlock"] {
+            gap: 2px !important;
         }
-        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] {
+            min-width: 540px;
+            gap: 2px !important;
+            padding: 0 1px 3px;
+        }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] {
+            min-width: 28px !important;
+        }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
             position: relative;
-            min-height: 42px !important;
-            height: 42px;
+            min-height: 25px !important;
+            height: 25px;
             padding: 0 !important;
             border: 1px solid #5E96AD !important;
-            border-radius: 7px !important;
+            border-radius: 6px !important;
             background: linear-gradient(145deg, #EAF8FC 0%, #9DD9E8 52%, #49A9C4 100%) !important;
             color: #073B50 !important;
-            box-shadow: 0 5px 0 #2B7189, 0 8px 12px rgba(15, 57, 74, 0.24) !important;
-            font-size: 0.78rem !important;
+            box-shadow: 0 2px 0 #2B7189, 0 4px 6px rgba(15, 57, 74, 0.20) !important;
+            font-size: 0.62rem !important;
             font-weight: 900 !important;
             line-height: 1 !important;
             text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
             transform: translateY(0);
             transition: transform 90ms ease, box-shadow 90ms ease, filter 120ms ease;
         }
-        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:hover {
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:hover {
             filter: brightness(1.08) saturate(1.08);
             transform: translateY(-1px);
             box-shadow: 0 6px 0 #2B7189, 0 10px 15px rgba(15, 57, 74, 0.28) !important;
         }
-        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:active {
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:active {
             animation: tecla-periodica-pressionada 180ms ease-out;
             transform: translateY(5px);
             box-shadow: 0 0 0 #2B7189, 0 2px 4px rgba(15, 57, 74, 0.20) !important;
         }
-        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button[kind="primary"] {
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button[kind="primary"] {
             background: linear-gradient(145deg, #D8FFE3 0%, #56D77C 48%, #07913B 100%) !important;
             border-color: #087A38 !important;
             color: #073B1D !important;
             box-shadow: 0 1px 0 #075F2C, 0 3px 7px rgba(7, 95, 44, 0.28) !important;
             transform: translateY(4px);
         }
-        div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button * {
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button * {
             margin: 0 !important;
             color: inherit !important;
             font-size: inherit !important;
@@ -4379,7 +4389,7 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
             100% { transform: translateY(3px); box-shadow: 0 2px 0 #2B7189, 0 4px 7px rgba(15, 57, 74, 0.22); }
         }
         @media (prefers-reduced-motion: reduce) {
-            div[data-testid="stPopoverBody"] div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
+            div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
                 animation: none !important;
                 transition: none !important;
             }
@@ -4453,8 +4463,14 @@ with st.sidebar:
         # The selected name already appears in the control; show only the useful equation.
         st.caption(equacoes_reacao[reacao])
 
-    with st.popover("Número de metais ativos", icon=":material/format_list_numbered:", width="stretch"):
-        n_metais_selecionado = st.selectbox("Quantidade de metais ativos", [1, 2, 3, 4], index=None, placeholder="Selecione a quantidade", key="config_n_metais")
+    # Mirrors the direct reaction selector and closes its menu after one choice.
+    n_metais_selecionado = st.selectbox(
+        "Número de metais ativos",
+        [1, 2, 3, 4],
+        index=None,
+        placeholder="Selecione a quantidade",
+        key="config_n_metais",
+    )
     n_metais = int(n_metais_selecionado or 0)
 
     with st.popover("Metais ativos", icon=":material/hub:", width="stretch"):
@@ -4476,13 +4492,6 @@ with st.sidebar:
                 opcao_promotor = st.text_input("Símbolo do promotor", value="", max_chars=2, key="config_promotor_outro")
             promotor = limpar_simbolo_quimico(opcao_promotor or "")
 
-    with st.popover("Pasta de saída", icon=":material/folder_open:", width="stretch"):
-        destino_saida = st.radio("Local de salvamento", ["Usar pasta padrão", "Escolher outra pasta"], horizontal=False)
-        if destino_saida == "Escolher outra pasta":
-            output_dir_texto = st.text_input("Pasta de destino dos resultados", value="", placeholder="Digite ou cole a pasta de destino")
-        else:
-            output_dir_texto = ""
-
     resumo_metais = ", ".join(metais) if metais else "não definidos"
     resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
     resumo_reacao = nomes_reacao.get(reacao, "não definida")
@@ -4499,7 +4508,8 @@ with st.sidebar:
 metais_unicos = list(dict.fromkeys(metais))
 metais_repetidos = len(metais_unicos) != len(metais)
 metais = metais_unicos
-output_dir = Path(output_dir_texto).expanduser().resolve() if output_dir_texto else DEFAULT_OUTPUT_DIR.resolve()
+# Results are staged internally; users retrieve the generated artifacts via download buttons.
+output_dir = DEFAULT_OUTPUT_DIR.resolve()
 
 if metais_repetidos:
     st.warning("Há metais ativos repetidos. Cada metal ativo deve ser informado apenas uma vez.")
