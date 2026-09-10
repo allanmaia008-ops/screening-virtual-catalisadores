@@ -17,6 +17,15 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertNotIn('output_dir_texto', source)
         self.assertIn('output_dir = DEFAULT_OUTPUT_DIR.resolve()', source)
 
+    def test_sidebar_labels_are_centered_and_promoter_choice_is_visible(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn(".catialab-sidebar-field-label", source)
+        self.assertIn("text-align: center", source)
+        self.assertIn("font-weight: 800", source)
+        self.assertNotIn('with st.popover("Promotor"', source)
+        self.assertIn('modo_promotor = st.radio(', source)
+        self.assertIn('if modo_promotor == "Com promotor":', source)
+
     def test_periodic_table_uses_compact_full_grid(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         self.assertIn('min-width: 540px', source)

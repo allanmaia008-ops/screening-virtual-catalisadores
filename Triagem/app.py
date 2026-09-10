@@ -4443,6 +4443,19 @@ if pagina_atual != "triagem":
 with st.sidebar:
     renderizar_logo_projeto_sidebar()
     st.caption("Configurações da Triagem")
+    st.markdown(
+        """
+        <style>
+        .catialab-sidebar-field-label {
+            margin: 0.55rem 0 0.35rem;
+            text-align: center;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     nomes_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}
     nomes_reacao['fischer_tropsch'] = 'Fischer–Tropsch LTFT (C₅₊)'
@@ -4451,6 +4464,7 @@ with st.sidebar:
 
     # Keeps the primary choice visible: one click opens the list and choosing an
     # item closes it automatically, avoiding the extra popover interaction.
+    st.markdown('<div class="catialab-sidebar-field-label">Reação-alvo</div>', unsafe_allow_html=True)
     reacao = st.selectbox(
         "Reação-alvo",
         list(nomes_reacao),
@@ -4458,18 +4472,24 @@ with st.sidebar:
         placeholder="Selecione a reação",
         format_func=nomes_reacao.get,
         key="config_reacao",
+        label_visibility="collapsed",
     )
     if reacao:
         # The selected name already appears in the control; show only the useful equation.
         st.caption(equacoes_reacao[reacao])
 
     # Mirrors the direct reaction selector and closes its menu after one choice.
+    st.markdown(
+        '<div class="catialab-sidebar-field-label">Número de metais ativos</div>',
+        unsafe_allow_html=True,
+    )
     n_metais_selecionado = st.selectbox(
         "Número de metais ativos",
         [1, 2, 3, 4],
         index=None,
         placeholder="Selecione a quantidade",
         key="config_n_metais",
+        label_visibility="collapsed",
     )
     n_metais = int(n_metais_selecionado or 0)
 
@@ -4481,16 +4501,34 @@ with st.sidebar:
         chips_metais = "".join(f"<span class='catialab-metal-chip'>{html.escape(metal)}</span>" for metal in metais)
         st.markdown(f"<div class='catialab-config-preview'>{chips_metais}</div>", unsafe_allow_html=True)
 
-    with st.popover("Promotor", icon=":material/add_circle:", width="stretch"):
-        modo_promotor = st.radio("Uso de promotor", ["Sem promotor", "Com promotor"], index=None, horizontal=True, key="config_modo_promotor")
-        promotor = ""
-        if modo_promotor == "Com promotor":
-            # Uses the reaction contract so LTFT exposes every promoter accepted by its engine.
-            opcoes_promotores = promoter_options(reacao)
-            opcao_promotor = st.selectbox("Elemento promotor", opcoes_promotores, index=None, placeholder="Selecione o promotor", key="config_promotor_opcao")
-            if opcao_promotor == "Outro":
-                opcao_promotor = st.text_input("Símbolo do promotor", value="", max_chars=2, key="config_promotor_outro")
-            promotor = limpar_simbolo_quimico(opcao_promotor or "")
+    st.markdown('<div class="catialab-sidebar-field-label">Promotor</div>', unsafe_allow_html=True)
+    modo_promotor = st.radio(
+        "Uso de promotor",
+        ["Sem promotor", "Com promotor"],
+        index=None,
+        horizontal=True,
+        key="config_modo_promotor",
+        label_visibility="collapsed",
+    )
+    promotor = ""
+    if modo_promotor == "Com promotor":
+        # Uses the reaction contract so LTFT exposes every promoter accepted by its engine.
+        opcoes_promotores = promoter_options(reacao)
+        opcao_promotor = st.selectbox(
+            "Elemento promotor",
+            opcoes_promotores,
+            index=None,
+            placeholder="Selecione o promotor",
+            key="config_promotor_opcao",
+        )
+        if opcao_promotor == "Outro":
+            opcao_promotor = st.text_input(
+                "Símbolo do promotor",
+                value="",
+                max_chars=2,
+                key="config_promotor_outro",
+            )
+        promotor = limpar_simbolo_quimico(opcao_promotor or "")
 
     resumo_metais = ", ".join(metais) if metais else "não definidos"
     resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
