@@ -1,0 +1,6 @@
+Catalisador,CO2_pct,C1_pct,C2_C4_pct,C5_C12_pct,C13plus_pct,CTY_mol_CO_gCo_h,basis,source_table
+CoRu/AO,0.6,14.7,12.8,42.0,30.5,,HC CO2-free carbon basis,Table S1
+CoRu/YOx@AO,0.7,10.1,25.6,48.4,15.9,,HC CO2-free carbon basis,Table S1
+CoRu/TiOx@AO,0.5,14.6,11.2,33.7,40.5,0.23,HC CO2-free carbon basis,Table S1 and main text
+CoRu/TaOx@AO,0.4,15.5,11.5,32.2,40.8,,HC CO2-free carbon basis,Table S1
+CoRu/WOx@AO,0.8,19.6,19.3,41.4,19.7,,HC CO2-free carbon basis,Table S1

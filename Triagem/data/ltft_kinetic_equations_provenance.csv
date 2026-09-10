@@ -1,0 +1,5 @@
+system,equation,parameters,source,status,limitation
+Co FT,R_FT = k * P_H2^0.7 * P_CO^-0.2,k requires adjustment,Bezerra 2010 citing literature,not calibrated,No parameter estimation was performed in the dissertation
+Co WGS,R_WGS = 0,model assumption,Bezerra 2010,assumption only,Mello 2017 reports 0.4-0.8% CO2 selectivity so the app must not treat WGS as experimentally zero
+Fe-Cu-K FT,R_FT = k*P_H2*P_CO/(P_CO+a*P_H2O),k=0.00753 mol/(kg_cat s MPa); a=0.472,Bezerra 2010 citing Van der Laan 1999,literature equation,Not transferable to Co LTFT
+Fe WGS,R_WGS = kw*((P_H2O*P_CO-P_CO2*P_H2/Kp)/(P_CO*P_H2+a*P_H2O)),kw=0.0987 mol/(kg_cat s); a=0.692 MPa; log Kp=2073/T-2.029,Bezerra 2010 citing Van der Laan 1999,literature equation,Not transferable to Co LTFT

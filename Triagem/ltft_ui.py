@@ -8,7 +8,9 @@ from ltft import run
 from ltft_cards import recommendations_html
 from ltft_panels import candidates_view, chemistry_view
 from ltft_synthesis import render_synthesis
-from ltft_experimental import PI012_REFERENCE, kinetic_readiness, observed_totals
+from ltft_experimental import (BEZERRA_2010_REFERENCE, MELLO_2017_REFERENCE,
+    PI012_REFERENCE, kinetic_readiness, mello_selectivity_table, observed_totals,
+    thesis_evidence_readiness)
 
 
 def render_experimental_anchor():
@@ -32,6 +34,32 @@ def render_experimental_anchor():
     with st.expander('Campos necessários para liberar a calibração'):
         st.code('\n'.join(readiness['missing_fields']), language=None)
     st.markdown(f"[Abrir a fonte institucional]({reference['source_url']})")
+
+    st.divider()
+    mello = MELLO_2017_REFERENCE
+    st.markdown('### Série experimental LABPEMOL/UFRN — Mello (2017)')
+    st.info('Dados medidos de Co–Ru suportado, não previsões. O promotor Ru e os óxidos de recobrimento impedem transferência direta para Co não promovido.')
+    cols = st.columns(4)
+    cols[0].markdown(f"**Catalisadores**  \n{mello['catalyst_family']}")
+    cols[1].markdown(f"**Condição**  \n{mello['temperature_C']:.0f} °C; {mello['pressure_bar']:.0f} bar")
+    cols[2].markdown(f"**Conversão-alvo de CO**  \n{mello['target_CO_conversion_pct']:.0f} ± {mello['target_CO_conversion_tolerance_pct_points']:.0f}%")
+    cols[3].markdown(f"**Balanço de carbono**  \n{mello['carbon_balance_pct']:.0f} ± {mello['carbon_balance_tolerance_pct_points']:.0f}%")
+    table = mello_selectivity_table()
+    st.dataframe(table.style.format({c: '{:.1f}' for c in ['CO2_pct','C1_pct','C2_C4_pct','C5_C12_pct','C13plus_pct','fechamento_HC_pct']}), hide_index=True, width='stretch')
+    plot = table.melt(id_vars='Catalisador', value_vars=['C1_pct','C2_C4_pct','C5_C12_pct','C13plus_pct'], var_name='Faixa', value_name='Seletividade de carbono (%)')
+    st.plotly_chart(px.bar(plot, x='Catalisador', y='Seletividade de carbono (%)', color='Faixa', barmode='stack'), width='stretch')
+    st.success('Maior C₁₃₊ medido: CoRu/TaOx@AO (40,8%). O texto reporta CTY de 0,23 mol CO gCo⁻¹ h⁻¹ e produtividade C₁₃₊ >0,09 mol C gCo⁻¹ h⁻¹ para CoRu/TiOx@AO.')
+    st.caption('Seletividades de hidrocarbonetos em base carbono livre de CO₂; cada linha fecha em 100%. CO₂ medido: 0,4–0,8%, portanto WGS é baixa, mas não experimentalmente nula.')
+    st.markdown(f"[Abrir a tese no Repositório UFRN]({mello['source_url']})")
+
+    with st.expander('Equações da dissertação de Bezerra (2010): uso permitido e limites'):
+        bez = BEZERRA_2010_REFERENCE
+        st.code(bez['cobalt_rate_equation'], language=None)
+        st.warning('A dissertação não estimou k para Co e descreve a comparação como qualitativa. A equação fica registrada como proveniência, não como modelo calibrado.')
+        st.write('A hipótese R_WGS = 0 usada na simulação não é aplicada como fato experimental, pois a tese de Mello mediu pequena formação de CO₂.')
+        st.markdown(f"[Abrir a dissertação no Repositório UFRN]({bez['source_url']})")
+    gate = thesis_evidence_readiness()
+    st.warning('Âncora experimental liberada; calibração cinética continua bloqueada: ' + '; '.join(gate['missing_fields']) + '.')
 
 
 def render(metals, promoter, output_dir, execute, configured):
