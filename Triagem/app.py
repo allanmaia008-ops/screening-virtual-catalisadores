@@ -3158,6 +3158,7 @@ def aplicar_estilo_interface() -> None:
                 background: linear-gradient(180deg, #E7F6ED 0%, #F5FBF7 100%);
                 border-right: 1px solid #B9DDC7;
             }
+            section[data-testid="stSidebar"] div[data-testid="stVerticalBlock"] { gap: 0.38rem; }
             section[data-testid="stSidebar"][aria-expanded="true"] {
                 min-width: 270px;
             }
@@ -3202,8 +3203,8 @@ def aplicar_estilo_interface() -> None:
                 font-weight: 700;
                 margin-top: 3px;
             }
-            .catialab-sidebar-project-logo { display: flex; justify-content: center; align-items: center; margin: 0 0 10px 0; }
-            .catialab-sidebar-project-logo img { width: min(160px, 82%); max-height: 82px; object-fit: contain; display: block; }
+            .catialab-sidebar-project-logo { display: flex; justify-content: center; align-items: center; margin: 0 0 5px 0; }
+            .catialab-sidebar-project-logo img { width: min(145px, 78%); max-height: 68px; object-fit: contain; display: block; }
             section[data-testid="stSidebar"] .catialab-section-note {
                 background: rgba(255, 255, 255, 0.72);
                 border-color: #B9DDC7;
@@ -3219,12 +3220,18 @@ def aplicar_estilo_interface() -> None:
             section[data-testid="stSidebar"] [data-testid="stPopoverBody"] div[data-testid="stColumn"] div[data-testid="stButton"] > button { min-height: 30px; min-width: 0; padding: 2px 0; border-radius: 4px; font-size: 0.68rem; line-height: 1; }
             section[data-testid="stSidebar"] [data-testid="stPopoverBody"] div[data-testid="stColumn"] div[data-testid="stButton"] > button[kind="primary"] { background: #197A4B; border-color: #197A4B; color: #FFFFFF; }
             section[data-testid="stSidebar"] div[data-testid="stPopover"] { margin-bottom: 7px; }
-            .catialab-config-preview { margin: -2px 0 12px 0; padding: 0 8px 12px 8px; border-bottom: 1px solid #B9DDC7; color: #173D2B; font-size: 0.86rem; font-weight: 700; line-height: 1.45; text-align: left; }
+            .catialab-config-preview { margin: -2px 0 5px 0; padding: 0 8px 5px 8px; color: #173D2B; font-size: 0.82rem; font-weight: 700; line-height: 1.35; text-align: center; }
             .catialab-config-preview .reaction-name { color: #173D2B; font-weight: 800; }
             .catialab-config-preview .reaction-equation { color: #3E5872; font-size: 0.9rem; font-weight: 700; margin-top: 2px; }
             .catialab-metal-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 31px; min-height: 27px; margin: 2px 4px 0 0; padding: 0 8px; border: 1px solid #78B99A; border-radius: 999px; background: rgba(255, 255, 255, 0.72); color: #197A4B; font-size: 0.83rem; font-weight: 850; }
-            .catialab-config-status { margin: 11px 0 13px 0; padding: 0; border: 0; background: transparent; color: #173D2B; font-size: 0.86rem; font-weight: 800; line-height: 1.55; text-align: center; }
-            .catialab-config-status strong { color: #173D2B; font-weight: 850; }
+            .catialab-config-status { margin: 7px 0 8px; padding: 9px 10px; border: 1px solid #B9DDC7; border-radius: 10px; background: rgba(255,255,255,.72); box-shadow: 0 3px 10px rgba(25,122,75,.06); color: #173D2B; font-size: .77rem; }
+            .catialab-config-status-title { margin-bottom: 6px; color: #173D2B; font-size: .82rem; font-weight: 850; text-align: center; }
+            .catialab-config-row { display: grid; grid-template-columns: 18px 64px minmax(0,1fr); gap: 5px; align-items: center; min-height: 23px; border-top: 1px solid rgba(185,221,199,.55); text-align: left; }
+            .catialab-config-row:first-of-type { border-top: 0; }
+            .catialab-config-row .icon { font-size: .8rem; text-align: center; }
+            .catialab-config-row .name { color: #456253; font-weight: 700; }
+            .catialab-config-row .value { overflow: hidden; color: #173D2B; font-weight: 850; text-overflow: ellipsis; white-space: nowrap; }
+            .catialab-config-row.pending .icon, .catialab-config-row.pending .value { color: #9A6B00; }
             .catialab-dashboard-title {
                 color: #14213D;
                 font-family: Arial, Helvetica, sans-serif;
@@ -3268,7 +3275,7 @@ def aplicar_estilo_interface() -> None:
             .candidate-legend { display: flex; justify-content: space-between; gap: 10px; padding: 12px 5px 0; color: #64748B; font-size: 0.72rem; } .candidate-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 3px; border: 2px solid currentColor; border-radius: 50%; vertical-align: -1px; } .candidate-legend .high { color: #087A3B; } .candidate-legend .medium { color: #B56400; } .candidate-legend .low { color: #C53939; }
             .candidate-mcda-panel { height: 100%; box-sizing: border-box; padding: 14px; border: 1px solid #DCE6EE; border-radius: 8px; background: #FFFFFF; color: #14213D; } .candidate-mcda-panel h4 { margin: 0 0 9px; color: #087A3B; font-size: 0.9rem; text-align: center; } .candidate-donut { display: grid; width: 126px; height: 126px; margin: 0 auto 12px; place-items: center; border-radius: 50%; background: conic-gradient(#0D5EBA 0 40%, #3E85CF 40% 70%, #77ADE2 70% 90%, #BCD9F5 90%); } .candidate-donut::before { content: ''; grid-area: 1 / 1; width: 63px; height: 63px; border-radius: 50%; background: #FFFFFF; } .candidate-donut span { z-index: 1; grid-area: 1 / 1; color: #14213D; font-size: 0.72rem; font-weight: 850; line-height: 1.25; text-align: center; } .candidate-mcda-item { margin-top: 9px; padding-left: 10px; border-left: 5px solid #0D5EBA; } .candidate-mcda-item:nth-of-type(3) { border-color: #3E85CF; } .candidate-mcda-item:nth-of-type(4) { border-color: #77ADE2; } .candidate-mcda-item:nth-of-type(5) { border-color: #BCD9F5; } .candidate-mcda-item b { display: block; font-size: 0.76rem; } .candidate-mcda-item span { display: block; margin-top: 2px; color: #4A5B73; font-size: 0.69rem; line-height: 1.28; } .candidate-mcda-panel p { margin: 12px 0 0; padding: 8px; border-radius: 6px; background: #FFF8E9; color: #6D5516; font-size: 0.7rem; line-height: 1.35; }
             @media (max-width: 1080px) { .candidate-results-layout { grid-template-columns: 1fr; } .candidate-mcda-panel { max-width: none; } } @media (max-width: 900px) { .candidate-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-podium { grid-template-columns: 1fr; gap: 26px; } .candidate-podium-card, .candidate-podium-card.first { min-height: 240px; transform: none; } .candidate-podium-card.first { order: -1; } .candidate-legend { display: grid; } } @media (max-width: 560px) { .candidate-metrics { grid-template-columns: 1fr; } .candidate-metric { grid-template-columns: 68px minmax(0, 1fr) 68px; } .candidate-podium-card { grid-template-columns: 1fr; text-align: center; } .candidate-podium-image { grid-row: auto; min-height: 145px; } .candidate-podium-image img { height: 145px; } .candidate-podium-card h4, .candidate-podium-label { text-align: center; } }
-            .uncertainty-title { margin: 6px 0 12px; color: #14213D; font-size: 1rem; font-weight: 850; text-transform: uppercase; } .uncertainty-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; } .uncertainty-metric { min-height:98px; padding:14px; border:1px solid #DCE6EE; border-radius:8px; background:#FFF; box-shadow:0 3px 10px rgba(20,33,61,.04); } .uncertainty-metric b{display:block;color:#14213D;font-size:.78rem}.uncertainty-metric strong{display:block;margin:9px 0 3px;color:#146CC1;font-size:1.45rem}.uncertainty-metric span{color:#64748B;font-size:.74rem}.uncertainty-alert{min-height:130px;padding:18px;border:1px solid #F2CD72;border-radius:8px;background:#FFF9EA;color:#5F4A11}.uncertainty-alert h4{margin:0 0 9px;color:#4E3A00;font-size:1rem;text-transform:uppercase}.uncertainty-alert strong{color:#B84B16}.uncertainty-alert p,.uncertainty-note p{font-size:.82rem;line-height:1.45}.uncertainty-note{margin-top:12px;padding:18px;border:1px solid #C9DFD0;border-radius:8px;background:#F7FCF8;color:#253D50}.uncertainty-note h4{margin:0;color:#087A3B;font-size:1rem}@media(max-width:900px){.uncertainty-metrics{grid-template-columns:repeat(2,minmax(0,1fr)}}
+            .uncertainty-title { margin: 6px 0 12px; color: #14213D; font-size: 1rem; font-weight: 850; text-transform: uppercase; } .uncertainty-metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:16px; } .uncertainty-metric { min-height:98px; padding:14px; border:1px solid #DCE6EE; border-radius:8px; background:#FFF; box-shadow:0 3px 10px rgba(20,33,61,.04); } .uncertainty-metric b{display:block;color:#14213D;font-size:.78rem}.uncertainty-metric strong{display:block;margin:9px 0 3px;color:#146CC1;font-size:1.45rem}.uncertainty-metric span{color:#64748B;font-size:.74rem}.uncertainty-alert{min-height:130px;padding:18px;border:1px solid #F2CD72;border-radius:8px;background:#FFF9EA;color:#5F4A11}.uncertainty-alert h4{margin:0 0 9px;color:#4E3A00;font-size:1rem;text-transform:uppercase}.uncertainty-alert strong{color:#B84B16}.uncertainty-alert p,.uncertainty-note p{font-size:.82rem;line-height:1.45}.uncertainty-note{margin-top:12px;padding:18px;border:1px solid #C9DFD0;border-radius:8px;background:#F7FCF8;color:#253D50}.uncertainty-note h4{margin:0;color:#087A3B;font-size:1rem}@media(max-width:900px){.uncertainty-metrics{grid-template-columns:repeat(2,minmax(0,1fr));}}
             .candidate-results-layout { grid-template-columns: 1fr !important; min-width:0; }
             .candidate-table-wrap { width:100%; max-width:100%; }
             .candidate-table { min-width:820px !important; table-layout:fixed; font-size:.74rem !important; }
@@ -3316,7 +3323,10 @@ def aplicar_estilo_interface() -> None:
                 font-weight: 800;
                 box-shadow: 0 5px 12px rgba(30, 136, 229, 0.18);
             }
-            section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] { display: block; width: min(190px, 100%); margin-left: auto; margin-right: auto; }
+            section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding-bottom: 76px; }
+            section[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[kind="primary"]) { position: fixed; z-index: 1001; left: 20px; bottom: 12px; width: 260px; padding: 8px; border: 1px solid #B9DDC7; border-radius: 12px; background: rgba(239,250,243,.97); box-shadow: 0 -5px 18px rgba(23,61,43,.12); }
+            section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] { display: block; width: 100%; margin: 0 auto; border-radius: 9px; }
+            section[data-testid="stSidebar"] div[data-testid="stButton"] > button:disabled { border-color: #A9B9B0 !important; background: #DDE7E1 !important; color: #65766C !important; box-shadow: none !important; }
             div[data-testid="stButton"] > button[kind="primary"]:hover {
                 background: #1565C0;
                 border-color: #1565C0;
@@ -4447,10 +4457,43 @@ with st.sidebar:
         """
         <style>
         .catialab-sidebar-field-label {
-            margin: 0.55rem 0 0.35rem;
+            margin: 0.3rem 0 0.22rem;
             text-align: center;
             font-weight: 800;
             line-height: 1.2;
+        }
+        .catialab-sidebar-field-label .step-ok {
+            display: inline-grid;
+            width: 17px;
+            height: 17px;
+            margin-left: 5px;
+            place-items: center;
+            border-radius: 50%;
+            background: #197A4B;
+            color: #FFFFFF;
+            font-size: 0.65rem;
+            vertical-align: 1px;
+        }
+        section[data-testid="stSidebar"] div[data-baseweb="select"] > div,
+        section[data-testid="stSidebar"] div[data-testid="stPopover"] > button,
+        section[data-testid="stSidebar"] div[data-testid="stTextInput"] input {
+            min-height: 42px !important;
+            border: 1px solid #A8D3B9 !important;
+            border-radius: 9px !important;
+            background: rgba(255,255,255,.88) !important;
+            color: #173D2B !important;
+            box-shadow: 0 2px 7px rgba(25,122,75,.06) !important;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stRadio"] {
+            margin: -0.1rem 0 0.15rem;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stRadio"] > div {
+            justify-content: center;
+            gap: 0.65rem;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stSelectbox"],
+        section[data-testid="stSidebar"] div[data-testid="stPopover"] {
+            margin-bottom: 0.22rem;
         }
         </style>
         """,
@@ -4464,7 +4507,12 @@ with st.sidebar:
 
     # Keeps the primary choice visible: one click opens the list and choosing an
     # item closes it automatically, avoiding the extra popover interaction.
-    st.markdown('<div class="catialab-sidebar-field-label">Reação-alvo</div>', unsafe_allow_html=True)
+    reacao_atual = st.session_state.get("config_reacao")
+    status_reacao = '<span class="step-ok">✓</span>' if reacao_atual else ""
+    st.markdown(
+        f'<div class="catialab-sidebar-field-label">Reação-alvo{status_reacao}</div>',
+        unsafe_allow_html=True,
+    )
     reacao = st.selectbox(
         "Reação-alvo",
         list(nomes_reacao),
@@ -4479,8 +4527,10 @@ with st.sidebar:
         st.caption(equacoes_reacao[reacao])
 
     # Mirrors the direct reaction selector and closes its menu after one choice.
+    n_metais_atual = st.session_state.get("config_n_metais")
+    status_quantidade = '<span class="step-ok">✓</span>' if n_metais_atual else ""
     st.markdown(
-        '<div class="catialab-sidebar-field-label">Número de metais ativos</div>',
+        f'<div class="catialab-sidebar-field-label">Número de metais ativos{status_quantidade}</div>',
         unsafe_allow_html=True,
     )
     n_metais_selecionado = st.selectbox(
@@ -4501,7 +4551,19 @@ with st.sidebar:
         chips_metais = "".join(f"<span class='catialab-metal-chip'>{html.escape(metal)}</span>" for metal in metais)
         st.markdown(f"<div class='catialab-config-preview'>{chips_metais}</div>", unsafe_allow_html=True)
 
-    st.markdown('<div class="catialab-sidebar-field-label">Promotor</div>', unsafe_allow_html=True)
+    modo_promotor_atual = st.session_state.get("config_modo_promotor")
+    opcao_promotor_atual = st.session_state.get("config_promotor_opcao", "") or ""
+    if opcao_promotor_atual == "Outro":
+        opcao_promotor_atual = st.session_state.get("config_promotor_outro", "") or ""
+    promotor_atual = limpar_simbolo_quimico(opcao_promotor_atual)
+    promotor_pronto_atual = modo_promotor_atual == "Sem promotor" or (
+        modo_promotor_atual == "Com promotor" and bool(promotor_atual)
+    )
+    status_promotor = '<span class="step-ok">✓</span>' if promotor_pronto_atual else ""
+    st.markdown(
+        f'<div class="catialab-sidebar-field-label">Promotor{status_promotor}</div>',
+        unsafe_allow_html=True,
+    )
     modo_promotor = st.radio(
         "Uso de promotor",
         ["Sem promotor", "Com promotor"],
@@ -4530,18 +4592,39 @@ with st.sidebar:
             )
         promotor = limpar_simbolo_quimico(opcao_promotor or "")
 
-    resumo_metais = ", ".join(metais) if metais else "não definidos"
-    resumo_promotor = promotor if promotor else ("sem promotor" if modo_promotor == "Sem promotor" else "não definido")
-    resumo_reacao = nomes_reacao.get(reacao, "não definida")
+    metais_prontos = bool(n_metais and len(metais) == n_metais)
+    promotor_pronto = modo_promotor == "Sem promotor" or (modo_promotor == "Com promotor" and bool(promotor))
+    configuracao_pronta = bool(reacao and metais_prontos and promotor_pronto)
+    resumo_metais = " + ".join(metais) if metais else "Pendente"
+    resumo_promotor = promotor if promotor else ("Sem promotor" if modo_promotor == "Sem promotor" else "Pendente")
+    resumo_reacao = nomes_reacao.get(reacao, "Pendente")
+    classe_reacao = "ready" if reacao else "pending"
+    classe_metais = "ready" if metais_prontos else "pending"
+    classe_promotor = "ready" if promotor_pronto else "pending"
     st.markdown(
-        f"<div class='catialab-config-status'><strong>Configuração atual</strong><br>"
-        f"{html.escape(resumo_reacao)}<br>{html.escape(resumo_metais)}<br>"
-        f"{html.escape(resumo_promotor)}</div>",
+        "<div class='catialab-config-status'>"
+        "<div class='catialab-config-status-title'>Configuração atual</div>"
+        f"<div class='catialab-config-row {classe_reacao}'><span class='icon'>{'✓' if reacao else '!'}</span><span class='name'>Reação</span><span class='value'>{html.escape(resumo_reacao)}</span></div>"
+        f"<div class='catialab-config-row {classe_metais}'><span class='icon'>{'✓' if metais_prontos else '!'}</span><span class='name'>Metais</span><span class='value'>{html.escape(resumo_metais)}</span></div>"
+        f"<div class='catialab-config-row {classe_promotor}'><span class='icon'>{'✓' if promotor_pronto else '!'}</span><span class='name'>Promotor</span><span class='value'>{html.escape(resumo_promotor)}</span></div>"
+        "</div>",
         unsafe_allow_html=True,
     )
-    espaco_esquerdo, coluna_executar, espaco_direito = st.columns([0.35, 1.8, 0.35])
-    with coluna_executar:
-        executar = st.button(t("Executar triagem"), type="primary", width="stretch")
+    if not configuracao_pronta:
+        pendencias = []
+        if not reacao:
+            pendencias.append("reação")
+        if not metais_prontos:
+            pendencias.append("metais ativos")
+        if not promotor_pronto:
+            pendencias.append("promotor")
+        st.caption("Para executar, complete: " + ", ".join(pendencias) + ".")
+    executar = st.button(
+        t("Executar triagem"),
+        type="primary",
+        width="stretch",
+        disabled=not configuracao_pronta,
+    )
 
 metais_unicos = list(dict.fromkeys(metais))
 metais_repetidos = len(metais_unicos) != len(metais)

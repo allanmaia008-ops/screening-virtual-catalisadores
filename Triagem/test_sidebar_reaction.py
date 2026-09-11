@@ -26,6 +26,16 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('modo_promotor = st.radio(', source)
         self.assertIn('if modo_promotor == "Com promotor":', source)
 
+    def test_sidebar_has_compact_status_and_guarded_run_button(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn(".catialab-config-row", source)
+        self.assertIn(".step-ok", source)
+        self.assertIn("configuracao_pronta =", source)
+        self.assertIn("disabled=not configuracao_pronta", source)
+        self.assertIn('st.caption("Para executar, complete: "', source)
+        self.assertIn("position: fixed", source)
+        self.assertIn("padding-bottom: 76px", source)
+
     def test_periodic_table_uses_compact_full_grid(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         self.assertIn('min-width: 540px', source)
