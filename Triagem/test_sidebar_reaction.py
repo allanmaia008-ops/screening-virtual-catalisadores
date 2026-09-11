@@ -34,6 +34,8 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("disabled=not configuracao_pronta", source)
         self.assertIn('st.caption("Para executar, complete: "', source)
         self.assertIn("position: fixed", source)
+        self.assertIn("margin-top: -38px", source)
+        self.assertIn("min-height: 24px", source)
         self.assertIn("padding-bottom: 76px", source)
 
     def test_periodic_table_uses_compact_full_grid(self):

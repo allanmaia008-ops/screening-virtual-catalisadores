@@ -3323,7 +3323,7 @@ def aplicar_estilo_interface() -> None:
                 font-weight: 800;
                 box-shadow: 0 5px 12px rgba(30, 136, 229, 0.18);
             }
-            section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { padding-bottom: 76px; }
+            section[data-testid="stSidebar"] [data-testid="stSidebarUserContent"] { margin-top: -38px; padding-bottom: 76px; }
             section[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[kind="primary"]) { position: fixed; z-index: 1001; left: 20px; bottom: 12px; width: 260px; padding: 8px; border: 1px solid #B9DDC7; border-radius: 12px; background: rgba(239,250,243,.97); box-shadow: 0 -5px 18px rgba(23,61,43,.12); }
             section[data-testid="stSidebar"] div[data-testid="stButton"] > button[kind="primary"] { display: block; width: 100%; margin: 0 auto; border-radius: 9px; }
             section[data-testid="stSidebar"] div[data-testid="stButton"] > button:disabled { border-color: #A9B9B0 !important; background: #DDE7E1 !important; color: #65766C !important; box-shadow: none !important; }
@@ -4457,10 +4457,15 @@ with st.sidebar:
         """
         <style>
         .catialab-sidebar-field-label {
-            margin: 0.3rem 0 0.22rem;
+            display: block;
+            min-height: 24px;
+            margin: 0.3rem 0 0.35rem;
             text-align: center;
             font-weight: 800;
             line-height: 1.2;
+        }
+        section[data-testid="stSidebar"] div[data-testid="stElementContainer"]:has(.catialab-sidebar-field-label) {
+            min-height: 24px;
         }
         .catialab-sidebar-field-label .step-ok {
             display: inline-grid;
