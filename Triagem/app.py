@@ -1984,6 +1984,29 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             valor_linha(row, ["justificativa"], valor_linha(row, ["observacao"], "Critérios combinados de estabilidade, atividade e consistência operacional.")),
             limite=155,
         )
+        fonte_estabilidade = texto_curto(texto_linha_opcoes(row, [["fonte", "estabilidade"]]), limite=75)
+        fonte_adsorcao = texto_curto(texto_linha_opcoes(row, [["fonte", "volcano"]]), limite=75)
+        modelo_gnn = texto_curto(texto_linha_opcoes(row, [["modelo", "gnn"]]), limite=75)
+        fatores = [f"Score multicritério: {score_final}"]
+        if estabilidade != "-":
+            fatores.append(f"Estabilidade considerada: {estabilidade}")
+        if rendimento != "-":
+            fatores.append(f"Rendimento previsto: {rendimento}")
+        limitacoes = ["Conversão, seletividade e rendimento são previsões, não ensaios."]
+        if confiabilidade != "alta":
+            limitacoes.append(f"Confiança {confiabilidade}: recomenda-se ampliar a evidência.")
+        limitacoes.append("Suporte e rota de síntese são recomendações heurísticas.")
+        fatores_html = "".join(f"<li>{html.escape(item)}</li>" for item in fatores)
+        limitacoes_html = "".join(f"<li>{html.escape(item)}</li>" for item in limitacoes)
+        origem_html = "".join(
+            f"<div><b>{html.escape(tipo)}</b><span>{html.escape(fonte)}</span></div>"
+            for tipo, fonte in [
+                ("Estrutural/predito", fonte_estabilidade),
+                ("Adsorção/proxy", fonte_adsorcao),
+                ("Modelo computacional", modelo_gnn),
+                ("Ranking calculado", "MCDA e Monte Carlo"),
+            ]
+        )
         cor_posicao = "#007A32" if posicao == 1 else "#E0A800"
         cor_texto_posicao = "#FFFFFF" if posicao == 1 else "#111111"
         cards_html.append(
@@ -2014,6 +2037,11 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                     <span>Justificativa química e do suporte</span>
                     <p>{html.escape(justificativa)}</p>
                 </div>
+                <div class="top2-explain">
+                    <section><b>Por que ficou bem posicionado</b><ul>{fatores_html}</ul></section>
+                    <section><b>Limitações e penalidades</b><ul>{limitacoes_html}</ul></section>
+                </div>
+                <div class="top2-origin"><b>Origem e tipo dos dados</b>{origem_html}</div>
             </article>
             """
         )
@@ -2177,6 +2205,13 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 font-size: 0.9rem;
                 line-height: 1.28;
             }}
+            .top2-explain {{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:12px; }}
+            .top2-explain section, .top2-origin {{ padding:10px; border:1px solid #E2F0E6; border-radius:9px; background:#FFFFFF; }}
+            .top2-explain b, .top2-origin>b {{ color:#153A70; font-size:.76rem; }}
+            .top2-explain ul {{ margin:7px 0 0; padding-left:17px; color:#334155; font-size:.75rem; line-height:1.35; }}
+            .top2-origin {{ margin-top:10px; }}
+            .top2-origin>div {{ display:grid; grid-template-columns:130px 1fr; gap:8px; padding-top:6px; color:#475569; font-size:.72rem; }}
+            .top2-origin>div b {{ color:#173D24; }}
             @media (max-width: 860px) {{
                 .top2-grid {{
                     grid-template-columns: 1fr;
@@ -2187,6 +2222,9 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 .top2-score {{
                     grid-template-columns: 1fr;
                 }}
+                .top2-explain {{ grid-template-columns:1fr; }}
+                .top2-card {{ padding:13px 12px; }}
+                .top2-origin>div {{ grid-template-columns:1fr; gap:1px; }}
             }}
         </style>
         <div class="top2-grid">
@@ -3298,6 +3336,15 @@ def aplicar_estilo_interface() -> None:
             .catialab-institutional-header { max-width:100%; box-sizing:border-box; }
             @media(max-width:1100px){.catialab-institutional-header{grid-template-columns:minmax(160px,1fr) minmax(230px,1.25fr) minmax(160px,1fr)!important;column-gap:8px!important}.catialab-institutional-header>div{transform:none!important}.catialab-institutional-header img{max-width:100%!important}}
             @media(max-width:700px){.catialab-institutional-header{grid-template-columns:1fr!important;row-gap:12px}.catialab-institutional-header>div:nth-child(1),.catialab-institutional-header>div:nth-child(3){display:none!important}}
+            @media(max-width:700px){
+                [data-testid="stMainBlockContainer"]{padding:1rem .65rem 5rem!important;max-width:100%!important}
+                section[data-testid="stSidebar"]{width:min(94vw,320px)!important;min-width:min(94vw,320px)!important}
+                section[data-testid="stSidebar"] div[data-testid="stButton"]:has(button[kind="primary"]){left:10px!important;width:calc(min(94vw,320px) - 20px)!important}
+                div[data-testid="stPills"]{overflow-x:auto!important;padding-bottom:5px}
+                div[data-testid="stPills"] [role="listbox"]{display:flex!important;flex-wrap:nowrap!important;width:max-content!important}
+                div[data-testid="stDataFrame"],.chem-table-wrap{overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+                .stPlotlyChart{min-height:310px}
+            }
             section[data-testid="stSidebar"] h2,
             section[data-testid="stSidebar"] h3 {
                 color: #173D2B;
@@ -4328,6 +4375,18 @@ TABELA_PERIODICA = [
     [None, None, None, "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"],
 ]
 
+# A legenda distingue funções catalíticas prováveis sem atribuir desempenho
+# experimental aos elementos.
+METAIS_ATIVOS_TRIAGEM = {
+    "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+    "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+    "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg",
+}
+ELEMENTOS_PROMOTORES_TRIAGEM = {
+    "Li", "Na", "K", "Rb", "Cs", "Mg", "Ca", "Sr", "Ba",
+    "La", "Ce", "Pr", "Nd", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Yb", "Lu",
+}
+
 
 def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
     """Exibe uma tabela periódica clicável e retorna os metais ativos selecionados."""
@@ -4387,6 +4446,26 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
             box-shadow: 0 1px 0 #075F2C, 0 3px 7px rgba(7, 95, 44, 0.28) !important;
             transform: translateY(4px);
         }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button[kind="tertiary"] {
+            background: linear-gradient(145deg, #FFF7D6 0%, #FFD66B 55%, #E9A719 100%) !important;
+            border: 1px solid #B77900 !important;
+            color: #5E3A00 !important;
+            box-shadow: 0 2px 0 #9A6500, 0 4px 6px rgba(122, 82, 0, 0.20) !important;
+        }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:disabled {
+            opacity: 1 !important;
+            background: #E8ECEF !important;
+            border-color: #C7CFD5 !important;
+            color: #88939B !important;
+            box-shadow: none !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+        }
+        .periodic-legend { display:flex; flex-wrap:wrap; gap:6px 12px; margin:4px 0 8px; color:#334155; font-size:.72rem; }
+        .periodic-legend span { display:inline-flex; align-items:center; gap:5px; }
+        .periodic-legend i { width:12px; height:12px; border-radius:3px; border:1px solid rgba(15,23,42,.2); }
+        .periodic-legend .active { background:#73C3D8; }.periodic-legend .promoter { background:#FFD66B; }
+        .periodic-legend .selected { background:#38C968; }.periodic-legend .unavailable { background:#E8ECEF; }
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button * {
             margin: 0 !important;
             color: inherit !important;
@@ -4418,13 +4497,23 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
     selecionados = selecionados[:n_metais]
     st.session_state[chave_selecao] = selecionados
     st.caption(f"Selecione até {n_metais} elemento(s). Clique novamente para remover.")
+    st.markdown(
+        "<div class='periodic-legend'><span><i class='active'></i>Metal ativo</span>"
+        "<span><i class='promoter'></i>Promotor potencial</span>"
+        "<span><i class='selected'></i>Selecionado</span>"
+        "<span><i class='unavailable'></i>Indisponível</span></div>",
+        unsafe_allow_html=True,
+    )
     for linha, elementos in enumerate(TABELA_PERIODICA):
         colunas = st.columns(18, gap="small")
         for coluna, elemento in enumerate(elementos):
             if elemento is None:
                 continue
             selecionado = elemento in selecionados
-            if colunas[coluna].button(elemento, key=f"periodica_{linha}_{elemento}", type="primary" if selecionado else "secondary", help=f"Selecionar {elemento}", width="stretch"):
+            disponivel = elemento in METAIS_ATIVOS_TRIAGEM or elemento in ELEMENTOS_PROMOTORES_TRIAGEM
+            tipo_botao = "primary" if selecionado else "tertiary" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "secondary"
+            funcao = "promotor potencial" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "metal ativo" if disponivel else "indisponível nesta triagem"
+            if colunas[coluna].button(elemento, key=f"periodica_{linha}_{elemento}", type=tipo_botao, disabled=not disponivel, help=f"{elemento}: {funcao}", width="stretch"):
                 if selecionado:
                     selecionados.remove(elemento)
                 elif len(selecionados) < n_metais:

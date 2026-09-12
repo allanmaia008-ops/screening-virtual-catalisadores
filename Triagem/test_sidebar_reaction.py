@@ -43,6 +43,18 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('min-width: 540px', source)
         self.assertIn('min-height: 25px', source)
         self.assertIn('max-height: none', source)
+        self.assertIn("METAIS_ATIVOS_TRIAGEM", source)
+        self.assertIn("ELEMENTOS_PROMOTORES_TRIAGEM", source)
+        self.assertIn("periodic-legend", source)
+        self.assertIn("disabled=not disponivel", source)
+
+    def test_results_explain_ranking_and_mobile_layout(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn("Por que ficou bem posicionado", source)
+        self.assertIn("Limitações e penalidades", source)
+        self.assertIn("Origem e tipo dos dados", source)
+        self.assertIn('@media(max-width:700px)', source)
+        self.assertIn('div[data-testid="stPills"]{overflow-x:auto', source)
 
 
 if __name__ == "__main__":
