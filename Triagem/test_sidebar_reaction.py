@@ -47,6 +47,8 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("ELEMENTOS_PROMOTORES_TRIAGEM", source)
         self.assertIn("periodic-legend", source)
         self.assertIn("disabled=not disponivel", source)
+        self.assertIn('"Ac", "Th", "Pa", "U"', source)
+        self.assertIn('"Rf", "Db", "Sg", "Bh"', source)
 
     def test_results_explain_ranking_and_mobile_layout(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
@@ -55,6 +57,9 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("Origem e tipo dos dados", source)
         self.assertIn('@media(max-width:700px)', source)
         self.assertIn('div[data-testid="stPills"]{overflow-x:auto', source)
+        self.assertIn(".validation-kpi .validation-kpi-icon", source)
+        self.assertIn('(\"±\", texto(\"RMSE CV', source)
+        self.assertIn('(\"◎\", texto(\"Dentro do domínio', source)
 
 
 if __name__ == "__main__":

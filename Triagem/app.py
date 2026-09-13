@@ -1072,7 +1072,7 @@ def mostrar_painel_validacao(
 
     st.markdown(
         """<style>
-        .validation-title{margin:6px 0 13px;color:#14213D;font-size:clamp(1.62rem,2.35vw,2.2rem);font-weight:850;text-align:left}.validation-subtitle{margin:-6px 0 16px;color:#66758B;font-size:.84rem}.validation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 14px}.validation-kpi{display:grid;grid-template-columns:52px 1fr;align-items:center;min-height:106px;padding:14px;border:1px solid #D9E5DF;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.05)}.validation-kpi-icon{display:grid;width:42px;height:42px;place-items:center;border-radius:8px;background:#EEF7F1;color:#16843C;font-size:1rem;font-weight:900}.validation-kpi b{display:block;color:#263B58;font-size:.73rem;line-height:1.2}.validation-kpi strong{display:block;margin:5px 0 2px;color:#1262C5;font-size:1.52rem;line-height:1}.validation-kpi span{display:block;color:#64748B;font-size:.68rem;line-height:1.28}.validation-section{margin:15px 0 8px;color:#14213D;font-size:1.02rem;font-weight:850}.validation-panel{min-height:100%;padding:11px 12px 4px;border:1px solid #DCE6E0;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.035)}.validation-panel h3{margin:0 0 5px;color:#153A70;font-size:.91rem;line-height:1.25}.validation-panel p{margin:0 0 7px;color:#6A7688;font-size:.66rem;line-height:1.35}.validation-note{min-height:100%;padding:18px;border:1px solid #7BC29B;border-radius:8px;background:#F5FCF7;color:#273D4B;font-size:.78rem;line-height:1.55}.validation-note h3{margin:0 0 10px;color:#087A3B;font-size:.96rem}.validation-note ul{margin:8px 0 0;padding-left:18px}.validation-summary{display:grid;gap:8px}.validation-summary div{padding:9px 10px;border-left:3px solid #16843C;background:#F7FAF8;color:#41556A;font-size:.73rem;line-height:1.38}.validation-summary b{display:block;color:#153A70;font-size:.76rem}@media(max-width:960px){.validation-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.validation-kpis{grid-template-columns:1fr}}
+        .validation-title{margin:6px 0 13px;color:#14213D;font-size:clamp(1.62rem,2.35vw,2.2rem);font-weight:850;text-align:left}.validation-subtitle{margin:-6px 0 16px;color:#66758B;font-size:.84rem}.validation-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 14px}.validation-kpi{display:grid;grid-template-columns:52px 1fr;align-items:center;min-height:106px;padding:14px;border:1px solid #D9E5DF;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.05)}.validation-kpi .validation-kpi-icon{display:grid;width:42px;height:42px;margin:0;place-items:center;align-self:center;justify-self:center;border-radius:8px;background:#EEF7F1;color:#16843C;font-size:1.05rem;line-height:1;font-weight:900;text-align:center}.validation-kpi b{display:block;color:#263B58;font-size:.73rem;line-height:1.2}.validation-kpi strong{display:block;margin:5px 0 2px;color:#1262C5;font-size:1.52rem;line-height:1}.validation-kpi span:not(.validation-kpi-icon){display:block;color:#64748B;font-size:.68rem;line-height:1.28}.validation-section{margin:15px 0 8px;color:#14213D;font-size:1.02rem;font-weight:850}.validation-panel{min-height:100%;padding:11px 12px 4px;border:1px solid #DCE6E0;border-radius:8px;background:#FFF;box-shadow:0 3px 10px rgba(20,33,61,.035)}.validation-panel h3{margin:0 0 5px;color:#153A70;font-size:.91rem;line-height:1.25}.validation-panel p{margin:0 0 7px;color:#6A7688;font-size:.66rem;line-height:1.35}.validation-note{min-height:100%;padding:18px;border:1px solid #7BC29B;border-radius:8px;background:#F5FCF7;color:#273D4B;font-size:.78rem;line-height:1.55}.validation-note h3{margin:0 0 10px;color:#087A3B;font-size:.96rem}.validation-note ul{margin:8px 0 0;padding-left:18px}.validation-summary{display:grid;gap:8px}.validation-summary div{padding:9px 10px;border-left:3px solid #16843C;background:#F7FAF8;color:#41556A;font-size:.73rem;line-height:1.38}.validation-summary b{display:block;color:#153A70;font-size:.76rem}@media(max-width:960px){.validation-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.validation-kpis{grid-template-columns:1fr}}
         </style>""",
         unsafe_allow_html=True,
     )
@@ -1083,9 +1083,9 @@ def mostrar_painel_validacao(
     )
     kpis = [
         ("R²", texto("R² CV do modelo proxy", "Proxy-model CV R²"), formatar_valor(r2_cv), texto("validação cruzada interna", "internal cross-validation")),
-        ("RMSE", texto("RMSE CV do modelo proxy", "Proxy-model CV RMSE"), formatar_valor(rmse_cv), texto("alvo proxy; não experimental", "proxy target; not experimental")),
+        ("±", texto("RMSE CV do modelo proxy", "Proxy-model CV RMSE"), formatar_valor(rmse_cv), texto("alvo proxy; não experimental", "proxy target; not experimental")),
         ("ρ", texto("Estabilidade do ranking", "Ranking stability"), formatar_valor(spearman), texto("Spearman: nominal versus Monte Carlo", "Spearman: nominal versus Monte Carlo")),
-        ("AD", texto("Dentro do domínio", "Within applicability domain"), "-" if pd.isna(cobertura) else f"{100 * cobertura:.1f}%", f"{n_dentro} {texto('de', 'of')} {n_total} {texto('candidatos', 'candidates')}"),
+        ("◎", texto("Dentro do domínio", "Within applicability domain"), "-" if pd.isna(cobertura) else f"{100 * cobertura:.1f}%", f"{n_dentro} {texto('de', 'of')} {n_total} {texto('candidatos', 'candidates')}"),
     ]
     kpis_html = "".join(f"<article class='validation-kpi'><span class='validation-kpi-icon'>{sigla}</span><div><b>{html.escape(nome)}</b><strong>{html.escape(valor)}</strong><span>{html.escape(nota)}</span></div></article>" for sigla, nome, valor, nota in kpis)
     st.markdown(f"<h2 class='validation-title'>{html.escape(titulo)}</h2><p class='validation-subtitle'>{html.escape(subtitulo)}</p><section class='validation-kpis'>{kpis_html}</section>", unsafe_allow_html=True)
@@ -4378,9 +4378,12 @@ TABELA_PERIODICA = [
 # A legenda distingue funções catalíticas prováveis sem atribuir desempenho
 # experimental aos elementos.
 METAIS_ATIVOS_TRIAGEM = {
-    "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
-    "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-    "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg",
+    "Be", "Al", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga",
+    "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn",
+    "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po",
+    "Fr", "Ra", "Pm", "Tm", "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk",
+    "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds",
+    "Rg", "Cn", "Nh", "Fl", "Mc", "Lv",
 }
 ELEMENTOS_PROMOTORES_TRIAGEM = {
     "Li", "Na", "K", "Rb", "Cs", "Mg", "Ca", "Sr", "Ba",
