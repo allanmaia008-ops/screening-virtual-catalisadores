@@ -4390,6 +4390,27 @@ ELEMENTOS_PROMOTORES_TRIAGEM = {
     "La", "Ce", "Pr", "Nd", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Yb", "Lu",
 }
 
+FAMILIAS_TABELA_PERIODICA = {
+    "alcalino": ({"Li", "Na", "K", "Rb", "Cs", "Fr"}, "#F4C542", "Metais alcalinos"),
+    "alcalino-terroso": ({"Be", "Mg", "Ca", "Sr", "Ba", "Ra"}, "#F29E4C", "Alcalino-terrosos"),
+    "transicao": ({"Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn"}, "#55A6D9", "Metais de transição"),
+    "pos-transicao": ({"Al", "Ga", "In", "Sn", "Tl", "Pb", "Bi", "Po", "Nh", "Fl", "Mc", "Lv"}, "#85C7D9", "Pós-transição"),
+    "lantanideo": ({"La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"}, "#A98AD4", "Lantanídeos"),
+    "actinideo": ({"Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"}, "#D889B5", "Actinídeos"),
+    "semimetal": ({"B", "Si", "Ge", "As", "Sb", "Te"}, "#A6B85A", "Semimetais"),
+    "nao-metal": ({"H", "C", "N", "O", "P", "S", "Se"}, "#63B76C", "Outros não metais"),
+    "halogenio": ({"F", "Cl", "Br", "I", "At", "Ts"}, "#48B8A8", "Halogênios"),
+    "gas-nobre": ({"He", "Ne", "Ar", "Kr", "Xe", "Rn", "Og"}, "#8274C9", "Gases nobres"),
+}
+
+
+def familia_elemento(elemento: str) -> tuple[str, str, str]:
+    """Retorna classe, cor e nome da família química exibida na tabela."""
+    for classe, (elementos, cor, nome) in FAMILIAS_TABELA_PERIODICA.items():
+        if elemento in elementos:
+            return classe, cor, nome
+    return "incerto", "#AAB2B9", "Propriedade incerta"
+
 
 def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
     """Exibe uma tabela periódica clicável e retorna os metais ativos selecionados."""
@@ -4450,16 +4471,14 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
             transform: translateY(4px);
         }
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button[kind="tertiary"] {
-            background: linear-gradient(145deg, #FFF7D6 0%, #FFD66B 55%, #E9A719 100%) !important;
-            border: 1px solid #B77900 !important;
-            color: #5E3A00 !important;
-            box-shadow: 0 2px 0 #9A6500, 0 4px 6px rgba(122, 82, 0, 0.20) !important;
+            box-shadow: inset 0 0 0 2px #D79200, 0 2px 0 rgba(37,54,74,.42), 0 4px 6px rgba(15,57,74,.16) !important;
+        }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button[kind="tertiary"]::before {
+            content:"";position:absolute;right:2px;top:2px;width:5px;height:5px;border-radius:50%;background:#FFD34E;border:1px solid #8A5A00;
         }
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:disabled {
-            opacity: 1 !important;
-            background: #E8ECEF !important;
-            border-color: #C7CFD5 !important;
-            color: #88939B !important;
+            opacity: .48 !important;
+            filter: grayscale(.38) !important;
             box-shadow: none !important;
             cursor: not-allowed !important;
             transform: none !important;
@@ -4467,8 +4486,25 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
         .periodic-legend { display:flex; flex-wrap:wrap; gap:6px 12px; margin:4px 0 8px; color:#334155; font-size:.72rem; }
         .periodic-legend span { display:inline-flex; align-items:center; gap:5px; }
         .periodic-legend i { width:12px; height:12px; border-radius:3px; border:1px solid rgba(15,23,42,.2); }
-        .periodic-legend .active { background:#73C3D8; }.periodic-legend .promoter { background:#FFD66B; }
-        .periodic-legend .selected { background:#38C968; }.periodic-legend .unavailable { background:#E8ECEF; }
+        .periodic-family-legend { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px 9px; margin:4px 0 7px; color:#334155; font-size:.64rem; }
+        .periodic-family-legend span { display:flex; align-items:center; gap:5px; min-width:0; }
+        .periodic-family-legend i { flex:0 0 11px; width:11px; height:11px; border-radius:3px; border:1px solid rgba(15,23,42,.2); }
+        .periodic-state-note { margin:2px 0 7px; color:#526174; font-size:.63rem; line-height:1.35; }
+        div[data-testid="stElementContainer"]:has(.periodic-family-marker){display:none!important}
+        div[data-testid="stColumn"]:has(.family-alcalino) button{--family-color:#F4C542}
+        div[data-testid="stColumn"]:has(.family-alcalino-terroso) button{--family-color:#F29E4C}
+        div[data-testid="stColumn"]:has(.family-transicao) button{--family-color:#55A6D9}
+        div[data-testid="stColumn"]:has(.family-pos-transicao) button{--family-color:#85C7D9}
+        div[data-testid="stColumn"]:has(.family-lantanideo) button{--family-color:#A98AD4}
+        div[data-testid="stColumn"]:has(.family-actinideo) button{--family-color:#D889B5}
+        div[data-testid="stColumn"]:has(.family-semimetal) button{--family-color:#A6B85A}
+        div[data-testid="stColumn"]:has(.family-nao-metal) button{--family-color:#63B76C}
+        div[data-testid="stColumn"]:has(.family-halogenio) button{--family-color:#48B8A8}
+        div[data-testid="stColumn"]:has(.family-gas-nobre) button{--family-color:#8274C9}
+        div[data-testid="stColumn"]:has(.family-incerto) button{--family-color:#AAB2B9}
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:has(.periodic-family-marker) div[data-testid="stButton"] button{
+            background:var(--family-color)!important;border-color:#526174!important;color:#14213D!important;
+        }
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button * {
             margin: 0 !important;
             color: inherit !important;
@@ -4490,6 +4526,11 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
         """,
         unsafe_allow_html=True,
     )
+    st.markdown(
+        "<style>div[data-testid='stPopoverBody']:has(.periodic-table-marker) button[kind='primary']{outline:3px solid #087A38!important;outline-offset:1px;box-shadow:0 0 0 2px #FFF,0 4px 9px rgba(7,95,44,.42)!important}"
+        "div[data-testid='stPopoverBody']:has(.periodic-table-marker) button[kind='primary']::after{content:'✓';position:absolute;right:1px;top:0;color:#064E25;font-size:8px;font-weight:950}</style>",
+        unsafe_allow_html=True,
+    )
 
     chave_selecao = "config_metal_selecionados"
     selecionados = list(dict.fromkeys(st.session_state.get(chave_selecao, [])))
@@ -4500,11 +4541,13 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
     selecionados = selecionados[:n_metais]
     st.session_state[chave_selecao] = selecionados
     st.caption(f"Selecione até {n_metais} elemento(s). Clique novamente para remover.")
+    legenda_familias = "".join(
+        f"<span><i style='background:{cor}'></i>{html.escape(nome)}</span>"
+        for _, cor, nome in FAMILIAS_TABELA_PERIODICA.values()
+    )
     st.markdown(
-        "<div class='periodic-legend'><span><i class='active'></i>Metal ativo</span>"
-        "<span><i class='promoter'></i>Promotor potencial</span>"
-        "<span><i class='selected'></i>Selecionado</span>"
-        "<span><i class='unavailable'></i>Indisponível</span></div>",
+        f"<div class='periodic-family-legend'>{legenda_familias}</div>"
+        "<div class='periodic-state-note'><b>Estados:</b> contorno verde + ✓ = selecionado · ponto/contorno dourado = promotor potencial · esmaecido = não metal.</div>",
         unsafe_allow_html=True,
     )
     for linha, elementos in enumerate(TABELA_PERIODICA):
@@ -4515,8 +4558,10 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
             selecionado = elemento in selecionados
             disponivel = elemento in METAIS_ATIVOS_TRIAGEM or elemento in ELEMENTOS_PROMOTORES_TRIAGEM
             tipo_botao = "primary" if selecionado else "tertiary" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "secondary"
-            funcao = "promotor potencial" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "metal ativo" if disponivel else "indisponível nesta triagem"
-            if colunas[coluna].button(elemento, key=f"periodica_{linha}_{elemento}", type=tipo_botao, disabled=not disponivel, help=f"{elemento}: {funcao}", width="stretch"):
+            classe_familia, _, familia = familia_elemento(elemento)
+            colunas[coluna].markdown(f"<span class='periodic-family-marker family-{classe_familia}'></span>", unsafe_allow_html=True)
+            funcao = "promotor potencial" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "metal disponível" if disponivel else "não metal"
+            if colunas[coluna].button(elemento, key=f"periodica_{linha}_{elemento}", type=tipo_botao, disabled=not disponivel, help=f"{elemento}: {familia}; {funcao}", width="stretch"):
                 if selecionado:
                     selecionados.remove(elemento)
                 elif len(selecionados) < n_metais:

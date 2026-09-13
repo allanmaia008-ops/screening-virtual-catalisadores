@@ -49,6 +49,10 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("disabled=not disponivel", source)
         self.assertIn('"Ac", "Th", "Pa", "U"', source)
         self.assertIn('"Rf", "Db", "Sg", "Bh"', source)
+        self.assertIn("FAMILIAS_TABELA_PERIODICA", source)
+        self.assertIn("periodic-family-legend", source)
+        self.assertIn("periodic-family-marker", source)
+        self.assertIn("contorno verde + ✓", source)
 
     def test_results_explain_ranking_and_mobile_layout(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
