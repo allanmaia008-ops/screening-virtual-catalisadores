@@ -53,6 +53,8 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("periodic-family-legend", source)
         self.assertIn("periodic-family-marker", source)
         self.assertIn("contorno verde + ✓", source)
+        self.assertIn(":has(.family-lantanideo) button[kind=\"tertiary\"]::before", source)
+        self.assertIn("display:none!important", source)
 
     def test_results_explain_ranking_and_mobile_layout(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")

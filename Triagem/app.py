@@ -4476,6 +4476,12 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button[kind="tertiary"]::before {
             content:"";position:absolute;right:2px;top:2px;width:5px;height:5px;border-radius:50%;background:#FFD34E;border:1px solid #8A5A00;
         }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stColumn"]:has(.family-lantanideo) button[kind="tertiary"] {
+            box-shadow:0 2px 0 rgba(37,54,74,.42),0 4px 6px rgba(15,57,74,.16)!important;
+        }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stColumn"]:has(.family-lantanideo) button[kind="tertiary"]::before {
+            display:none!important;
+        }
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:disabled {
             opacity: .48 !important;
             filter: grayscale(.38) !important;
