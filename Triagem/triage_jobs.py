@@ -104,4 +104,3 @@ def cleanup_old_jobs(base_dir: Path, max_age_hours: int = 24, protected: set[Pat
         except OSError:
             continue
     return removed
-
