@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import os
-import pickle
 import sys
 import time
 import traceback
@@ -165,24 +164,14 @@ def execute_notebook(job_dir: Path, config: dict) -> Path:
     return notebook_path
 
 
-def execute_ltft(job_dir: Path, config: dict) -> Path:
-    update(job_dir, "running", "Gerando formulações LTFT", 15)
-    from ltft import run
-    result = run(config["metals"], config.get("promoter", ""), job_dir,
-                 config.get("temperature", 225), config.get("pressure", 20),
-                 config.get("ratio", 2.0), alpha_override=config.get("alpha"))
-    update(job_dir, "running", "Preparando tabelas e arquivos LTFT", 90)
-    result_path = job_dir / "ltft_result.pkl"
-    result_path.write_bytes(pickle.dumps(result, protocol=pickle.HIGHEST_PROTOCOL))
-    return result_path
-
-
 def main(job_dir: Path) -> int:
     config = read_json(job_dir / CONFIG_FILE)
     acquire_lock(job_dir)
     try:
         update(job_dir, "running", "Preparando a execução", 3, started_at=now_iso(), pid=os.getpid())
-        artifact = execute_ltft(job_dir, config) if config.get("reaction") == "fischer_tropsch" else execute_notebook(job_dir, config)
+        if config.get("reaction") not in {"metanacao", "reforma", "rwgs"}:
+            raise ValueError("Reação não suportada por esta plataforma.")
+        artifact = execute_notebook(job_dir, config)
         update(job_dir, "completed", "Triagem concluída", 100, completed_at=now_iso(), artifact=str(artifact))
         return 0
     except Exception as error:

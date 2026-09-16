@@ -10,11 +10,9 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('reacao = st.selectbox(', source)
         self.assertIn('key="config_reacao"', source)
 
-    def test_ltft_is_not_offered_and_empty_results_message_is_removed(self):
+    def test_only_supported_reactions_are_offered_and_empty_results_message_is_removed(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
-        self.assertIn('nomes_reacao = {"metanacao":', source)
-        self.assertNotIn("nomes_reacao['fischer_tropsch']", source)
-        self.assertNotIn('if reacao == \'fischer_tropsch\':', source)
+        self.assertIn('nomes_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}', source)
         self.assertNotIn("Execute a triagem para visualizar e baixar os resultados desta sessão.", source)
 
     def test_metal_count_is_direct_and_output_folder_is_hidden(self):

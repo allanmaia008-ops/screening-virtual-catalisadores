@@ -5,7 +5,6 @@ import hashlib
 import html
 import json
 import os
-import pickle
 import re
 import subprocess
 import sys
@@ -3062,15 +3061,6 @@ def finalizar_job_da_sessao(job_dir: Path, status: dict) -> None:
     st.session_state["ultima_saida"] = str(job_dir)
     st.session_state["ultima_configuracao"] = (reacao_job, tuple(metais_job), promotor_job)
     st.session_state["ultimo_notebook"] = status.get("artifact", "concluido")
-    if reacao_job == "fischer_tropsch":
-        result_path = Path(status["artifact"])
-        result = pickle.loads(result_path.read_bytes())
-        assinatura = (
-            tuple(metais_job), promotor_job, configuracao.get("temperature", 225),
-            configuracao.get("pressure", 20), configuracao.get("ratio", 2.0),
-            configuracao.get("alpha"), str(DEFAULT_OUTPUT_DIR.resolve()),
-        )
-        st.session_state["ltft_result"] = (assinatura, result)
 
 
 @st.fragment(run_every=2)
@@ -4910,7 +4900,6 @@ with st.sidebar:
     )
     promotor = ""
     if modo_promotor == "Com promotor":
-        # Uses the reaction contract so LTFT exposes every promoter accepted by its engine.
         opcoes_promotores = promoter_options(reacao)
         opcao_promotor = st.selectbox(
             "Elemento promotor",
@@ -4992,7 +4981,7 @@ if executar:
         st.error("Selecione ou digite o promotor.")
     else:
         # Uma tentativa nova nunca pode herdar resultados de uma execução anterior.
-        for chave in ("ultima_reacao", "ultima_saida", "ultimo_notebook", "ultima_configuracao", "ltft_result"):
+        for chave in ("ultima_reacao", "ultima_saida", "ultimo_notebook", "ultima_configuracao"):
             st.session_state.pop(chave, None)
         configurar_banco_incremental_github()
         mp_api_key = obter_mp_api_key()
