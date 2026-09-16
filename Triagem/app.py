@@ -3645,12 +3645,15 @@ def mostrar_planejamento_sintese(
         formula = st.selectbox("Candidato para a receita", formulas, key="sintese_candidato")
         linha = prioritarios_df[prioritarios_df[coluna_formula].astype(str) == formula].iloc[0]
         suporte_bruto = str(linha.get(coluna_suporte, "Al2O3")) if coluna_suporte else "Al2O3"
-        suporte = re.split(r"\s+ou\s+|\s*/\s*", suporte_bruto, maxsplit=1, flags=re.IGNORECASE)[0]
+        suportes = [opcao.strip() for opcao in re.split(r"\s+ou\s+|\s*/\s*", suporte_bruto, flags=re.IGNORECASE) if opcao.strip()]
+        suporte = st.selectbox("Suporte para a receita", suportes, key="sintese_suporte")
 
         c1, c2, c3, c4 = st.columns(4)
         massa_final = c1.number_input("Massa final desejada (g)", min_value=0.1, value=100.0, step=10.0, key="sintese_massa_final")
         carga_ativa = c2.number_input("Fase ativa (% m/m)", min_value=0.0, max_value=100.0, value=15.0, step=0.5, key="sintese_carga_ativa")
-        carga_promotor = c3.number_input("Promotor (% m/m)", min_value=0.0, max_value=50.0, value=5.0 if promotor_configurado else 0.0, step=0.5, key="sintese_carga_promotor")
+        carga_promotor = c3.number_input("Promotor (% m/m)", min_value=0.0, max_value=50.0, value=5.0 if promotor_configurado else 0.0, step=0.5, key="sintese_carga_promotor", disabled=not bool(promotor_configurado))
+        if not promotor_configurado:
+            carga_promotor = 0.0
         rota = c4.selectbox("Procedimento de síntese", ["Impregnação por umidade incipiente", "Impregnação úmida", "Coprecipitação", "Sol-gel"], key="sintese_rota")
 
         base_carga = st.radio(
@@ -3688,11 +3691,18 @@ def mostrar_planejamento_sintese(
                 massa_fase_elemento = massa_ativa * fracao_massica
                 massa_elemento, fase_referencia, fracao_metal = massa_elementar_da_fase(elemento, massa_fase_elemento, base_carga)
                 precursor = PRECURSORES_PADRAO.get(elemento)
+                if not precursor:
+                    with st.expander(f"Definir precursor para {elemento}"):
+                        nome_custom = st.text_input("Nome e fórmula do precursor", key=f"sintese_nome_prec_{elemento}")
+                        mm_custom = st.number_input("Massa molar (g/mol)", min_value=0.0, value=0.0, key=f"sintese_mm_prec_{elemento}")
+                        atomos_custom = st.number_input("Átomos do metal por fórmula", min_value=1, value=1, key=f"sintese_atomos_prec_{elemento}")
+                    if nome_custom.strip() and mm_custom > 0:
+                        precursor = {"nome": nome_custom.strip(), "formula": "", "massa_molar": mm_custom, "atomos_metal": atomos_custom}
                 if precursor:
                     massa_pura = massa_elemento * precursor["massa_molar"] / (precursor["atomos_metal"] * MASSAS_ATOMICAS_G_MOL[elemento])
                     massa_pesar = massa_pura / (pureza / 100.0) / (recuperacao / 100.0)
                     mols_precursores += massa_pura / precursor["massa_molar"]
-                    nome_precursor = f'{precursor["nome"]} ({formatar_formula_quimica(precursor["formula"])})'
+                    nome_precursor = f'{precursor["nome"]} ({formatar_formula_quimica(precursor["formula"])})' if precursor["formula"] else precursor["nome"]
                 else:
                     massa_pura = np.nan
                     massa_pesar = np.nan
@@ -3700,12 +3710,19 @@ def mostrar_planejamento_sintese(
                 linhas.append({"Função": "Fase ativa", "Elemento": elemento, "Fase de referência": fase_referencia, "Fração metálica na fase": fracao_metal, "Massa da fase final (g)": massa_fase_elemento, "Equivalente metálico (g)": massa_elemento, "Precursor": nome_precursor, "Massa de precursor puro (g)": massa_pura, "Massa corrigida a pesar (g)": massa_pesar})
             if promotor_configurado and carga_promotor > 0:
                 precursor = PRECURSORES_PADRAO.get(promotor_configurado)
+                if not precursor:
+                    with st.expander(f"Definir precursor do promotor {promotor_configurado}"):
+                        nome_custom = st.text_input("Nome e fórmula do precursor", key=f"sintese_nome_prec_prom_{promotor_configurado}")
+                        mm_custom = st.number_input("Massa molar (g/mol)", min_value=0.0, value=0.0, key=f"sintese_mm_prec_prom_{promotor_configurado}")
+                        atomos_custom = st.number_input("Átomos do promotor por fórmula", min_value=1, value=1, key=f"sintese_atomos_prec_prom_{promotor_configurado}")
+                    if nome_custom.strip() and mm_custom > 0:
+                        precursor = {"nome": nome_custom.strip(), "formula": "", "massa_molar": mm_custom, "atomos_metal": atomos_custom}
                 massa_elemento_promotor, fase_referencia, fracao_metal = massa_elementar_da_fase(promotor_configurado, massa_promotor, base_carga)
                 if precursor and promotor_configurado in MASSAS_ATOMICAS_G_MOL:
                     massa_pura = massa_elemento_promotor * precursor["massa_molar"] / (precursor["atomos_metal"] * MASSAS_ATOMICAS_G_MOL[promotor_configurado])
                     massa_pesar = massa_pura / (pureza / 100.0) / (recuperacao / 100.0)
                     mols_precursores += massa_pura / precursor["massa_molar"]
-                    nome_precursor = f'{precursor["nome"]} ({formatar_formula_quimica(precursor["formula"])})'
+                    nome_precursor = f'{precursor["nome"]} ({formatar_formula_quimica(precursor["formula"])})' if precursor["formula"] else precursor["nome"]
                 else:
                     massa_pura = np.nan
                     massa_pesar = np.nan
@@ -3735,6 +3752,9 @@ def mostrar_planejamento_sintese(
                 unsafe_allow_html=True,
             )
             st.dataframe(receita_df, width="stretch", hide_index=True)
+            precursores_completos = bool(componentes or carga_ativa == 0) and receita_df["Massa corrigida a pesar (g)"].notna().all()
+            if not precursores_completos:
+                st.warning("Há precursor sem massa calculável. Defina e valide esse precursor antes de emitir uma receita completa no PDF.")
             if np.isfinite(molaridade_aproximada):
                 st.caption(f"Concentração metálica total aproximada: {molaridade_aproximada:.3f} mol/L; planejamento mínimo: {numero_ciclos} ciclo(s), cerca de {molaridade_aproximada / numero_ciclos:.3f} mol/L por ciclo.")
                 if numero_ciclos > 1:
@@ -3748,6 +3768,21 @@ def mostrar_planejamento_sintese(
                 "com a massa molar da fase final ou o fator de resíduo obtido por TGA. A receita é nominal e deve ser confirmada por análise química e balanço após calcinação.</div>",
                 unsafe_allow_html=True,
             )
+            if st.button("Atualizar PDF com esta receita de 100 g", disabled=not precursores_completos or abs(massa_final - 100.0) > 1e-9, key="sintese_pdf_confirmar"):
+                caminhos_pdf = caminhos_resultado(Path(st.session_state["ultima_saida"]), st.session_state["ultima_reacao"])
+                plano = {
+                    "formula": formula, "suporte": suporte, "rota": rota, "base_carga": base_carga,
+                    "massa_ativa": massa_ativa, "massa_promotor": massa_promotor, "massa_suporte": massa_suporte,
+                    "pureza": pureza, "recuperacao": recuperacao, "volume_poroso": volume_poroso,
+                    "preenchimento": preenchimento, "volume_solucao": volume_exibicao,
+                    "temperatura_secagem": temperatura_secagem, "temperatura_calcinacao": temperatura_calcinacao,
+                    "perda_suporte": perda_suporte, "limite_molaridade": limite_molaridade,
+                    "materiais": receita_df.to_dict("records"),
+                }
+                gerar_relatorio_cientifico_pdf(caminhos_pdf, st.session_state["ultima_reacao"], metais_configurados, promotor_configurado, plano)
+                st.success("PDF atualizado com fluxograma, variáveis e quantidades de reagentes para 100 g. Baixe-o na aba Arquivos.")
+            elif abs(massa_final - 100.0) > 1e-9:
+                st.caption("Para incluir esta receita no relatório, ajuste a massa final para 100 g.")
 
     st.divider()
     st.subheader("Calculadora estequiométrica livre")
@@ -3857,13 +3892,12 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
             if score_confianca is not None
             else classe_confianca.capitalize()
         )
-        carga = float(np.clip(numero(row, [["teor", "fase", "ativa"], ["carga", "metal"], ["loading"]]) or 15, 1, 90))
         condicoes = montar_condicao_operacional(row)
         formula = formatar_formula_quimica(formula)
         suporte = formatar_formula_quimica(suporte)
         cor = "#16843C" if posicao == 1 else "#D99A00"
         estrutura = imagem_estrutura(posicao)
-        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Índice interno de evidência: {html.escape(texto_confianca)}</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
+        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Índice interno de evidência: {html.escape(texto_confianca)}</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Receita de 100 g:</b> defina o teor da fase ativa, do promotor e o suporte na aba Síntese para obter as massas dos reagentes e incluí-las no PDF.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores dependem do sal escolhido, de sua pureza e das perdas durante a preparação.</div></article>")
     st.markdown(f"<div class='rec-grade'>{traduzir_texto_exibicao(''.join(cards))}</div>", unsafe_allow_html=True)
     mostrar_origem_e_confianca(prioritarios_df.iloc[0])
 
@@ -4802,9 +4836,7 @@ with st.sidebar:
     )
 
     nomes_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}
-    nomes_reacao['fischer_tropsch'] = 'Fischer–Tropsch LTFT (C₅₊)'
     equacoes_reacao = {"metanacao": "CO₂ + 4H₂ → CH₄ + 2H₂O", "reforma": "CH₄ + CO₂ → 2CO + 2H₂", "rwgs": "CO₂ + H₂ → CO + H₂O"}
-    equacoes_reacao['fischer_tropsch'] = 'nCO + (2n+1)H₂ → CₙH₂ₙ₊₂ + nH₂O'
 
     # Keeps the primary choice visible: one click opens the list and choosing an
     # item closes it automatically, avoiding the extra popover interaction.
@@ -4970,13 +5002,6 @@ if executar:
             "reaction": reacao, "metals": metais, "promoter": promotor,
             "ensure_metals": garantir_metais_nos_100,
         }
-        if reacao == "fischer_tropsch":
-            configuracao_job.update({
-                "temperature": st.session_state.get("ltft_T", 225),
-                "pressure": st.session_state.get("ltft_P", 20),
-                "ratio": st.session_state.get("ltft_ratio", 2.0),
-                "alpha": st.session_state.get("ltft_alpha") if st.session_state.get("ltft_manual") else None,
-            })
         saida_execucao = create_job(output_dir, configuracao_job)
         try:
             worker_pid = start_worker(saida_execucao, APP_DIR, os.environ.copy())
@@ -4994,17 +5019,7 @@ if executar:
 if job_dir_sessao:
     mostrar_progresso_job(str(job_dir_sessao))
 
-if reacao == 'fischer_tropsch':
-    from ltft_ui import render as render_ltft
-    render_ltft(
-        metais, promotor, output_dir, False,
-        bool(n_metais and len(metais) == n_metais and not metais_repetidos and modo_promotor is not None and (modo_promotor == 'Sem promotor' or promotor)),
-        locked=read_status(job_dir_sessao).get("state") in ACTIVE_STATES if job_dir_sessao else False,
-    )
-    st.stop()
-
 if not st.session_state.get("ultimo_notebook"):
-    st.info("Execute a triagem para visualizar e baixar os resultados desta sessão.")
     st.stop()
 if st.session_state.get("ultima_configuracao") != (reacao, tuple(metais), promotor):
     st.warning("A configuração foi alterada. Execute novamente a triagem; os resultados anteriores não serão exibidos nem exportados.")

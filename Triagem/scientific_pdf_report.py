@@ -131,7 +131,41 @@ def _tabelas_figuras(caminhos: list[Path]) -> list[Table | Spacer]:
     return blocos
 
 
-def gerar_relatorio_cientifico_pdf(paths: dict[str, Path], reacao: str, metais: list[str], promotor: str) -> Path:
+def _secao_sintese(estilos, sintese_pdf: pd.DataFrame, plano: dict | None) -> list:
+    """Descreve a rota e, somente após confirmação, o balanço de um lote de 100 g."""
+    etapas = ["Definir composição<br/>e suporte", "Pesar suporte<br/>e precursores", "Preparar solução<br/>e formar sólido", "Secar e<br/>calcinar", "Ativar e<br/>caracterizar"]
+    celulas = []
+    for indice, etapa in enumerate(etapas):
+        if indice:
+            celulas.append(Paragraph("&gt;", estilos["BodyText"]))
+        celulas.append(Paragraph(f"<b>{indice + 1}. {etapa}</b>", estilos["TableText"]))
+    fluxo = Table([celulas], colWidths=[47 * mm if i % 2 == 0 else 8 * mm for i in range(9)], hAlign="LEFT")
+    fluxo.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), FUNDO), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("TOPPADDING", (0, 0), (-1, -1), 9), ("BOTTOMPADDING", (0, 0), (-1, -1), 9)]))
+    blocos = [Paragraph("7. Plano de síntese e balanço de materiais", estilos["Section"]), fluxo, Spacer(1, 3 * mm)]
+    if plano is None:
+        blocos.extend([
+            Paragraph("<b>Lote de referência:</b> 100 g de catalisador final = suporte + fase ativa + promotor. A fórmula do candidato é uma razão atômica, não uma carga mássica. Selecione um suporte e confirme cargas, precursores, pureza e recuperação na aba Síntese; então use 'Atualizar PDF com esta receita'.", estilos["Callout"]),
+            _tabela(sintese_pdf, estilos, 5, 7),
+        ])
+        return blocos
+    linhas = plano["materiais"]
+    dados = pd.DataFrame([{
+        "Função": linha["Função"], "Material / elemento": linha["Elemento"],
+        "Fase final (g)": f'{linha["Massa da fase final (g)"]:.3f}',
+        "Reagente / precursor": linha["Precursor"],
+        "Pesar (g)": "não definido" if pd.isna(linha["Massa corrigida a pesar (g)"]) else f'{linha["Massa corrigida a pesar (g)"]:.3f}',
+    } for linha in linhas])
+    blocos.extend([
+        Paragraph(f"<b>Candidato:</b> {_texto(plano['formula'])} | <b>Suporte escolhido:</b> {_texto(plano['suporte'])} | <b>Rota:</b> {_texto(plano['rota'])} | <b>Base das cargas:</b> {_texto(plano['base_carga'])}", estilos["BodyText"]),
+        Paragraph(f"<b>Balanço final de 100 g:</b> suporte {plano['massa_suporte']:.3f} g + fase ativa {plano['massa_ativa']:.3f} g + promotor {plano['massa_promotor']:.3f} g. Os valores a pesar consideram pureza de {plano['pureza']:.1f}% e recuperação estimada de {plano['recuperacao']:.1f}%.", estilos["Callout"]),
+        _tabela(dados, estilos, len(dados), 5), Spacer(1, 3 * mm),
+        Paragraph(f"<b>Variáveis da preparação:</b> volume de poros {plano['volume_poroso']:.2f} cm³/g; preenchimento {plano['preenchimento']:.1f}%; solução inicial {_texto(plano['volume_solucao'])}; secagem {plano['temperatura_secagem']:.0f} °C; calcinação {plano['temperatura_calcinacao']:.0f} °C; perda prevista do suporte {plano['perda_suporte']:.1f}%; limite de concentração {plano['limite_molaridade']:.2f} mol/L. Confirmar experimentalmente pH, solvente, tempo, rampa, atmosfera, solubilidade e condições de ativação.", estilos["BodyText"]),
+        Paragraph("Massas nominais, não protocolo validado. A massa dos sais inclui contraíons e água de hidratação que não integram necessariamente o catalisador final. Conferir hidratação e pureza no certificado, resíduo por TGA/DSC, balanço após tratamento e teor por ICP-OES/XRF. Precursor não definido impede uma massa a pesar confiável.", estilos["Callout"]),
+    ])
+    return blocos
+
+
+def gerar_relatorio_cientifico_pdf(paths: dict[str, Path], reacao: str, metais: list[str], promotor: str, plano_sintese: dict | None = None) -> Path:
     """Cria o PDF com as seções solicitadas e sem referências bibliográficas."""
     destino = paths["pdf"]
     destino.parent.mkdir(parents=True, exist_ok=True)
@@ -201,8 +235,8 @@ def gerar_relatorio_cientifico_pdf(paths: dict[str, Path], reacao: str, metais: 
             classe = _valor(linha, [("classe", "indice", "interno")])
             validacao = _valor(linha, [("validacao", "experimental")])
             elementos.append(KeepTogether([Paragraph(f"<b>{indice}. {formula}</b>", estilos["Heading3"]), Paragraph(f"Suporte sugerido: {suporte} | Score: {score} | Classe interna não calibrada: {classe} | Validação experimental: {validacao}", estilos["BodyText"]), Spacer(1, 2 * mm)]))
-    elementos.extend([Paragraph("7. Proposta inicial de síntese", estilos["Section"]),
-        Paragraph("As rotas listadas são propostas iniciais. Precursores, cargas, pH, solvente, secagem, calcinação, redução e segurança devem ser revisados antes de qualquer experimento.", estilos["Callout"]), _tabela(sintese_pdf, estilos, 5, 7), PageBreak(),
+    elementos.extend(_secao_sintese(estilos, sintese_pdf, plano_sintese))
+    elementos.extend([PageBreak(),
         Paragraph("8. Incertezas, alertas e limitações", estilos["Section"]),
         Paragraph("Priorize candidatos com menor dispersão Monte Carlo e dentro do domínio. Elementos radioativos, sintéticos ou de toxicidade elevada exigem avaliação específica. A triagem não substitui caracterização estrutural, balanço de massa, conversão, seletividade, estabilidade temporal, DFT dedicado ou validação experimental.", estilos["Callout"]), _tabela(dominio, estilos, 12, 7),
         Paragraph("Apêndice de reprodutibilidade", estilos["Section"]),

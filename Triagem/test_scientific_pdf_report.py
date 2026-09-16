@@ -64,6 +64,29 @@ class ScientificPdfReportTests(unittest.TestCase):
             self.assertIn("Candidatos gerados: 100", text)
             self.assertIn("Classe interna não calibrada: alta", text)
             self.assertIn("Validação experimental: Não disponível nesta execução", text)
+            self.assertIn("Plano de síntese e balanço de materiais", text)
+            self.assertIn("100 g de catalisador final", text)
+
+            plan = {
+                "formula": "NiFe", "suporte": "Al2O3", "rota": "Impregnação úmida",
+                "base_carga": "Metal após ativação/redução", "massa_ativa": 15.0,
+                "massa_promotor": 5.0, "massa_suporte": 80.0, "pureza": 100.0,
+                "recuperacao": 100.0, "volume_poroso": 0.8, "preenchimento": 90.0,
+                "volume_solucao": "128 mL", "temperatura_secagem": 100.0,
+                "temperatura_calcinacao": 500.0, "perda_suporte": 0.0,
+                "limite_molaridade": 2.0, "materiais": [
+                    {"Função": "Fase ativa", "Elemento": "Ni", "Massa da fase final (g)": 15.0,
+                     "Precursor": "nitrato de níquel", "Massa corrigida a pesar (g)": 74.3},
+                    {"Função": "Promotor", "Elemento": "Cu", "Massa da fase final (g)": 5.0,
+                     "Precursor": "nitrato de cobre", "Massa corrigida a pesar (g)": 19.0},
+                    {"Função": "Suporte", "Elemento": "Al2O3", "Massa da fase final (g)": 80.0,
+                     "Precursor": "Al2O3 fornecido", "Massa corrigida a pesar (g)": 80.0},
+                ],
+            }
+            generated = gerar_relatorio_cientifico_pdf(paths, "reforma", ["Ni", "Fe"], "Cu", plan)
+            text = "\n".join(page.extract_text() or "" for page in PdfReader(str(generated)).pages)
+            self.assertIn("suporte 80.000 g + fase ativa 15.000 g + promotor 5.000 g", text)
+            self.assertIn("74.300", text)
 
 
 if __name__ == "__main__":
