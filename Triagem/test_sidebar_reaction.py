@@ -31,6 +31,21 @@ class SidebarReactionTests(unittest.TestCase):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         self.assertIn('re.sub(r"data:[^\\s\'\\"<>]+", proteger_recurso, valor)', source)
         self.assertIn('traduzido.replace(f"__CATAILAB_RESOURCE_{indice}__", recurso)', source)
+        self.assertIn('texto = re.sub(r"data:[^\\s\'\\"<>]+", proteger_recurso, texto)', source)
+        self.assertIn('texto.replace(f"__CATAILAB_EMBEDDED_{indice}__", recurso)', source)
+
+    def test_candidate_cards_and_audit_have_english_translations(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        expected = [
+            '"Origem dos resultados e justificativa da classificação interna": "Result provenance and internal-classification rationale"',
+            '"Representações esquemáticas: as cores distinguem visualmente os candidatos e suas fases; não correspondem a geometrias estruturais calculadas por DFT.": "Schematic representations:',
+            '"Fórmula": "Formula"',
+            '"Composição do score": "Score composition"',
+            '"Classificação<br>interna": "Internal<br>classification"',
+            '"impregnacao incipiente do metal ativo em suporte de alta area": "incipient-wetness impregnation',
+        ]
+        for fragment in expected:
+            self.assertIn(fragment, source)
 
     def test_metal_count_is_direct_and_output_folder_is_hidden(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")

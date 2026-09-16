@@ -276,6 +276,92 @@ TRADUCOES_EN = {
     "Execute uma triagem para gerar o painel químico.": "Run a screening to generate the chemistry panel.",
     "Dados de adsorção insuficientes para o gráfico de Sabatier.": "Insufficient adsorption data for the Sabatier plot.",
     "Dados insuficientes para relacionar estabilidade e score final.": "Insufficient data to relate stability and final score.",
+    "Origem dos resultados e justificativa da classificação interna": "Result provenance and internal-classification rationale",
+    "Classificação interna não calibrada": "Uncalibrated internal classification",
+    "Índice interno de evidência": "Internal evidence index",
+    "Probabilidade de Top 5": "Top 5 probability",
+    "Composição": "Composition",
+    "Geração combinatória": "Combinatorial generation",
+    "Metais ativos, promotor e passo estequiométrico definidos na configuração.": "Active metals, promoter, and stoichiometric step defined in the configuration.",
+    "Consulta estrutural ou predição de bulk; não representa atividade catalítica.": "Structural query or bulk prediction; it does not represent catalytic activity.",
+    "Adsorção / vulcão": "Adsorption / volcano",
+    "Evidência do Catalysis-Hub quando disponível; caso contrário, proxy químico identificado no resultado.": "Catalysis-Hub evidence when available; otherwise, the chemical proxy identified in the result.",
+    "Descritores estruturais": "Structural descriptors",
+    "GNN aplicada ao bulk ou estrutura proxy; não substitui DFT explícita de superfície.": "GNN applied to bulk or a proxy structure; it does not replace explicit surface DFT.",
+    "Cálculo MCDA": "MCDA calculation",
+    "Soma multicritério normalizada, com pesos e penalizações definidos pelo perfil da reação.": "Normalized multicriteria sum with weights and penalties defined by the reaction profile.",
+    "Validação experimental": "Experimental validation",
+    "Status independente da classificação interna calculada pela plataforma.": "Status independent of the internal classification calculated by the platform.",
+    "Suporte e síntese": "Support and synthesis",
+    "Regra heurística química": "Chemical heuristic rule",
+    "Sugestão baseada na composição e na reação; exige confirmação experimental.": "Suggestion based on composition and reaction; experimental confirmation is required.",
+    "Critério:": "Criterion:",
+    "A categoria alta exige simultaneamente os quatro critérios acima. A categoria média aceita estabilidade até 0,15 eV/átomo e score final ≥ 0,65. Nos demais casos, a classe interna é baixa. Desvio Monte Carlo do score:": "The high category requires all four criteria above simultaneously. The medium category accepts stability up to 0.15 eV/atom and final score ≥ 0.65. In all other cases, the internal class is low. Monte Carlo score deviation:",
+    "Esse índice resume consistência computacional e disponibilidade de evidências; não é confiança calibrada nem probabilidade de sucesso experimental.": "This index summarizes computational consistency and evidence availability; it is neither calibrated confidence nor a probability of experimental success.",
+    "Não exportado": "Not exported",
+    "Não exportada": "Not exported",
+    "Não informada": "Not provided",
+    "Gerados": "Generated",
+    "Viáveis": "Viable",
+    "Refinados": "Refined",
+    "Recomendados": "Recommended",
+    "Finais (Top 10)": "Final (Top 10)",
+    "Viabilidade": "Viability",
+    "espaço químico inicial": "initial chemical space",
+    "filtros de viabilidade": "viability filters",
+    "descritores e DFT": "descriptors and DFT",
+    "prioridade para síntese": "synthesis priority",
+    "retenção do funil": "funnel retention",
+    "Representações esquemáticas: as cores distinguem visualmente os candidatos e suas fases; não correspondem a geometrias estruturais calculadas por DFT.": "Schematic representations: colors visually distinguish candidates and their phases; they do not correspond to structural geometries calculated by DFT.",
+    "Fórmula": "Formula",
+    "Composição do score": "Score composition",
+    "Classificação interna": "Internal classification",
+    "Classificação": "Ranking",
+    "Classificação<br>interna": "Internal<br>classification",
+    "Incerteza<br>(desvio MC)": "Uncertainty<br>(MC std. dev.)",
+    " ou ": " or ",
+    "PESOS": "WEIGHTS",
+    "Atividade": "Activity",
+    "Estabilidade": "Stability",
+    "Seletividade": "Selectivity",
+    "Robustez": "Robustness",
+    "Desempenho catalítico previsto": "Predicted catalytic performance",
+    "Seletividade para o produto-alvo": "Selectivity toward the target product",
+    "Consistência diante de variações estruturais e operacionais": "Consistency under structural and operating variations",
+    "mais negativa é melhor": "more negative is better",
+    "Score final: soma ponderada normalizada entre 0 e 1.": "Final score: normalized weighted sum from 0 to 1.",
+    "Valores mais negativos indicam maior estabilidade termodinâmica.": "More negative values indicate greater thermodynamic stability.",
+    "Valores mais altos indicam melhor desempenho global.": "Higher values indicate better overall performance.",
+    "Classificação interna não calibrada; não representa probabilidade de acerto nem validação experimental.": "Uncalibrated internal classification; it does not represent probability of correctness or experimental validation.",
+    "Alta": "High",
+    "Média": "Medium",
+    "Baixa": "Low",
+    "Candidato": "Candidate",
+    "Classe interna": "Internal class",
+    "Por que ficou bem posicionado": "Why it ranked highly",
+    "Limitações e penalidades": "Limitations and penalties",
+    "Origem e tipo dos dados": "Data provenance and type",
+    "Estrutural/predito": "Structural/predicted",
+    "Adsorção/proxy": "Adsorption/proxy",
+    "Modelo computacional": "Computational model",
+    "Ranking calculado": "Calculated ranking",
+    "Conversão, seletividade e rendimento são previsões, não ensaios.": "Conversion, selectivity, and yield are predictions, not experimental tests.",
+    "Suporte e rota de síntese são recomendações heurísticas.": "Support and synthesis route are heuristic recommendations.",
+    "Critérios combinados de estabilidade, atividade e consistência operacional.": "Combined criteria of stability, activity, and operational consistency.",
+    "impregnacao incipiente do metal ativo em suporte de alta area": "incipient-wetness impregnation of the active metal on a high-surface-area support",
+    "coprecipitacao ou metodo hidrotalcita-like para alta estabilidade termica": "coprecipitation or a hydrotalcite-like method for high thermal stability",
+    "impregnação incipiente do metal ativo em suporte de alta área": "incipient-wetness impregnation of the active metal on a high-surface-area support",
+    "coprecipitação ou método hidrotalcita-like para alta estabilidade térmica": "coprecipitation or a hydrotalcite-like method for high thermal stability",
+    "A categoria alta exige simultaneamente os quatro critérios acima.": "The high category requires all four criteria above simultaneously.",
+    "A categoria média aceita estabilidade até 0,15 eV/atom e score final ≥ 0,65.": "The medium category accepts stability up to 0.15 eV/atom and final score ≥ 0.65.",
+    "Nos demais casos, a classe interna é baixa.": "In all other cases, the internal class is low.",
+    "Desvio Monte Carlo do score:": "Monte Carlo score deviation:",
+    "candidatos": "candidates",
+    "síntese": "synthesis",
+    "Receita de 100 g:": "100 g recipe:",
+    "defina o teor da fase ativa, do promotor e o suporte na aba Síntese para obter as massas dos reagentes e incluí-las no PDF.": "define the active-phase and promoter loadings and the support in the Synthesis tab to calculate reagent masses and include them in the PDF.",
+    "As massas dos sais precursores dependem do sal escolhido, de sua pureza e das perdas durante a preparação.": "Precursor-salt masses depend on the selected salt, its purity, and preparation losses.",
+    "defina o teor da active phase, do promoter e o support na aba Synthesis para obter as massas dos reagentes e incluí-las no PDF.": "define the active-phase and promoter loadings and the support in the Synthesis tab to calculate reagent masses and include them in the PDF.",
 }
 
 
@@ -300,6 +386,13 @@ def traduzir_texto_exibicao(texto: str) -> str:
     """Traduz rótulos e mensagens conhecidas que já foram inseridos em cartões HTML."""
     if idioma_atual() != "en":
         return texto
+    recursos: list[str] = []
+
+    def proteger_recurso(match: re.Match) -> str:
+        recursos.append(match.group(0))
+        return f"__CATAILAB_EMBEDDED_{len(recursos) - 1}__"
+
+    texto = re.sub(r"data:[^\s'\"<>]+", proteger_recurso, texto)
     traducoes = {
         "Pontuação final": "Final score", "Confiabilidade do modelo": "Model confidence",
         "Suporte sugerido": "Suggested support", "Condições iniciais": "Initial conditions",
@@ -367,6 +460,8 @@ def traduzir_texto_exibicao(texto: str) -> str:
     }
     for origem, destino in sorted(traducoes.items(), key=lambda item: len(item[0]), reverse=True):
         texto = texto.replace(origem, destino)
+    for indice, recurso in enumerate(recursos):
+        texto = texto.replace(f"__CATAILAB_EMBEDDED_{indice}__", recurso)
     return texto
 
 
@@ -383,7 +478,10 @@ def _traduzir_interface(valor):
         return f"__CATAILAB_RESOURCE_{len(recursos) - 1}__"
 
     protegido = re.sub(r"data:[^\s'\"<>]+", proteger_recurso, valor)
-    traduzido = traduzir_texto_exibicao(TRADUCOES_EN.get(protegido, protegido))
+    traduzido = protegido
+    for origem, destino in sorted(TRADUCOES_EN.items(), key=lambda item: len(item[0]), reverse=True):
+        traduzido = traduzido.replace(origem, destino)
+    traduzido = traduzir_texto_exibicao(traduzido)
     for origem, destino in sorted(TRADUCOES_EN.items(), key=lambda item: len(item[0]), reverse=True):
         traduzido = traduzido.replace(origem, destino)
     for indice, recurso in enumerate(recursos):
