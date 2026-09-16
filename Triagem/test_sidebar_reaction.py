@@ -79,6 +79,9 @@ class SidebarReactionTests(unittest.TestCase):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         self.assertIn('"Classificação interna": internal_classification(linha)', source)
         self.assertIn("Classificação interna não calibrada", source)
+        self.assertIn("def extrair_validacao_experimental", source)
+        self.assertIn("Status independente da classificação interna", source)
+        self.assertNotIn('return "não validada experimentalmente"', source)
         self.assertIn('"unknown")', source)
 
     def test_scientific_report_is_pdf_only_in_download_panel(self):

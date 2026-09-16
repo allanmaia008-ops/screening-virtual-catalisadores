@@ -488,20 +488,18 @@ def valor_linha(row: pd.Series, termos: list[str], padrao: str = "-") -> str:
 
 
 def extrair_confiabilidade(row: pd.Series) -> str:
-    """Extrai a confiabilidade evitando colunas incorretas ou texto corrompido."""
-    if "validacao_experimental" in row.index:
-        return "não validada experimentalmente"
-    coluna = encontrar_coluna(pd.DataFrame(columns=row.index), ["confiabilidade"])
-    if coluna:
-        valor = str(row.get(coluna, "")).strip()
-        valor_norm = normalizar_texto(valor)
-        if valor_norm in {"alta", "media", "baixa"}:
-            return "média" if valor_norm == "media" else valor_norm
-    for valor in row.astype(str).tolist():
-        valor_norm = normalizar_texto(valor)
-        if valor_norm in {"alta", "media", "baixa"}:
-            return "média" if valor_norm == "media" else valor_norm
-    return "-"
+    """Lê somente a classe interna; não a confunde com validação experimental."""
+    classe = internal_classification(row)
+    return "-" if classe == "não calculada" else classe
+
+
+def extrair_validacao_experimental(row: pd.Series) -> str:
+    """Informa separadamente se existe validação experimental nesta execução."""
+    coluna = encontrar_coluna(pd.DataFrame(columns=row.index), ["validacao", "experimental"])
+    if not coluna:
+        return "Não informada"
+    valor = str(row.get(coluna, "")).strip()
+    return corrigir_texto_portugues(valor) if valor else "Não informada"
 
 
 def numero_linha_opcoes(row: pd.Series, opcoes: list[list[str]]) -> float | None:
@@ -527,8 +525,9 @@ def mostrar_origem_e_confianca(row: pd.Series) -> None:
     if row.empty:
         return
     confiabilidade = extrair_confiabilidade(row)
+    validacao_experimental = extrair_validacao_experimental(row)
     estabilidade = numero_linha_opcoes(row, [["estabilidade", "termodinamica"], ["energy", "above", "hull"]])
-    score_confianca = numero_linha_opcoes(row, [["score", "confianca"], ["score", "incerteza"]])
+    score_confianca = numero_linha_opcoes(row, [["indice", "evidencia", "interno"], ["score", "confianca"], ["score", "incerteza"]])
     score_dft = numero_linha_opcoes(row, [["score", "dft"]])
     probabilidade_top5 = numero_linha_opcoes(row, [["probabilidade", "monte", "top", "5"], ["probabilidade", "top5"]])
     desvio_mc = numero_linha_opcoes(row, [["desvio", "monte", "score"], ["score", "final", "mc", "desvio"]])
@@ -547,6 +546,7 @@ def mostrar_origem_e_confianca(row: pd.Series) -> None:
         ("Adsorção / vulcão", fonte_adsorcao, "Evidência do Catalysis-Hub quando disponível; caso contrário, proxy químico identificado no resultado."),
         ("Descritores estruturais", modelo_gnn, "GNN aplicada ao bulk ou estrutura proxy; não substitui DFT explícita de superfície."),
         ("Pontuação final", "Cálculo MCDA", "Soma multicritério normalizada, com pesos e penalizações definidos pelo perfil da reação."),
+        ("Validação experimental", validacao_experimental, "Status independente da classificação interna calculada pela plataforma."),
         ("Suporte e síntese", "Regra heurística química", "Sugestão baseada na composição e na reação; exige confirmação experimental."),
     ]
     origem_html = "".join(
@@ -555,7 +555,7 @@ def mostrar_origem_e_confianca(row: pd.Series) -> None:
     )
     criterios = [
         ("Estabilidade", fmt(estabilidade) + " eV/átomo", estabilidade is not None and estabilidade <= 0.10, "≤ 0,10 eV/átomo"),
-        ("Score de confiança", fmt(score_confianca), score_confianca is not None and score_confianca >= 0.65, "≥ 0,65"),
+        ("Índice interno de evidência", fmt(score_confianca), score_confianca is not None and score_confianca >= 0.65, "≥ 0,65"),
         ("Score DFT/proxy", fmt(score_dft), score_dft is not None and score_dft >= 0.60, "≥ 0,60"),
         ("Probabilidade de Top 5", "Não exportada" if probabilidade_top5 is None else f"{100 * probabilidade_top5:.1f}%".replace(".", ","), probabilidade_top5 is not None and probabilidade_top5 >= 0.30, "≥ 30%"),
     ]
@@ -564,12 +564,12 @@ def mostrar_origem_e_confianca(row: pd.Series) -> None:
         for nome, valor, passou, limiar in criterios
     )
     dispersao = "Não exportada" if desvio_mc is None else fmt(desvio_mc)
-    with st.expander("Origem dos resultados e justificativa da confiança", expanded=False):
+    with st.expander("Origem dos resultados e justificativa da classificação interna", expanded=False):
         st.markdown(
             f"<div class='audit-grid'>{origem_html}</div>"
-            f"<h4 class='confidence-heading'>Confiabilidade classificada como {html.escape(confiabilidade.capitalize())}</h4>"
+            f"<h4 class='confidence-heading'>Classificação interna não calibrada: {html.escape(confiabilidade.capitalize())}</h4>"
             f"<div class='confidence-grid'>{criterios_html}</div>"
-            f"<p class='confidence-method'>A categoria alta exige simultaneamente os quatro critérios acima. A categoria média aceita estabilidade até 0,15 eV/átomo e score final ≥ 0,65. Nos demais casos, a confiança é baixa. Desvio Monte Carlo do score: <b>{html.escape(dispersao)}</b>. A confiança mede consistência da triagem e disponibilidade de evidências; não equivale à probabilidade de sucesso experimental.</p>",
+            f"<p class='confidence-method'>A categoria alta exige simultaneamente os quatro critérios acima. A categoria média aceita estabilidade até 0,15 eV/átomo e score final ≥ 0,65. Nos demais casos, a classe interna é baixa. Desvio Monte Carlo do score: <b>{html.escape(dispersao)}</b>. Esse índice resume consistência computacional e disponibilidade de evidências; não é confiança calibrada nem probabilidade de sucesso experimental.</p>",
             unsafe_allow_html=True,
         )
 
@@ -757,10 +757,10 @@ def mostrar_painel_decisao(
         tamanho_valor="clamp(1.05rem, 1.25vw, 1.35rem)",
     )
     mostrar_linha_cartoes(
-        "Condição e confiança",
+        "Condição e evidência interna",
         [
             ("Condição inicial de ensaio", f"{condicao_inicial} · {regime.replace('_', ' ')}" if regime != "-" else condicao_inicial, False),
-            ("Confiabilidade da recomendação", confiabilidade.capitalize() if confiabilidade != "-" else "-", True),
+            ("Classificação interna não calibrada", confiabilidade.capitalize() if confiabilidade != "-" else "-", True),
             ("Permanência no Top 5", "-" if probabilidade_top5 is None else f"{100 * probabilidade_top5:.0f}%", False),
         ],
     )
@@ -797,7 +797,7 @@ def mostrar_painel_decisao(
         principal_vantagem = "Equilíbrio previsto entre atividade e estabilidade"
 
     if confiabilidade == "baixa":
-        principal_risco = "Baixa confiança global na predição"
+        principal_risco = "Baixa classificação no índice interno não calibrado"
     elif estabilidade is not None and estabilidade > 0.15:
         principal_risco = "Metaestabilidade elevada para síntese e operação"
     elif distancia_volcano is not None and distancia_volcano > 0.30:
@@ -837,7 +837,12 @@ def mostrar_robustez_operacao(
     incert_mc = numero_coluna(monte_carlo_df, ["desvio", "score"], linhas=10)
 
     conf_predominante = "-"
-    coluna_conf = encontrar_coluna(classificacao_df, ["confiabilidade"]) or encontrar_coluna(prioritarios_df, ["confiabilidade"])
+    coluna_conf = (
+        encontrar_coluna(classificacao_df, ["classe", "indice", "interno"])
+        or encontrar_coluna(prioritarios_df, ["classe", "indice", "interno"])
+        or encontrar_coluna(classificacao_df, ["confiabilidade"])
+        or encontrar_coluna(prioritarios_df, ["confiabilidade"])
+    )
     fonte_conf = classificacao_df if coluna_conf and coluna_conf in classificacao_df.columns else prioritarios_df
     if coluna_conf and not fonte_conf.empty:
         valores = fonte_conf[coluna_conf].astype(str).map(normalizar_texto)
@@ -1849,7 +1854,7 @@ def selecionar_colunas_tecnicas(dataframe: pd.DataFrame) -> pd.DataFrame:
         ["score", "dft"],
         ["score", "volcano"],
         ["coque"],
-        ["confiabilidade"],
+        ["classe", "indice", "interno"],
         ["temperatura"],
         ["pressao"],
         ["razao"],
@@ -1875,7 +1880,7 @@ def mostrar_resumo_top(prioritarios_df: pd.DataFrame) -> None:
         ("Top candidato", str(top.get(coluna_formula, "-"))),
         ("Suporte sugerido", str(top.get(coluna_suporte, "-")) if coluna_suporte else "-"),
         ("Score final", formatar_valor(top.get(coluna_score)) if coluna_score else "-"),
-        ("Confiabilidade", extrair_confiabilidade(top)),
+        ("Classe interna", extrair_confiabilidade(top)),
     ]
     colunas = st.columns([1.2, 1.4, 1.0, 1.0])
     for coluna, (rotulo, valor) in zip(colunas, itens):
@@ -1996,7 +2001,7 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
             fatores.append(f"Rendimento previsto: {rendimento}")
         limitacoes = ["Conversão, seletividade e rendimento são previsões, não ensaios."]
         if confiabilidade != "alta":
-            limitacoes.append(f"Confiança {confiabilidade}: recomenda-se ampliar a evidência.")
+            limitacoes.append(f"Classificação interna {confiabilidade}: recomenda-se ampliar a evidência.")
         limitacoes.append("Suporte e rota de síntese são recomendações heurísticas.")
         fatores_html = "".join(f"<li>{html.escape(item)}</li>" for item in fatores)
         limitacoes_html = "".join(f"<li>{html.escape(item)}</li>" for item in limitacoes)
@@ -2023,12 +2028,12 @@ def mostrar_top2_recomendados_amigavel(prioritarios_df: pd.DataFrame) -> None:
                 </div>
                 <div class="top2-score">
                     <div><span>Score final</span><strong>{html.escape(score_final)}</strong><em>/ 1,00</em></div>
-                    <div class="top2-confidence"><span>Confiança do modelo</span><strong>{html.escape(confiabilidade.capitalize())}</strong><div class="top2-confidence-track"><i style="width:{'92' if confiabilidade == 'alta' else '68' if confiabilidade == 'média' else '42'}%;"></i></div></div>
+                    <div class="top2-confidence"><span>Classe interna não calibrada</span><strong>{html.escape(confiabilidade.capitalize())}</strong><div class="top2-confidence-track"><i style="width:{'92' if confiabilidade == 'alta' else '68' if confiabilidade == 'média' else '42'}%;"></i></div></div>
                 </div>
                 <div class="top2-metrics">
                     <div><span>Conversão prevista</span><strong>{html.escape(conversao)}</strong></div>
                     <div><span>Seletividade prevista</span><strong>{html.escape(seletividade)}</strong></div>
-                    <div><span>Confiabilidade</span><strong>{html.escape(confiabilidade)}</strong></div>
+                    <div><span>Classe interna</span><strong>{html.escape(confiabilidade)}</strong></div>
                     <div><span>Rendimento previsto</span><strong>{html.escape(rendimento)}</strong></div>
                 </div>
                 <div class="top2-info"><span>Suporte</span><strong>{html.escape(suporte)}</strong></div>
@@ -2782,7 +2787,7 @@ def renderizar_scatter_plotly(
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
             "Score final: %{customdata[1]}<br>"
-            "Confiabilidade: %{customdata[5]}<br>"
+            "Classe interna não calibrada: %{customdata[5]}<br>"
             "Suporte: %{customdata[2]}<br>"
             "Rota de síntese: %{customdata[3]}<br>"
             "Condição: %{customdata[4]}<br>"
@@ -2794,7 +2799,7 @@ def renderizar_scatter_plotly(
     )
     fig.update_layout(
         title={"x": 0.5, "xanchor": "center"},
-        legend_title_text="Confiabilidade",
+        legend_title_text="Classe interna",
         margin={"l": 20, "r": 20, "t": 62, "b": 20},
         height=520,
         hovermode="closest",
@@ -3786,7 +3791,7 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
         observacao = corrigir_texto_portugues(texto(row, [["observacao", "sintese"], ["observacao"]]))
         score = numero(row, [["score", "final"], ["score"]])
         classe_confianca = extrair_confiabilidade(row)
-        score_confianca = numero(row, [["score", "confianca"], ["score", "incerteza"]])
+        score_confianca = numero(row, [["indice", "evidencia", "interno"], ["score", "confianca"], ["score", "incerteza"]])
         confianca = float(100 * np.clip(score_confianca, 0, 1)) if score_confianca is not None else 0.0
         texto_confianca = (
             f"{confianca:.1f}% ({classe_confianca})".replace(".", ",")
@@ -3799,7 +3804,7 @@ def mostrar_recomendacoes_sintese(prioritarios_df: pd.DataFrame) -> None:
         suporte = formatar_formula_quimica(suporte)
         cor = "#16843C" if posicao == 1 else "#D99A00"
         estrutura = imagem_estrutura(posicao)
-        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Score de confiança: {html.escape(texto_confianca)}</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
+        cards.append(f"<article class='rec-card' style='--rec:{cor};--conf:{confianca}%'><div class='rec-head'><span class='rec-rank'>{posicao}</span><span class='rec-name'>{html.escape(formula)} / {html.escape(suporte)}</span><i class='rec-dot'></i></div><div class='rec-main'><div class='rec-formula'>{estrutura}<span>{html.escape(formula)}</span></div><div class='rec-score'><span>Pontuação final</span><strong>{'-' if score is None else f'{score:.2f}'} <small>/ 1,00</small></strong><span>Índice interno de evidência: {html.escape(texto_confianca)}</span><div class='rec-bar'><i></i></div></div></div><div class='rec-list'><div class='rec-item'><b>Suporte sugerido</b><span>{html.escape(suporte)}</span></div><div class='rec-item'><b>Condições iniciais</b><span>{html.escape(condicoes)}</span></div><div class='rec-item'><b>Rota de síntese</b><span>{html.escape(rota)}</span></div><div class='rec-item'><b>Justificativa do suporte</b><span>{html.escape(justificativa)}</span></div><div class='rec-item'><b>Pré-tratamento</b><span>{html.escape(pretratamento)}</span></div><div class='rec-batch'><b>Preparação teórica de 100 g:</b> fase ativa {carga:.1f} g ({carga:.1f}% m/m) e suporte {100-carga:.1f} g. <b>Massas elementares na fase ativa:</b> {html.escape(massas_formula(formula, carga))}.</div></div><div class='rec-note'><b>Ponto de atenção:</b> {html.escape(observacao)} As massas dos sais precursores devem ser recalculadas conforme o sal, a pureza e a perda por calcinação.</div></article>")
     st.markdown(f"<div class='rec-grade'>{traduzir_texto_exibicao(''.join(cards))}</div>", unsafe_allow_html=True)
     mostrar_origem_e_confianca(prioritarios_df.iloc[0])
 
@@ -3816,7 +3821,7 @@ def mostrar_resumo_dashboard(metricas_df: pd.DataFrame, prioritarios_df: pd.Data
     confiabilidade_num = {"alta": "0,86", "média": "0,68", "media": "0,68", "baixa": "0,42"}.get(normalizar_texto(confiabilidade), "-")
     rendimento = pd.to_numeric(pd.Series([valor_linha(top, ["rendimento", "prevista"], np.nan)]), errors="coerce").iloc[0]
     desempenho = "-" if pd.isna(rendimento) else f"{float(rendimento):.1f}"
-    cards = [("Candidato para síntese", formula, f"{n_recomendados} selecionados de {n_gerados}", ""), ("Confiabilidade", confiabilidade_num, "média da recomendação", "Alta" if normalizar_texto(confiabilidade) == "alta" else confiabilidade.capitalize()), ("Triagem", str(n_gerados), "catalisadores avaliados", "Concluída" if n_gerados else "Aguardando dados"), ("Melhor desempenho previsto", desempenho, "índice de rendimento", f"Catalisador: {formula}")]
+    cards = [("Candidato para síntese", formula, f"{n_recomendados} selecionados de {n_gerados}", ""), ("Índice interno", confiabilidade_num, "classificação não calibrada", "Alta" if normalizar_texto(confiabilidade) == "alta" else confiabilidade.capitalize()), ("Triagem", str(n_gerados), "catalisadores avaliados", "Concluída" if n_gerados else "Aguardando dados"), ("Melhor desempenho previsto", desempenho, "índice de rendimento", f"Catalisador: {formula}")]
     blocos = [f"<div class='catialab-summary-card'><div class='catialab-summary-label'>{html.escape(str(rotulo))}</div><div class='catialab-summary-value {'blue' if indice == 2 else ''}'>{html.escape(str(valor))}</div><div class='catialab-summary-note'>{html.escape(str(nota))}</div><div class='catialab-summary-accent'>{html.escape(str(rodape))}</div></div>" for indice, (rotulo, valor, nota, rodape) in enumerate(cards)]
     st.markdown(f"<div class='catialab-summary-grid'>{''.join(blocos)}</div>", unsafe_allow_html=True)
 
@@ -3944,7 +3949,7 @@ def mostrar_painel_quimica(
     score_estabilidade = numero_quimico(top, [["score", "estabilidade"]], 0.0)
     score_coque = numero_quimico(top, [["score", "resistencia", "coque"]], 0.0)
     score_robustez = numero_quimico(top, [["score", "faixa", "condicao"]], 0.0)
-    score_confianca = numero_quimico(top, [["score", "confianca"]], 0.0)
+    score_confianca = numero_quimico(top, [["indice", "evidencia", "interno"], ["score", "confianca"]], 0.0)
 
     # Prioriza grandezas de interface calculadas e usa proxies apenas quando elas ainda não existem na base.
     delta_e_ms = numero_quimico(top, [["energia", "interacao", "metal", "suporte"], ["energia", "ancoragem"]], np.nan)

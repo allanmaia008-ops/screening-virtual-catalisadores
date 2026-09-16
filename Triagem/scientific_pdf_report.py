@@ -8,6 +8,7 @@ import re
 import unicodedata
 from datetime import datetime
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 import pandas as pd
 from reportlab.lib import colors
@@ -30,7 +31,7 @@ def _texto(valor: object) -> str:
     texto = unicodedata.normalize("NFC", str(valor)).strip()
     for origem, destino in {"₂": "2", "₃": "3", "₄": "4", "²": "2", "³": "3", "→": "->", "–": "-", "—": "-", "−": "-", "±": "+/-"}.items():
         texto = texto.replace(origem, destino)
-    return re.sub(r"\s+", " ", texto)
+    return escape(re.sub(r"\s+", " ", texto))
 
 
 def _normalizar(valor: object) -> str:
@@ -45,6 +46,8 @@ def _ler_csv(caminho: Path) -> pd.DataFrame:
             return pd.read_csv(caminho, encoding=encoding)
         except UnicodeDecodeError:
             pass
+        except pd.errors.EmptyDataError:
+            return pd.DataFrame()
     return pd.DataFrame()
 
 
@@ -78,6 +81,18 @@ def _tabela(dataframe: pd.DataFrame, estilos, limite: int = 10, colunas: int = 7
     return tabela
 
 
+def _selecionar_colunas(dataframe: pd.DataFrame, especificacao: list[tuple[str, tuple[str, ...]]]) -> pd.DataFrame:
+    """Seleciona e ordena campos semanticamente, sem depender da posição no CSV."""
+    if dataframe.empty:
+        return dataframe
+    selecionadas: dict[str, pd.Series] = {}
+    for rotulo, termos in especificacao:
+        coluna = _achar_coluna(dataframe, *termos)
+        if coluna and coluna not in selecionadas:
+            selecionadas[rotulo] = dataframe[coluna]
+    return pd.DataFrame(selecionadas, index=dataframe.index)
+
+
 def _rodape(canvas, documento) -> None:
     canvas.saveState()
     canvas.setStrokeColor(colors.HexColor("#D7E3DD"))
@@ -100,9 +115,20 @@ def _figuras(figuras_df: pd.DataFrame, pasta: Path) -> list[Path]:
             caminho = pasta / caminho.name
         if caminho.exists():
             encontrados.append(caminho)
-        if len(encontrados) == 3:
-            break
     return encontrados
+
+
+def _tabelas_figuras(caminhos: list[Path]) -> list[Table | Spacer]:
+    """Distribui todas as figuras disponíveis em linhas de até três itens."""
+    blocos: list[Table | Spacer] = []
+    for inicio in range(0, len(caminhos), 3):
+        grupo = caminhos[inicio:inicio + 3]
+        blocos.append(Table(
+            [[Image(str(caminho), width=82 * mm, height=60 * mm, kind="proportional") for caminho in grupo]],
+            colWidths=[88 * mm] * len(grupo), hAlign="LEFT",
+        ))
+        blocos.append(Spacer(1, 4 * mm))
+    return blocos
 
 
 def gerar_relatorio_cientifico_pdf(paths: dict[str, Path], reacao: str, metais: list[str], promotor: str) -> Path:
@@ -126,21 +152,43 @@ def gerar_relatorio_cientifico_pdf(paths: dict[str, Path], reacao: str, metais: 
     estilos["BodyText"].fontSize, estilos["BodyText"].leading = 9, 13
     doc = SimpleDocTemplate(str(destino), pagesize=landscape(A4), rightMargin=15 * mm, leftMargin=15 * mm, topMargin=14 * mm, bottomMargin=18 * mm, title="Relatório científico CatAiLab", author="CatAiLab")
 
+    ranking_pdf = _selecionar_colunas(ranking, [
+        ("Fórmula", ("formula",)), ("Score final", ("score", "final")),
+        ("Classe interna", ("classe", "indice", "interno")),
+        ("Top 5 MC", ("probabilidade", "top", "5")),
+        ("Desvio MC", ("desvio", "monte", "carlo")),
+        ("Domínio", ("classe", "dominio")), ("Estabilidade", ("estabilidade", "termodinamica")),
+        ("Suporte", ("suporte", "sugerido")),
+    ])
+    justificativa_pdf = _selecionar_colunas(prioritarios, [
+        ("Fórmula", ("formula",)), ("Score final", ("score", "final")),
+        ("Atividade", ("score", "atividade")), ("Seletividade", ("score", "seletividade")),
+        ("Estabilidade", ("score", "estabilidade")), ("DFT/proxy", ("score", "dft")),
+        ("Índice interno", ("indice", "evidencia", "interno")),
+        ("Classe interna", ("classe", "indice", "interno")),
+    ])
+    sintese_pdf = _selecionar_colunas(prioritarios, [
+        ("Fórmula", ("formula",)), ("Suporte", ("suporte", "sugerido")),
+        ("Rota", ("rota", "sintese")), ("Pré-tratamento", ("pre", "tratamento")),
+        ("Observação", ("observacao", "sintese")), ("Status da formulação", ("formulacao", "status")),
+        ("Validação experimental", ("validacao", "experimental")),
+    ])
+
     elementos = [Spacer(1, 8 * mm), Paragraph("Relatório científico de triagem virtual", estilos["TitleCenter"]),
         Paragraph(f"CatAiLab | {_texto(reacao).upper()} | {instante:%d/%m/%Y %H:%M}", estilos["Subtitle"]),
         Paragraph("Este documento registra uma triagem computacional. Previsões, proxies e heurísticas não constituem confirmação experimental nem resultado de DFT, salvo quando o campo estiver explicitamente identificado dessa forma.", estilos["Callout"]),
         Paragraph("1. Configuração da triagem", estilos["Section"]),
-        Paragraph(f"<b>Reação:</b> {_texto(reacao)}<br/><b>Metais ativos:</b> {_texto(', '.join(metais))}<br/><b>Promotor:</b> {_texto(promotor or 'sem promotor')}<br/><b>Candidatos gerados:</b> {_texto(resumo.get('candidatos_gerados', resumo.get('numero_candidatos_gerados', '-')))}", estilos["BodyText"]),
+        Paragraph(f"<b>Reação:</b> {_texto(reacao)}<br/><b>Metais ativos:</b> {_texto(', '.join(metais))}<br/><b>Promotor:</b> {_texto(promotor or 'sem promotor')}<br/><b>Candidatos gerados:</b> {_texto(resumo.get('n_candidatos_gerados', resumo.get('candidatos_gerados', resumo.get('numero_candidatos_gerados', '-'))))}", estilos["BodyText"]),
         Paragraph("2. Metodologia e natureza dos dados", estilos["Section"]),
         Paragraph("A plataforma combina geração de composições, filtros químicos, descritores, modelos proxy, análise multicritério, Monte Carlo, domínio de aplicabilidade e viabilidade inicial de síntese. Cada resultado deve ser interpretado conforme sua origem declarada: experimental, DFT, previsão de modelo, proxy ou heurística.", estilos["BodyText"]), Spacer(1, 3 * mm), _tabela(metricas, estilos, 12, 4), PageBreak(),
-        Paragraph("3. Ranking dos candidatos", estilos["Section"]), _tabela(ranking, estilos, 15, 8),
+        Paragraph("3. Ranking dos candidatos", estilos["Section"]), _tabela(ranking_pdf, estilos, 15, 8),
         Paragraph("4. Justificativa da pontuação", estilos["Section"]),
-        Paragraph("A posição resulta da combinação de atividade, seletividade, estabilidade, robustez, incerteza e viabilidade. Uma boa posição indica prioridade computacional para validação; não comprova desempenho catalítico.", estilos["BodyText"]), Spacer(1, 3 * mm), _tabela(prioritarios, estilos, 5, 8), PageBreak(),
+        Paragraph("A posição resulta da combinação de atividade, seletividade, estabilidade, robustez, incerteza e viabilidade. Uma boa posição indica prioridade computacional para validação; não comprova desempenho catalítico.", estilos["BodyText"]), Spacer(1, 3 * mm), _tabela(justificativa_pdf, estilos, 5, 8), PageBreak(),
         Paragraph("5. Gráficos e tabelas da execução", estilos["Section"])]
 
     imagens = _figuras(figuras_df, destino.parent)
     if imagens:
-        elementos.append(Table([[Image(str(c), width=82 * mm, height=60 * mm, kind="proportional") for c in imagens]], colWidths=[88 * mm] * len(imagens), hAlign="LEFT"))
+        elementos.extend(_tabelas_figuras(imagens))
     else:
         elementos.append(Paragraph("As figuras não estavam disponíveis para incorporação; as tabelas numéricas permanecem registradas.", estilos["Callout"]))
     elementos.extend([Spacer(1, 4 * mm), _tabela(monte_carlo, estilos, 10, 7), PageBreak(), Paragraph("6. Detalhamento dos candidatos prioritários", estilos["Section"])])
@@ -149,10 +197,12 @@ def gerar_relatorio_cientifico_pdf(paths: dict[str, Path], reacao: str, metais: 
     else:
         for indice, (_, linha) in enumerate(prioritarios.head(5).iterrows(), 1):
             formula, suporte = _valor(linha, [("formula",), ("candidato",)]), _valor(linha, [("suporte",)])
-            score, confianca = _valor(linha, [("score", "final"), ("pontuacao",)]), _valor(linha, [("confi",)])
-            elementos.append(KeepTogether([Paragraph(f"<b>{indice}. {formula}</b>", estilos["Heading3"]), Paragraph(f"Suporte sugerido: {suporte} | Score: {score} | Confiança: {confianca}", estilos["BodyText"]), Spacer(1, 2 * mm)]))
+            score = _valor(linha, [("score", "final"), ("pontuacao",)])
+            classe = _valor(linha, [("classe", "indice", "interno")])
+            validacao = _valor(linha, [("validacao", "experimental")])
+            elementos.append(KeepTogether([Paragraph(f"<b>{indice}. {formula}</b>", estilos["Heading3"]), Paragraph(f"Suporte sugerido: {suporte} | Score: {score} | Classe interna não calibrada: {classe} | Validação experimental: {validacao}", estilos["BodyText"]), Spacer(1, 2 * mm)]))
     elementos.extend([Paragraph("7. Proposta inicial de síntese", estilos["Section"]),
-        Paragraph("As rotas listadas são propostas iniciais. Precursores, cargas, pH, solvente, secagem, calcinação, redução e segurança devem ser revisados antes de qualquer experimento.", estilos["Callout"]), _tabela(prioritarios, estilos, 5, 10), PageBreak(),
+        Paragraph("As rotas listadas são propostas iniciais. Precursores, cargas, pH, solvente, secagem, calcinação, redução e segurança devem ser revisados antes de qualquer experimento.", estilos["Callout"]), _tabela(sintese_pdf, estilos, 5, 7), PageBreak(),
         Paragraph("8. Incertezas, alertas e limitações", estilos["Section"]),
         Paragraph("Priorize candidatos com menor dispersão Monte Carlo e dentro do domínio. Elementos radioativos, sintéticos ou de toxicidade elevada exigem avaliação específica. A triagem não substitui caracterização estrutural, balanço de massa, conversão, seletividade, estabilidade temporal, DFT dedicado ou validação experimental.", estilos["Callout"]), _tabela(dominio, estilos, 12, 7),
         Paragraph("Apêndice de reprodutibilidade", estilos["Section"]),
