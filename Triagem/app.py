@@ -21,6 +21,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 from nbclient import NotebookClient
 from reaction_options import promoter_options
 from report_contract import internal_classification
@@ -160,6 +161,121 @@ TRADUCOES_EN = {
     "Predição de desempenho": "Performance prediction",
     "Candidatos finais": "Final candidates",
     "Espaço químico inicial": "Initial chemical space",
+    "Configurações da Triagem": "Screening settings",
+    "Reação-alvo": "Target reaction",
+    "Metanação de CO₂": "CO₂ methanation",
+    "Reforma de CH₄": "CH₄ reforming",
+    "Selecione a reação": "Select a reaction",
+    "Selecione a quantidade": "Select the number",
+    "Uso de promotor": "Promoter use",
+    "Sem promotor": "Without promoter",
+    "Com promotor": "With promoter",
+    "Elemento promotor": "Promoter element",
+    "Selecione o promotor": "Select a promoter",
+    "Símbolo do promotor": "Promoter symbol",
+    "Outro": "Other",
+    "Configuração atual": "Current configuration",
+    "Metais": "Metals",
+    "Pendente": "Pending",
+    "Para executar, complete:": "To run, complete:",
+    "reação": "reaction",
+    "metais ativos": "active metals",
+    "promotor": "promoter",
+    "Limpar seleção": "Clear selection",
+    "Selecione primeiro o número de metais ativos.": "First select the number of active metals.",
+    "Seção dos resultados": "Results section",
+    "Execução concluída e registrada para auditoria local.": "Run completed and recorded for local audit.",
+    "A configuração foi alterada. Execute novamente a triagem; os resultados anteriores não serão exibidos nem exportados.": "The configuration has changed. Run the screening again; previous results will not be displayed or exported.",
+    "Há metais ativos repetidos. Cada metal ativo deve ser informado apenas uma vez.": "There are duplicate active metals. Each active metal must be entered only once.",
+    "Preencha todos os campos de metal ativo antes de executar.": "Fill in all active-metal fields before running.",
+    "Selecione a reação-alvo.": "Select the target reaction.",
+    "Selecione o número de metais ativos.": "Select the number of active metals.",
+    "Informe pelo menos um metal ativo.": "Enter at least one active metal.",
+    "Remova metais ativos repetidos antes de executar.": "Remove duplicate active metals before running.",
+    "Informe se a triagem será realizada com ou sem promotor.": "Choose whether screening will use a promoter.",
+    "Selecione ou digite o promotor.": "Select or enter the promoter.",
+    "Triagem concluída.": "Screening completed.",
+    "A triagem não foi concluída.": "The screening was not completed.",
+    "Candidato simulado": "Simulated candidate",
+    "Temperatura (°C)": "Temperature (°C)",
+    "Pressão (bar)": "Pressure (bar)",
+    "Razão H₂/CO₂ (mol/mol)": "H₂/CO₂ ratio (mol/mol)",
+    "Candidato em destaque": "Highlighted candidate",
+    "Candidato para a receita": "Candidate for the recipe",
+    "Suporte para a receita": "Support for the recipe",
+    "Massa final desejada (g)": "Desired final mass (g)",
+    "Fase ativa (% m/m)": "Active phase (wt.%)",
+    "Promotor (% m/m)": "Promoter (wt.%)",
+    "Procedimento de síntese": "Synthesis procedure",
+    "Base das cargas informadas": "Basis of the specified loadings",
+    "Metal após ativação/redução": "Metal after activation/reduction",
+    "Óxido após calcinação": "Oxide after calcination",
+    "Impregnação por umidade incipiente": "Incipient-wetness impregnation",
+    "Impregnação úmida": "Wet impregnation",
+    "Coprecipitação": "Coprecipitation",
+    "Pureza dos precursores (%)": "Precursor purity (%)",
+    "Recuperação global estimada (%)": "Estimated overall recovery (%)",
+    "Volume de poros (cm³/g)": "Pore volume (cm³/g)",
+    "Preenchimento dos poros (%)": "Pore filling (%)",
+    "Temperatura de secagem (°C)": "Drying temperature (°C)",
+    "Temperatura de calcinação (°C)": "Calcination temperature (°C)",
+    "Perda prevista do suporte (%)": "Expected support loss (%)",
+    "Concentração máxima por ciclo (mol/L)": "Maximum concentration per cycle (mol/L)",
+    "Nome e fórmula do precursor": "Precursor name and formula",
+    "Massa molar (g/mol)": "Molar mass (g/mol)",
+    "Átomos do metal por fórmula": "Metal atoms per formula unit",
+    "Átomos do promotor por fórmula": "Promoter atoms per formula unit",
+    "Atualizar PDF com esta receita de 100 g": "Update PDF with this 100 g recipe",
+    "Calculadora estequiométrica livre": "Free stoichiometric calculator",
+    "Número de reagentes ou componentes": "Number of reagents or components",
+    "Massa final do lote (g)": "Final batch mass (g)",
+    "Nome do reagente/precursor": "Reagent/precursor name",
+    "Fase final (% m/m)": "Final phase (wt.%)",
+    "Massa molar do precursor (g/mol)": "Precursor molar mass (g/mol)",
+    "Massa molar da fase final (g/mol)": "Final-phase molar mass (g/mol)",
+    "mol precursor/mol fase final": "mol precursor/mol final phase",
+    "Pureza do reagente (%)": "Reagent purity (%)",
+    "Recuperação prevista do componente (%)": "Expected component recovery (%)",
+    "Função": "Role",
+    "Elemento": "Element",
+    "Fase de referência": "Reference phase",
+    "Fração metálica na fase": "Metal fraction in phase",
+    "Massa da fase final (g)": "Final-phase mass (g)",
+    "Equivalente metálico (g)": "Metal equivalent (g)",
+    "Precursor": "Precursor",
+    "Massa de precursor puro (g)": "Pure precursor mass (g)",
+    "Massa corrigida a pesar (g)": "Corrected mass to weigh (g)",
+    "Os valores desta tela são previsões de triagem virtual e devem ser confirmados por caracterização e ensaios catalíticos.": "Values on this page are virtual-screening predictions and must be confirmed by characterization and catalytic tests.",
+    "Execute a triagem para visualizar os dados de estabilidade catalítica e operação.": "Run the screening to view catalytic stability and operating data.",
+    "Execute a triagem para visualizar o simulador operacional.": "Run the screening to view the operating simulator.",
+    "Simulador operacional proxy: compara tendências previstas a partir dos descritores e do ranking. Não substitui ensaios cinéticos, balanço de massa ou validação experimental.": "Proxy operating simulator: compares predicted trends from descriptors and ranking. It does not replace kinetic tests, mass balances, or experimental validation.",
+    "Execute a triagem para calcular a incerteza do modelo.": "Run the screening to calculate model uncertainty.",
+    "Média e desvio Monte Carlo indisponíveis.": "Monte Carlo mean and standard deviation are unavailable.",
+    "Execute a triagem para gerar os diagnósticos de validação e domínio de aplicabilidade.": "Run the screening to generate validation and applicability-domain diagnostics.",
+    "O fluxo da triagem será exibido após a execução da triagem.": "The screening workflow will be displayed after the run.",
+    "Execute a triagem para visualizar o candidato mais promissor.": "Run the screening to view the most promising candidate.",
+    "Execute a triagem para visualizar os candidatos recomendados.": "Run the screening to view the recommended candidates.",
+    "Dados de adsorção insuficientes para gerar o diagrama de vulcão.": "Insufficient adsorption data to generate the volcano plot.",
+    "Dados de estabilidade e score insuficientes para o gráfico.": "Insufficient stability and score data for the chart.",
+    "A ficha estrutural será exibida após a geração dos candidatos.": "The structural sheet will be displayed after candidates are generated.",
+    "São necessários ao menos três descritores numéricos variáveis para a comparação paralela.": "At least three variable numerical descriptors are required for the parallel comparison.",
+    "Descritores ainda não disponíveis.": "Descriptors are not available yet.",
+    "Selecione um candidato quando os resultados estiverem disponíveis.": "Select a candidate when results are available.",
+    "Dados de taxa relativa insuficientes para o gráfico cinético simplificado.": "Insufficient relative-rate data for the simplified kinetic chart.",
+    "Figuras ainda não disponíveis.": "Figures are not available yet.",
+    "A tabela de figuras não contém caminho PNG.": "The figures table does not contain a PNG path.",
+    "Execute a triagem para gerar a receita vinculada ao candidato. A calculadora livre permanece disponível abaixo.": "Run the screening to generate a candidate-specific recipe. The free calculator remains available below.",
+    "Há precursor sem massa calculável. Defina e valide esse precursor antes de emitir uma receita completa no PDF.": "At least one precursor has no calculable mass. Define and validate it before issuing a complete PDF recipe.",
+    "A concentração calculada supera o limite definido. Divida a deposição em ciclos, com secagem intermediária compatível com a rota.": "The calculated concentration exceeds the defined limit. Split deposition into cycles with route-compatible intermediate drying.",
+    "Na coprecipitação e no sol-gel, defina o volume a partir da concentração dos precursores, do pH, do complexante e da cinética de adição; o volume de poros não determina essa quantidade.": "For coprecipitation and sol-gel, define volume from precursor concentration, pH, complexing agent, and addition kinetics; pore volume does not determine this quantity.",
+    "Para incluir esta receita no relatório, ajuste a massa final para 100 g.": "To include this recipe in the report, set the final mass to 100 g.",
+    "Informe cada fase final e o respectivo precursor. A razão estequiométrica representa mol de precursor necessário por mol da fase final.": "Enter each final phase and its precursor. The stoichiometric ratio is the precursor amount in mol required per mol of final phase.",
+    "A soma das porcentagens das fases finais ultrapassa 100%.": "The sum of final-phase percentages exceeds 100%.",
+    "Use a massa corrigida somente quando pureza, estequiometria e recuperação forem sustentadas por certificado, TGA ou validação experimental.": "Use the corrected mass only when purity, stoichiometry, and recovery are supported by a certificate, TGA, or experimental validation.",
+    "Execute a triagem para gerar recomendações de síntese.": "Run the screening to generate synthesis recommendations.",
+    "Execute uma triagem para gerar o painel químico.": "Run a screening to generate the chemistry panel.",
+    "Dados de adsorção insuficientes para o gráfico de Sabatier.": "Insufficient adsorption data for the Sabatier plot.",
+    "Dados insuficientes para relacionar estabilidade e score final.": "Insufficient data to relate stability and final score.",
 }
 
 
@@ -252,6 +368,154 @@ def traduzir_texto_exibicao(texto: str) -> str:
     for origem, destino in sorted(traducoes.items(), key=lambda item: len(item[0]), reverse=True):
         texto = texto.replace(origem, destino)
     return texto
+
+
+def _traduzir_interface(valor):
+    """Traduz texto visível sem alterar os valores internos usados pelos modelos."""
+    if not isinstance(valor, str) or idioma_atual() != "en":
+        return valor
+    traduzido = traduzir_texto_exibicao(TRADUCOES_EN.get(valor, valor))
+    for origem, destino in sorted(TRADUCOES_EN.items(), key=lambda item: len(item[0]), reverse=True):
+        traduzido = traduzido.replace(origem, destino)
+    return traduzido
+
+
+def ativar_traducao_streamlit() -> None:
+    """Centraliza a tradução dos componentes Streamlit, inclusive sidebar e colunas."""
+    metodos_texto = {
+        "caption", "info", "warning", "error", "success", "subheader", "header", "title",
+        "button", "download_button", "text_input", "number_input", "slider", "checkbox",
+        "toggle", "popover", "expander", "selectbox", "radio", "multiselect", "pills", "metric",
+    }
+
+    def envolver_metodo(original, nome):
+        def wrapper(*args, __original=original, __nome=nome, **kwargs):
+            argumentos = list(args)
+            if argumentos:
+                argumentos[0] = _traduzir_interface(argumentos[0])
+            elif "label" in kwargs:
+                kwargs["label"] = _traduzir_interface(kwargs["label"])
+            if __nome in {"selectbox", "radio", "multiselect", "pills"}:
+                formatador = kwargs.get("format_func")
+                if formatador:
+                    kwargs["format_func"] = lambda item, f=formatador: str(_traduzir_interface(f(item)))
+                else:
+                    kwargs["format_func"] = lambda item: str(_traduzir_interface(str(item)))
+            for chave in ("help", "placeholder"):
+                if chave in kwargs:
+                    kwargs[chave] = _traduzir_interface(kwargs[chave])
+            return __original(*argumentos, **kwargs)
+
+        wrapper._catialab_i18n = True
+        return wrapper
+
+    for nome in metodos_texto:
+        original = getattr(DeltaGenerator, nome, None)
+        if original is None or getattr(original, "_catialab_i18n", False):
+            continue
+        setattr(DeltaGenerator, nome, envolver_metodo(original, nome))
+
+    # The public ``st.*`` functions are bound when Streamlit is imported, so
+    # patch them as well as DeltaGenerator (sidebar, columns and containers).
+    for nome in metodos_texto:
+        original = getattr(st, nome, None)
+        if original is not None and not getattr(original, "_catialab_i18n", False):
+            setattr(st, nome, envolver_metodo(original, nome))
+
+    for nome in ("markdown", "html"):
+        original = getattr(DeltaGenerator, nome, None)
+        if original is None or getattr(original, "_catialab_i18n", False):
+            continue
+
+        def wrapper_markup(self, body, *args, __original=original, **kwargs):
+            return __original(self, _traduzir_interface(body), *args, **kwargs)
+
+        wrapper_markup._catialab_i18n = True
+        setattr(DeltaGenerator, nome, wrapper_markup)
+        original_publico = getattr(st, nome, None)
+        if original_publico is not None and not getattr(original_publico, "_catialab_i18n", False):
+            def wrapper_markup_publico(body, *args, __original=original_publico, **kwargs):
+                return __original(_traduzir_interface(body), *args, **kwargs)
+            wrapper_markup_publico._catialab_i18n = True
+            setattr(st, nome, wrapper_markup_publico)
+
+    original_dataframe = getattr(DeltaGenerator, "dataframe", None)
+    if original_dataframe is not None and not getattr(original_dataframe, "_catialab_i18n", False):
+        def wrapper_dataframe(self, data=None, *args, __original=original_dataframe, **kwargs):
+            if idioma_atual() == "en" and isinstance(data, pd.DataFrame):
+                data = data.copy()
+                data.columns = [_traduzir_interface(str(coluna)) for coluna in data.columns]
+                for coluna in data.select_dtypes(include="object").columns:
+                    data[coluna] = data[coluna].map(_traduzir_interface)
+            return __original(self, data, *args, **kwargs)
+
+        wrapper_dataframe._catialab_i18n = True
+        setattr(DeltaGenerator, "dataframe", wrapper_dataframe)
+        original_publico = getattr(st, "dataframe", None)
+        if original_publico is not None and not getattr(original_publico, "_catialab_i18n", False):
+            def wrapper_dataframe_publico(data=None, *args, __original=original_publico, **kwargs):
+                if idioma_atual() == "en" and isinstance(data, pd.DataFrame):
+                    data = data.copy()
+                    data.columns = [_traduzir_interface(str(coluna)) for coluna in data.columns]
+                    for coluna in data.select_dtypes(include="object").columns:
+                        data[coluna] = data[coluna].map(_traduzir_interface)
+                return __original(data, *args, **kwargs)
+            wrapper_dataframe_publico._catialab_i18n = True
+            setattr(st, "dataframe", wrapper_dataframe_publico)
+
+    original_plotly = getattr(DeltaGenerator, "plotly_chart", None)
+    if original_plotly is not None and not getattr(original_plotly, "_catialab_i18n", False):
+        def wrapper_plotly(self, figure_or_data, *args, __original=original_plotly, **kwargs):
+            if idioma_atual() == "en" and isinstance(figure_or_data, go.Figure):
+                figura = go.Figure(figure_or_data)
+                titulo = figura.layout.title.text
+                if titulo:
+                    figura.update_layout(title_text=_traduzir_interface(titulo))
+                for eixo in ("xaxis", "yaxis"):
+                    objeto = getattr(figura.layout, eixo, None)
+                    if objeto and objeto.title and objeto.title.text:
+                        figura.update_layout(**{eixo: {"title": _traduzir_interface(objeto.title.text)}})
+                for trace in figura.data:
+                    if trace.name:
+                        trace.name = _traduzir_interface(trace.name)
+                figure_or_data = figura
+            return __original(self, figure_or_data, *args, **kwargs)
+
+        wrapper_plotly._catialab_i18n = True
+        setattr(DeltaGenerator, "plotly_chart", wrapper_plotly)
+        original_publico = getattr(st, "plotly_chart", None)
+        if original_publico is not None and not getattr(original_publico, "_catialab_i18n", False):
+            def wrapper_plotly_publico(figure_or_data, *args, __original=original_publico, **kwargs):
+                if idioma_atual() == "en" and isinstance(figure_or_data, go.Figure):
+                    figura = go.Figure(figure_or_data)
+                    if figura.layout.title.text:
+                        figura.update_layout(title_text=_traduzir_interface(figura.layout.title.text))
+                    for eixo in ("xaxis", "yaxis"):
+                        objeto = getattr(figura.layout, eixo, None)
+                        if objeto and objeto.title and objeto.title.text:
+                            figura.update_layout(**{eixo: {"title": _traduzir_interface(objeto.title.text)}})
+                    for trace in figura.data:
+                        if trace.name:
+                            trace.name = _traduzir_interface(trace.name)
+                    figure_or_data = figura
+                return __original(figure_or_data, *args, **kwargs)
+            wrapper_plotly_publico._catialab_i18n = True
+            setattr(st, "plotly_chart", wrapper_plotly_publico)
+
+    original_tabs = getattr(DeltaGenerator, "tabs", None)
+    if original_tabs is not None and not getattr(original_tabs, "_catialab_i18n", False):
+        def wrapper_tabs(self, tabs, *args, __original=original_tabs, **kwargs):
+            rotulos = [_traduzir_interface(rotulo) for rotulo in tabs]
+            return __original(self, rotulos, *args, **kwargs)
+
+        wrapper_tabs._catialab_i18n = True
+        setattr(DeltaGenerator, "tabs", wrapper_tabs)
+        original_publico = getattr(st, "tabs", None)
+        if original_publico is not None and not getattr(original_publico, "_catialab_i18n", False):
+            def wrapper_tabs_publico(tabs, *args, __original=original_publico, **kwargs):
+                return __original([_traduzir_interface(rotulo) for rotulo in tabs], *args, **kwargs)
+            wrapper_tabs_publico._catialab_i18n = True
+            setattr(st, "tabs", wrapper_tabs_publico)
 
 
 def obter_dado_publico(chave: str, padrao: str = "") -> str:
@@ -4758,6 +5022,7 @@ st.set_page_config(page_title="CatAiLab", layout="wide")
 aplicar_estilo_interface()
 renderizar_cabecalho()
 pagina_atual = renderizar_navegacao()
+ativar_traducao_streamlit()
 if pagina_atual != "triagem":
     renderizar_pagina_institucional(pagina_atual)
     st.stop()

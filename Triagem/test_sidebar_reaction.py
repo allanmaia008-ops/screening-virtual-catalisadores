@@ -15,6 +15,18 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('nomes_reacao = {"metanacao": "Metanação de CO₂", "reforma": "Reforma de CH₄", "rwgs": "RWGS"}', source)
         self.assertNotIn("Execute a triagem para visualizar e baixar os resultados desta sessão.", source)
 
+    def test_english_mode_covers_sidebar_and_generated_components(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn("def ativar_traducao_streamlit()", source)
+        self.assertIn('ativar_traducao_streamlit()', source.split('st.set_page_config', 1)[1])
+        self.assertIn('"Configurações da Triagem": "Screening settings"', source)
+        self.assertIn('"Reação-alvo": "Target reaction"', source)
+        self.assertIn('"Número de metais ativos": "Number of active metals"', source)
+        self.assertIn('"Sem promotor": "Without promoter"', source)
+        self.assertIn('setattr(DeltaGenerator, "dataframe", wrapper_dataframe)', source)
+        self.assertIn('setattr(DeltaGenerator, "plotly_chart", wrapper_plotly)', source)
+        self.assertIn('setattr(DeltaGenerator, "tabs", wrapper_tabs)', source)
+
     def test_metal_count_is_direct_and_output_folder_is_hidden(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         self.assertNotIn('with st.popover("Número de metais ativos"', source)
