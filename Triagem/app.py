@@ -23,6 +23,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from nbclient import NotebookClient
 from reaction_options import promoter_options
+from scientific_pdf_report import gerar_relatorio_cientifico_pdf
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -1231,7 +1232,7 @@ def mostrar_painel_arquivos(
 
     def tipo_arquivo(caminho: Path) -> str:
         """Normaliza a extensão para o selo exibido na lista de arquivos."""
-        return {".xlsx": "XLSX", ".csv": "CSV", ".html": "HTML", ".json": "JSON"}.get(caminho.suffix.lower(), caminho.suffix.lstrip(".").upper() or "ARQ")
+        return {".xlsx": "XLSX", ".csv": "CSV", ".pdf": "PDF", ".json": "JSON"}.get(caminho.suffix.lower(), caminho.suffix.lstrip(".").upper() or "ARQ")
 
     arquivos = [
         ("resultados", paths["excel"], texto("Resultados completos da triagem com previsões e métricas.", "Complete screening results with predictions and metrics.")),
@@ -1241,7 +1242,7 @@ def mostrar_painel_arquivos(
         ("dominio", paths["dominio"], texto("Diagnóstico de Hotelling T², Q residual e domínio de aplicabilidade.", "Hotelling T², Q-residual, and applicability-domain diagnostic.")),
         ("pareto", paths["pareto"], texto("Compromissos multicritério e fronteira de Pareto.", "Multi-criteria trade-offs and Pareto frontier.")),
         ("validacao", paths["validacao_quimio"], texto("PCA, agrupamento, DOE e métricas de validação interna.", "PCA, clustering, DOE, and internal-validation metrics.")),
-        ("relatorio", paths["html"], texto("Relatório HTML com resumo, análises e gráficos.", "HTML report with summary, analyses, and charts.")),
+        ("relatorio", paths["pdf"], texto("Relatório científico em PDF com configuração, metodologia, ranking, análises, limitações e reprodutibilidade.", "Scientific PDF report with configuration, methodology, ranking, analyses, limitations, and reproducibility.")),
         ("configuracao", paths["resumo"], texto("Configuração, descritores e artefatos produzidos na execução.", "Configuration, descriptors, and artifacts produced in the run.")),
         ("figuras", paths["figuras"], texto("Índice dos gráficos e figuras científicas geradas.", "Index of generated scientific charts and figures.")),
     ]
@@ -1313,7 +1314,7 @@ def mostrar_painel_arquivos(
         with col_tamanho:
             st.markdown(f"<div class='files-row'><span class='files-small'>{tamanho_legivel(caminho)}</span></div>", unsafe_allow_html=True)
         with col_download:
-            st.download_button("⇩", data=caminho.read_bytes(), file_name=caminho.name, mime={".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".html": "text/html", ".json": "application/json"}.get(caminho.suffix.lower(), "text/csv"), key=f"download_{chave}_{slug_texto(caminho.name)}", help=texto("Baixar arquivo", "Download file"), width="stretch")
+            st.download_button("⇩", data=caminho.read_bytes(), file_name=caminho.name, mime={".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ".pdf": "application/pdf", ".json": "application/json"}.get(caminho.suffix.lower(), "text/csv"), key=f"download_{chave}_{slug_texto(caminho.name)}", help=texto("Baixar arquivo", "Download file"), width="stretch")
     st.markdown(f"<p class='files-available'>{html.escape(texto('Os arquivos listados estão disponíveis para download nesta execução.', 'Listed files are available for download in this run.'))}</p>", unsafe_allow_html=True)
 
     rastreabilidade = [
@@ -2402,6 +2403,9 @@ def executar_triagem(
     if (resumo_execucao.get("metais_ativos") != metais
             or (resumo_execucao.get("promotor") or "") != promotor):
         raise RuntimeError("Os resultados gerados não correspondem aos metais/promotor solicitados.")
+    gerar_relatorio_cientifico_pdf(resultados, reacao, metais, promotor)
+    if not resultados["pdf"].is_file():
+        raise RuntimeError("A execução não gerou o relatório científico em PDF.")
     nbformat.write(notebook, output_notebook)
     return output_notebook
 
@@ -2439,6 +2443,7 @@ def caminhos_resultado(output_dir: Path, reacao: str) -> dict[str, Path]:
         "score_hierarquico": output_dir / f"{prefixo}_score_hierarquico_comparativo.csv",
         "excel": output_dir / f"{prefixo}_resultados.xlsx",
         "html": output_dir / f"{prefixo}_relatorio.html",
+        "pdf": output_dir / f"{prefixo}_relatorio_cientifico.pdf",
         "resumo": output_dir / f"{prefixo}_resumo.json",
     }
 

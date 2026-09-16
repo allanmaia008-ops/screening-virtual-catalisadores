@@ -73,6 +73,15 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('(\"±\", texto(\"RMSE CV', source)
         self.assertIn('(\"◎\", texto(\"Dentro do domínio', source)
 
+    def test_scientific_report_is_pdf_only_in_download_panel(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        report_source = Path(__file__).with_name("scientific_pdf_report.py").read_text(encoding="utf-8")
+        self.assertIn('("relatorio", paths["pdf"]', source)
+        self.assertNotIn('("relatorio", paths["html"]', source)
+        self.assertIn('".pdf": "application/pdf"', source)
+        self.assertIn("Apêndice de reprodutibilidade", report_source)
+        self.assertNotIn("Referências bibliográficas", report_source)
+
 
 if __name__ == "__main__":
     unittest.main()

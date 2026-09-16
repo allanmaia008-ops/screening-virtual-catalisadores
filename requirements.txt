@@ -16,3 +16,4 @@ matminer==0.10.1
 pymatgen==2026.5.4
 pymatgen-core==2026.5.18
 requests
+reportlab>=4.2,<5
