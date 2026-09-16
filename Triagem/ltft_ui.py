@@ -81,15 +81,15 @@ def render_experimental_anchor(result):
     st.warning('Âncora experimental liberada; calibração cinética continua bloqueada: ' + '; '.join(gate['missing_fields']) + '.')
 
 
-def render(metals, promoter, output_dir, execute, configured):
+def render(metals, promoter, output_dir, execute, configured, locked=False):
     st.subheader('Fischer–Tropsch de baixa temperatura | C₅₊')
     st.caption('Triagem heurística. α e fase ativa são estimativas não calibradas. ASF descreve carbono nos hidrocarbonetos; não prevê conversão de CO.')
     a,b,c = st.columns(3)
-    temperature = a.slider('Temperatura (°C)', 200, 250, 225, key='ltft_T')
-    pressure = b.slider('Pressão (bar)', 10, 30, 20, key='ltft_P')
-    ratio = c.slider('Razão H₂/CO (mol/mol)', 1.5, 2.2, 2.0, .05, key='ltft_ratio')
-    manual = st.checkbox('Informar α para comparar cenários', key='ltft_manual')
-    alpha = st.number_input('α informado', min_value=0.0, max_value=.999, value=.85, step=.01, key='ltft_alpha') if manual else None
+    temperature = a.slider('Temperatura (°C)', 200, 250, 225, key='ltft_T', disabled=locked)
+    pressure = b.slider('Pressão (bar)', 10, 30, 20, key='ltft_P', disabled=locked)
+    ratio = c.slider('Razão H₂/CO (mol/mol)', 1.5, 2.2, 2.0, .05, key='ltft_ratio', disabled=locked)
+    manual = st.checkbox('Informar α para comparar cenários', key='ltft_manual', disabled=locked)
+    alpha = st.number_input('α informado', min_value=0.0, max_value=.999, value=.85, step=.01, key='ltft_alpha', disabled=locked) if manual else None
     signature = (tuple(metals), promoter, temperature, pressure, ratio, alpha, str(output_dir))
     if execute:
         st.session_state.pop('ltft_result', None)

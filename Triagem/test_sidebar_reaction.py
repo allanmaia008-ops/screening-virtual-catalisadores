@@ -93,6 +93,19 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("Apêndice de reprodutibilidade", report_source)
         self.assertNotIn("Referências bibliográficas", report_source)
 
+    def test_local_background_execution_has_queue_progress_and_no_cache_reuse(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        jobs = Path(__file__).with_name("triage_jobs.py").read_text(encoding="utf-8")
+        worker = Path(__file__).with_name("triage_worker.py").read_text(encoding="utf-8")
+        self.assertIn("start_worker", source)
+        self.assertIn("@st.fragment(run_every=2)", source)
+        self.assertIn("disabled=not configuracao_pronta or job_ativo", source)
+        self.assertIn("Apenas uma execução pesada", source)
+        self.assertIn("max_age_hours=24", source)
+        self.assertIn("subprocess.Popen", jobs)
+        self.assertIn("O_CREAT | os.O_EXCL", worker)
+        self.assertNotIn("Usar resultado existente", source)
+
 
 if __name__ == "__main__":
     unittest.main()

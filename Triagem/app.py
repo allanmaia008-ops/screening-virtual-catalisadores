@@ -5,6 +5,7 @@ import hashlib
 import html
 import json
 import os
+import pickle
 import re
 import subprocess
 import sys
@@ -25,6 +26,7 @@ from nbclient import NotebookClient
 from reaction_options import promoter_options
 from report_contract import internal_classification
 from scientific_pdf_report import gerar_relatorio_cientifico_pdf
+from triage_jobs import ACTIVE_STATES, cleanup_old_jobs, create_job, queue_position, read_status, start_worker, write_json_atomic
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -3038,6 +3040,51 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
         "validacao": ("Validação e consistência", "Resume a consistência interna do ranking e os indicadores de validação disponíveis."),
         "regressao": ("Regressão quimiométrica", "Compara a resposta do modelo proxy com a tendência de referência usada na avaliação interna."),
     }
+
+
+def finalizar_job_da_sessao(job_dir: Path, status: dict) -> None:
+    """Transfere o resultado final do worker para o estado da sessão Streamlit."""
+    configuracao = json.loads((job_dir / "configuracao.json").read_text(encoding="utf-8-sig"))
+    reacao_job = configuracao["reaction"]
+    metais_job = configuracao["metals"]
+    promotor_job = configuracao.get("promoter", "")
+    st.session_state["ultima_reacao"] = reacao_job
+    st.session_state["ultima_saida"] = str(job_dir)
+    st.session_state["ultima_configuracao"] = (reacao_job, tuple(metais_job), promotor_job)
+    st.session_state["ultimo_notebook"] = status.get("artifact", "concluido")
+    if reacao_job == "fischer_tropsch":
+        result_path = Path(status["artifact"])
+        result = pickle.loads(result_path.read_bytes())
+        assinatura = (
+            tuple(metais_job), promotor_job, configuracao.get("temperature", 225),
+            configuracao.get("pressure", 20), configuracao.get("ratio", 2.0),
+            configuracao.get("alpha"), str(DEFAULT_OUTPUT_DIR.resolve()),
+        )
+        st.session_state["ltft_result"] = (assinatura, result)
+
+
+@st.fragment(run_every=2)
+def mostrar_progresso_job(job_dir_texto: str) -> None:
+    """Atualiza apenas o painel de progresso enquanto o worker local executa."""
+    job_dir = Path(job_dir_texto)
+    status = read_status(job_dir)
+    state = status.get("state")
+    if state == "queued":
+        posicao = queue_position(job_dir, DEFAULT_OUTPUT_DIR)
+        st.info(f"Triagem na fila local · posição {posicao or 1}. Apenas uma execução pesada é processada por vez.")
+        st.progress(0, text=status.get("stage", "Aguardando execução"))
+    elif state == "running":
+        st.progress(int(status.get("progress", 0)), text=status.get("stage", "Executando triagem"))
+        st.caption("A configuração permanece bloqueada até a execução terminar.")
+    elif state == "completed" and st.session_state.get("job_integrado") != str(job_dir):
+        finalizar_job_da_sessao(job_dir, status)
+        st.session_state["job_integrado"] = str(job_dir)
+        st.success("Triagem concluída.")
+        st.rerun()
+    elif state == "failed":
+        st.error("A triagem não foi concluída.")
+        with st.expander("Detalhes técnicos do erro"):
+            st.code(status.get("traceback") or status.get("error") or "Erro não informado")
     colunas = st.columns(2)
     for indice, (_, row) in enumerate(figuras_df.iterrows()):
         caminho = Path(str(row[coluna_png]))
@@ -4678,6 +4725,14 @@ if pagina_atual != "triagem":
     renderizar_pagina_institucional(pagina_atual)
     st.stop()
 
+job_dir_sessao = Path(st.session_state["job_dir_atual"]) if st.session_state.get("job_dir_atual") else None
+status_job_sessao = read_status(job_dir_sessao)
+job_ativo = status_job_sessao.get("state") in ACTIVE_STATES
+if not st.session_state.get("limpeza_execucoes_realizada"):
+    protegidos = {job_dir_sessao} if job_dir_sessao else set()
+    cleanup_old_jobs(DEFAULT_OUTPUT_DIR, max_age_hours=24, protected=protegidos)
+    st.session_state["limpeza_execucoes_realizada"] = True
+
 with st.sidebar:
     renderizar_logo_projeto_sidebar()
     st.caption("Configurações da Triagem")
@@ -4754,6 +4809,7 @@ with st.sidebar:
         format_func=nomes_reacao.get,
         key="config_reacao",
         label_visibility="collapsed",
+        disabled=job_ativo,
     )
     if reacao:
         # The selected name already appears in the control; show only the useful equation.
@@ -4773,10 +4829,11 @@ with st.sidebar:
         placeholder="Selecione a quantidade",
         key="config_n_metais",
         label_visibility="collapsed",
+        disabled=job_ativo,
     )
     n_metais = int(n_metais_selecionado or 0)
 
-    with st.popover("Metais ativos", icon=":material/hub:", width="stretch"):
+    with st.popover("Metais ativos", icon=":material/hub:", width="stretch", disabled=job_ativo):
         metais = selecionar_metais_tabela_periodica(n_metais)
         st.caption(t("Todos os metais serão representados entre os 100 candidatos viáveis."))
     garantir_metais_nos_100 = True
@@ -4804,6 +4861,7 @@ with st.sidebar:
         horizontal=True,
         key="config_modo_promotor",
         label_visibility="collapsed",
+        disabled=job_ativo,
     )
     promotor = ""
     if modo_promotor == "Com promotor":
@@ -4815,6 +4873,7 @@ with st.sidebar:
             index=None,
             placeholder="Selecione o promotor",
             key="config_promotor_opcao",
+            disabled=job_ativo,
         )
         if opcao_promotor == "Outro":
             opcao_promotor = st.text_input(
@@ -4822,6 +4881,7 @@ with st.sidebar:
                 value="",
                 max_chars=2,
                 key="config_promotor_outro",
+                disabled=job_ativo,
             )
         promotor = limpar_simbolo_quimico(opcao_promotor or "")
 
@@ -4856,7 +4916,7 @@ with st.sidebar:
         t("Executar triagem"),
         type="primary",
         width="stretch",
-        disabled=not configuracao_pronta,
+        disabled=not configuracao_pronta or job_ativo,
     )
 
 metais_unicos = list(dict.fromkeys(metais))
@@ -4869,12 +4929,6 @@ if metais_repetidos:
     st.warning("Há metais ativos repetidos. Cada metal ativo deve ser informado apenas uma vez.")
 elif n_metais and len(metais) != n_metais:
     st.warning("Preencha todos os campos de metal ativo antes de executar.")
-
-if reacao == 'fischer_tropsch':
-    from ltft_ui import render as render_ltft
-    render_ltft(metais, promotor, output_dir, executar,
-                bool(n_metais and len(metais) == n_metais and not metais_repetidos and modo_promotor is not None and (modo_promotor == 'Sem promotor' or promotor)))
-    st.stop()
 
 if executar:
     if not reacao:
@@ -4893,29 +4947,48 @@ if executar:
         st.error("Selecione ou digite o promotor.")
     else:
         # Uma tentativa nova nunca pode herdar resultados de uma execução anterior.
-        for chave in ("ultima_reacao", "ultima_saida", "ultimo_notebook", "ultima_configuracao"):
+        for chave in ("ultima_reacao", "ultima_saida", "ultimo_notebook", "ultima_configuracao", "ltft_result"):
             st.session_state.pop(chave, None)
-        saida_execucao = output_dir / f"execucao_{datetime.now():%Y%m%d_%H%M%S}_{uuid4().hex}"
-        saida_execucao.mkdir(parents=True, exist_ok=False)
+        configurar_banco_incremental_github()
+        mp_api_key = obter_mp_api_key()
+        if mp_api_key:
+            os.environ["MP_API_KEY"] = mp_api_key
+        configuracao_job = {
+            "reaction": reacao, "metals": metais, "promoter": promotor,
+            "ensure_metals": garantir_metais_nos_100,
+        }
+        if reacao == "fischer_tropsch":
+            configuracao_job.update({
+                "temperature": st.session_state.get("ltft_T", 225),
+                "pressure": st.session_state.get("ltft_P", 20),
+                "ratio": st.session_state.get("ltft_ratio", 2.0),
+                "alpha": st.session_state.get("ltft_alpha") if st.session_state.get("ltft_manual") else None,
+            })
+        saida_execucao = create_job(output_dir, configuracao_job)
         try:
-            with st.spinner("Executando consultas, descritores, ranking, incerteza, validação avançada e figuras. Esta etapa pode demorar."):
-                notebook_executado = executar_triagem(
-                    reacao,
-                    metais,
-                    promotor,
-                    saida_execucao,
-                    garantir_metais_nos_100,
-                )
-        except Exception as erro_execucao:
-            st.error("A triagem não foi concluída. Verifique os detalhes técnicos abaixo.")
-            with st.expander("Detalhes técnicos do erro"):
-                st.code("".join(traceback.format_exception(erro_execucao))[-6000:])
-        else:
-            st.session_state["ultima_reacao"] = reacao
-            st.session_state["ultima_saida"] = str(saida_execucao)
-            st.session_state["ultima_configuracao"] = (reacao, tuple(metais), promotor)
-            st.session_state["ultimo_notebook"] = str(notebook_executado)
-            st.success("Triagem concluída.")
+            worker_pid = start_worker(saida_execucao, APP_DIR, os.environ.copy())
+        except Exception as erro_worker:
+            write_json_atomic(saida_execucao / "status.json", {
+                "state": "failed", "stage": "Não foi possível iniciar o processo local",
+                "progress": 100, "error": str(erro_worker),
+            })
+            worker_pid = 0
+        st.session_state["job_dir_atual"] = str(saida_execucao)
+        st.session_state["job_worker_pid"] = worker_pid
+        st.session_state.pop("job_integrado", None)
+        job_dir_sessao = saida_execucao
+
+if job_dir_sessao:
+    mostrar_progresso_job(str(job_dir_sessao))
+
+if reacao == 'fischer_tropsch':
+    from ltft_ui import render as render_ltft
+    render_ltft(
+        metais, promotor, output_dir, False,
+        bool(n_metais and len(metais) == n_metais and not metais_repetidos and modo_promotor is not None and (modo_promotor == 'Sem promotor' or promotor)),
+        locked=read_status(job_dir_sessao).get("state") in ACTIVE_STATES if job_dir_sessao else False,
+    )
+    st.stop()
 
 if not st.session_state.get("ultimo_notebook"):
     st.info("Execute a triagem para visualizar e baixar os resultados desta sessão.")
