@@ -3040,6 +3040,16 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
         "validacao": ("Validação e consistência", "Resume a consistência interna do ranking e os indicadores de validação disponíveis."),
         "regressao": ("Regressão quimiométrica", "Compara a resposta do modelo proxy com a tendência de referência usada na avaliação interna."),
     }
+    colunas = st.columns(2)
+    for indice, (_, row) in enumerate(figuras_df.iterrows()):
+        caminho = Path(str(row[coluna_png]))
+        if caminho.exists():
+            identificador = normalizar_texto(str(row.get("figura", caminho.stem)))
+            titulo, explicacao = next((valor for chave, valor in explicacoes.items() if chave in identificador), (caminho.stem.replace("_", " ").capitalize(), "Figura gerada pela execução para apoiar a interpretação do processo de triagem."))
+            with colunas[indice % 2]:
+                st.markdown("<div class='science-figure-card'>", unsafe_allow_html=True)
+                st.image(str(caminho), width="stretch")
+                st.markdown(f"<h4>{html.escape(titulo)}</h4><p>{html.escape(explicacao)}</p></div>", unsafe_allow_html=True)
 
 
 def finalizar_job_da_sessao(job_dir: Path, status: dict) -> None:
@@ -3085,16 +3095,6 @@ def mostrar_progresso_job(job_dir_texto: str) -> None:
         st.error("A triagem não foi concluída.")
         with st.expander("Detalhes técnicos do erro"):
             st.code(status.get("traceback") or status.get("error") or "Erro não informado")
-    colunas = st.columns(2)
-    for indice, (_, row) in enumerate(figuras_df.iterrows()):
-        caminho = Path(str(row[coluna_png]))
-        if caminho.exists():
-            identificador = normalizar_texto(str(row.get("figura", caminho.stem)))
-            titulo, explicacao = next((valor for chave, valor in explicacoes.items() if chave in identificador), (caminho.stem.replace("_", " ").capitalize(), "Figura gerada pela execução para apoiar a interpretação do processo de triagem."))
-            with colunas[indice % 2]:
-                st.markdown("<div class='science-figure-card'>", unsafe_allow_html=True)
-                st.image(str(caminho), width="stretch")
-                st.markdown(f"<h4>{html.escape(titulo)}</h4><p>{html.escape(explicacao)}</p></div>", unsafe_allow_html=True)
 
 
 def renderizar_cabecalho() -> None:
@@ -4309,7 +4309,8 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "CatAiLab was developed at the Environmental Technology Laboratory (LabTam/UFRN) "
                 "by doctoral researcher Allan da Silva Maia, under the supervision of Professor "
                 "Dulce Maria de Araújo Melo, with co-supervision by Rodolfo Luiz B. A. Medeiros and "
-                "Ângelo Anderson S. de Oliveira, and collaboration from Alexsandro Rocha da Silva. "
+                "Ângelo Anderson S. de Oliveira, and collaboration from Alexsandro Rocha da Silva "
+                "and Professor Renata Martins Braga. "
                 "The scientific software was designed to support catalysis "
                 "laboratories in screening and prioritizing candidate materials, interpreting chemical "
                 "descriptors, selecting supports and promoters, assessing uncertainty and operational "
@@ -4319,7 +4320,7 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             titulo_perfil, titulo_citacao = "Development", "Suggested citation (ABNT)"
             citacao = (
                 "MAIA, Allan da Silva; MELO, Dulce Maria de Araújo; MEDEIROS, Rodolfo Luiz B. A.; "
-                "OLIVEIRA, Ângelo Anderson S. de; SILVA, Alexsandro Rocha da. CatAiLab: virtual "
+                "OLIVEIRA, Ângelo Anderson S. de; SILVA, Alexsandro Rocha da; BRAGA, Renata Martins. CatAiLab: virtual "
                 "screening of catalysts and synthesis conditions. "
                 "Version 1.0. Natal: Federal University of Rio Grande do Norte, 2026. "
                 "Available at: https://triagemufrn.streamlit.app/. "
@@ -4330,7 +4331,8 @@ def renderizar_pagina_institucional(pagina: str) -> None:
                 "O CatAiLab foi desenvolvido no Laboratório de Tecnologia Ambiental (LabTam/UFRN) "
                 "pelo doutorando Allan da Silva Maia, sob orientação da professora Dulce Maria de "
                 "Araújo Melo, com coorientação de Rodolfo Luiz B. A. Medeiros e Ângelo Anderson S. de "
-                "Oliveira e colaboração de Alexsandro Rocha da Silva. O software científico foi "
+                "Oliveira e colaboração de Alexsandro Rocha da Silva e da professora Renata Martins Braga. "
+                "O software científico foi "
                 "concebido para apoiar laboratórios de catálise "
                 "na triagem e priorização de materiais candidatos, na interpretação de descritores "
                 "químicos, na seleção de suportes e promotores, na avaliação da incerteza e da "
@@ -4341,7 +4343,7 @@ def renderizar_pagina_institucional(pagina: str) -> None:
             titulo_perfil, titulo_citacao = "Desenvolvimento", "Forma de citação (ABNT)"
             citacao = (
                 "MAIA, Allan da Silva; MELO, Dulce Maria de Araújo; MEDEIROS, Rodolfo Luiz B. A.; "
-                "OLIVEIRA, Ângelo Anderson S. de; SILVA, Alexsandro Rocha da. CatAiLab: triagem "
+                "OLIVEIRA, Ângelo Anderson S. de; SILVA, Alexsandro Rocha da; BRAGA, Renata Martins. CatAiLab: triagem "
                 "virtual de catalisadores e condições de síntese. "
                 "Versão 1.0. Natal: Universidade Federal do Rio Grande do Norte, 2026. "
                 "Disponível em: https://triagemufrn.streamlit.app/. "
@@ -4350,7 +4352,6 @@ def renderizar_pagina_institucional(pagina: str) -> None:
         col1, col2 = st.columns(2)
         col1.markdown(cartao_texto_html(titulo_perfil, perfil), unsafe_allow_html=True)
         col2.markdown(cartao_texto_html(titulo_citacao, citacao), unsafe_allow_html=True)
-        st.link_button("Curriculum Lattes" if idioma_atual() == "en" else "Currículo Lattes", dados["lattes"])
 
     elif pagina == "contato":
         st.markdown(f"<h2 style='text-align:center;'>{html.escape(t('Contato'))}</h2>", unsafe_allow_html=True)

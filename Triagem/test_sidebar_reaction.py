@@ -1,3 +1,4 @@
+import ast
 import unittest
 from pathlib import Path
 
@@ -105,6 +106,31 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("subprocess.Popen", jobs)
         self.assertIn("O_CREAT | os.O_EXCL", worker)
         self.assertNotIn("Usar resultado existente", source)
+
+    def test_progress_fragment_does_not_reference_figure_locals(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        functions = {node.name: node for node in tree.body if isinstance(node, ast.FunctionDef)}
+        progress_names = {
+            node.id for node in ast.walk(functions["mostrar_progresso_job"])
+            if isinstance(node, ast.Name)
+        }
+        self.assertNotIn("figuras_df", progress_names)
+        self.assertNotIn("coluna_png", progress_names)
+        self.assertNotIn("explicacoes", progress_names)
+        figures_names = {
+            node.id for node in ast.walk(functions["mostrar_figuras"])
+            if isinstance(node, ast.Name)
+        }
+        self.assertIn("figuras_df", figures_names)
+        self.assertIn("coluna_png", figures_names)
+
+    def test_research_collaboration_citation_and_no_lattes_button(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        research = source.split('elif pagina == "pesquisa":', 1)[1].split('elif pagina == "contato":', 1)[0]
+        self.assertIn("Renata Martins Braga", research)
+        self.assertIn("BRAGA, Renata Martins", research)
+        self.assertNotIn("st.link_button", research)
 
 
 if __name__ == "__main__":
