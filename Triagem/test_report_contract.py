@@ -4,13 +4,19 @@ import unittest
 from pathlib import Path
 
 import pandas as pd
-from report_contract import audited_export, output_prefix, support_alternatives
+from report_contract import audited_export, internal_classification, output_prefix, support_alternatives
 
 
 class ReportContractTests(unittest.TestCase):
     def test_names(self):
         self.assertEqual(output_prefix("reforma", ["Ni"], "Fe"), "catailab_reforma-CH4-CO2_Ni_promotor-Fe")
         self.assertIn("La-Ni_sem-promotor", output_prefix("reforma", ["La", "Ni"], ""))
+
+    def test_internal_classification_supports_new_and_legacy_exports(self):
+        self.assertEqual(internal_classification(pd.Series({"classe_indice_interno_nao_calibrado": "media"})), "média")
+        self.assertEqual(internal_classification(pd.Series({"confiabilidade": "alta"})), "alta")
+        self.assertEqual(internal_classification(pd.Series({"classe_indice_interno_nao_calibrado": "baixa", "confiabilidade": "alta"})), "baixa")
+        self.assertEqual(internal_classification(pd.Series({"score de confiança": 0.92})), "não calculada")
 
     def test_no_false_evidence(self):
         source = pd.DataFrame([dict(formula="Ni0.71Fe0.29", score_incerteza=.997,

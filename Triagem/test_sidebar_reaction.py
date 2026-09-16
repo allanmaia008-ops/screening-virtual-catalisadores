@@ -75,6 +75,12 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('(\"±\", texto(\"RMSE CV', source)
         self.assertIn('(\"◎\", texto(\"Dentro do domínio', source)
 
+    def test_candidates_show_internal_classification_without_calibration_claim(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn('"Classificação interna": internal_classification(linha)', source)
+        self.assertIn("Classificação interna não calibrada", source)
+        self.assertIn('"unknown")', source)
+
     def test_scientific_report_is_pdf_only_in_download_panel(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         report_source = Path(__file__).with_name("scientific_pdf_report.py").read_text(encoding="utf-8")

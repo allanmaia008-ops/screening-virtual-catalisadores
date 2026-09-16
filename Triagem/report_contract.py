@@ -16,6 +16,18 @@ def output_prefix(reaction, metals, promoter):
     return "catailab_" + slug(reaction) + "_" + "-".join(map(slug, metals)) + "_" + promoter
 
 
+def internal_classification(row):
+    """Read the exported internal class without treating it as calibrated confidence."""
+    for column in ("classe_indice_interno_nao_calibrado", "confiabilidade"):
+        if column not in row.index or pd.isna(row[column]):
+            continue
+        value = unicodedata.normalize("NFKD", str(row[column]).strip().lower())
+        value = "".join(character for character in value if not unicodedata.combining(character))
+        if value in ("alta", "media", "baixa"):
+            return "média" if value == "media" else value
+    return "não calculada"
+
+
 def audited_export(frame, reaction):
     """Keep internal numerical scores intact; expose their actual evidence limits."""
     result = frame.copy()
