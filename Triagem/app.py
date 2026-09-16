@@ -3084,8 +3084,20 @@ def mostrar_progresso_job(job_dir_texto: str) -> None:
         st.info(f"Triagem na fila local · posição {posicao or 1}. Apenas uma execução pesada é processada por vez.")
         st.progress(0, text=status.get("stage", "Aguardando execução"))
     elif state == "running":
-        st.progress(int(status.get("progress", 0)), text=status.get("stage", "Executando triagem"))
-        st.caption("A configuração permanece bloqueada até a execução terminar.")
+        etapa = str(status.get("stage") or "Executando triagem")
+        progresso = max(0, min(100, int(status.get("progress", 0))))
+        st.markdown(
+            "<style>"
+            ".catialab-loading-row{display:flex;align-items:center;gap:.6rem;margin:.5rem 0 .65rem;font-weight:700;color:#173D2B}"
+            ".catialab-loading-spinner{display:inline-block;width:1.15rem;height:1.15rem;border:3px solid #B9DFC8;"
+            "border-top-color:#16843C;border-radius:50%;animation:catialab-spin .8s linear infinite;flex:none}"
+            "@keyframes catialab-spin{to{transform:rotate(360deg)}}"
+            "</style>"
+            f"<div class='catialab-loading-row' role='status'><span class='catialab-loading-spinner' aria-hidden='true'></span>"
+            f"<span>Em andamento: {html.escape(etapa)}</span></div>",
+            unsafe_allow_html=True,
+        )
+        st.progress(progresso, text=f"Progresso da triagem: {progresso}%")
     elif state == "completed" and st.session_state.get("job_integrado") != str(job_dir):
         finalizar_job_da_sessao(job_dir, status)
         st.session_state["job_integrado"] = str(job_dir)
