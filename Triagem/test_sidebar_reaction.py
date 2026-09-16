@@ -55,6 +55,12 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("contorno verde + ✓", source)
         self.assertIn(":has(.family-lantanideo) button[kind=\"tertiary\"]::before", source)
         self.assertIn("display:none!important", source)
+        self.assertIn("NUMERO_ATOMICO", source)
+        self.assertIn("ELEMENTOS_RADIOATIVOS", source)
+        self.assertIn("ELEMENTOS_SINTETICOS", source)
+        self.assertIn("ELEMENTOS_TOXICIDADE_ELEVADA", source)
+        self.assertIn("element-risk-marker", source)
+        self.assertIn("cobertura:", source)
 
     def test_results_explain_ranking_and_mobile_layout(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")

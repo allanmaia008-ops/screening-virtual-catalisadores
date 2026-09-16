@@ -4403,6 +4403,42 @@ FAMILIAS_TABELA_PERIODICA = {
     "gas-nobre": ({"He", "Ne", "Ar", "Kr", "Xe", "Rn", "Og"}, "#8274C9", "Gases nobres"),
 }
 
+ORDEM_ELEMENTOS = "H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Po At Rn Fr Ra Ac Th Pa U Np Pu Am Cm Bk Cf Es Fm Md No Lr Rf Db Sg Bh Hs Mt Ds Rg Cn Nh Fl Mc Lv Ts Og".split()
+NUMERO_ATOMICO = {simbolo: indice for indice, simbolo in enumerate(ORDEM_ELEMENTOS, start=1)}
+NOMES_ELEMENTOS = {
+    "Li":"Lítio", "Be":"Berílio", "Na":"Sódio", "Mg":"Magnésio", "Al":"Alumínio", "K":"Potássio", "Ca":"Cálcio",
+    "Sc":"Escândio", "Ti":"Titânio", "V":"Vanádio", "Cr":"Cromo", "Mn":"Manganês", "Fe":"Ferro", "Co":"Cobalto", "Ni":"Níquel", "Cu":"Cobre", "Zn":"Zinco", "Ga":"Gálio",
+    "Rb":"Rubídio", "Sr":"Estrôncio", "Y":"Ítrio", "Zr":"Zircônio", "Nb":"Nióbio", "Mo":"Molibdênio", "Tc":"Tecnécio", "Ru":"Rutênio", "Rh":"Ródio", "Pd":"Paládio", "Ag":"Prata", "Cd":"Cádmio", "In":"Índio", "Sn":"Estanho",
+    "Cs":"Césio", "Ba":"Bário", "La":"Lantânio", "Ce":"Cério", "Pr":"Praseodímio", "Nd":"Neodímio", "Pm":"Promécio", "Sm":"Samário", "Eu":"Európio", "Gd":"Gadolínio", "Tb":"Térbio", "Dy":"Disprósio", "Ho":"Hólmio", "Er":"Érbio", "Tm":"Túlio", "Yb":"Itérbio", "Lu":"Lutécio",
+    "Hf":"Háfnio", "Ta":"Tântalo", "W":"Tungstênio", "Re":"Rênio", "Os":"Ósmio", "Ir":"Irídio", "Pt":"Platina", "Au":"Ouro", "Hg":"Mercúrio", "Tl":"Tálio", "Pb":"Chumbo", "Bi":"Bismuto", "Po":"Polônio",
+    "Fr":"Frâncio", "Ra":"Rádio", "Ac":"Actínio", "Th":"Tório", "Pa":"Protactínio", "U":"Urânio", "Np":"Netúnio", "Pu":"Plutônio", "Am":"Amerício", "Cm":"Cúrio", "Bk":"Berquélio", "Cf":"Califórnio", "Es":"Einstênio", "Fm":"Férmio", "Md":"Mendelévio", "No":"Nobélio", "Lr":"Laurêncio",
+    "Rf":"Rutherfórdio", "Db":"Dúbnio", "Sg":"Seabórgio", "Bh":"Bóhrio", "Hs":"Hássio", "Mt":"Meitnério", "Ds":"Darmstádio", "Rg":"Roentgênio", "Cn":"Copernício", "Nh":"Nihônio", "Fl":"Fleróvio", "Mc":"Moscóvio", "Lv":"Livermório",
+}
+ELEMENTOS_RADIOATIVOS = {"Tc", "Pm", "Po", "Fr", "Ra", "Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"}
+ELEMENTOS_SINTETICOS = {"Tc", "Pm", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs", "Mt", "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv"}
+ELEMENTOS_TOXICIDADE_ELEVADA = {"Be", "Cd", "Hg", "Tl", "Pb", "Po"}
+ELEMENTOS_CATALITICOS_DOCUMENTADOS = {"Fe", "Co", "Ni", "Cu", "Zn", "Mo", "Ru", "Rh", "Pd", "Re", "Ir", "Pt", "Au", "W", "Mn", "Cr", "V", "Ti", "Zr", "La", "Ce"}
+
+
+def perfil_elemento(elemento: str) -> tuple[str, str, str]:
+    """Resume cobertura computacional, riscos e papel possível sem prometer desempenho."""
+    alertas = []
+    if elemento in ELEMENTOS_RADIOATIVOS:
+        alertas.append("radioativo")
+    if elemento in ELEMENTOS_SINTETICOS:
+        alertas.append("sintético ou sem abundância natural relevante")
+    if elemento in ELEMENTOS_TOXICIDADE_ELEVADA:
+        alertas.append("toxicidade elevada")
+    risco = ", ".join(alertas) if alertas else "sem alerta especial nesta interface"
+    if elemento in ELEMENTOS_CATALITICOS_DOCUMENTADOS:
+        cobertura = "literatura catalítica + Materials Project/descritores, conforme disponibilidade"
+    elif alertas:
+        cobertura = "cobertura limitada; provável extrapolação ou ausência no domínio do modelo"
+    else:
+        cobertura = "Materials Project/descritores quando disponíveis; evidência catalítica variável"
+    papel = "promotor potencial" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "metal ativo candidato"
+    return papel, cobertura, risco
+
 
 def familia_elemento(elemento: str) -> tuple[str, str, str]:
     """Retorna classe, cor e nome da família química exibida na tabela."""
@@ -4482,6 +4518,12 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stColumn"]:has(.family-lantanideo) button[kind="tertiary"]::before {
             display:none!important;
         }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stColumn"]:has(.element-risk-marker) button::before {
+            content:"⚠"!important;display:block!important;position:absolute;left:1px;top:0;right:auto;width:auto;height:auto;border:0;background:transparent;color:#54202A;font-size:7px;line-height:1;font-weight:950;
+        }
+        div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stColumn"]:has(.element-risk-marker) button {
+            border-style:dashed!important;
+        }
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button:disabled {
             opacity: .48 !important;
             filter: grayscale(.38) !important;
@@ -4553,7 +4595,7 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
     )
     st.markdown(
         f"<div class='periodic-family-legend'>{legenda_familias}</div>"
-        "<div class='periodic-state-note'><b>Estados:</b> contorno verde + ✓ = selecionado · ponto/contorno dourado = promotor potencial · esmaecido = não metal.</div>",
+        "<div class='periodic-state-note'><b>Estados:</b> contorno verde + ✓ = selecionado · ponto/contorno dourado = promotor potencial · ⚠ = radioatividade, síntese artificial ou toxicidade elevada · esmaecido = não metal.</div>",
         unsafe_allow_html=True,
     )
     for linha, elementos in enumerate(TABELA_PERIODICA):
@@ -4565,9 +4607,15 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
             disponivel = elemento in METAIS_ATIVOS_TRIAGEM or elemento in ELEMENTOS_PROMOTORES_TRIAGEM
             tipo_botao = "primary" if selecionado else "tertiary" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "secondary"
             classe_familia, _, familia = familia_elemento(elemento)
-            colunas[coluna].markdown(f"<span class='periodic-family-marker family-{classe_familia}'></span>", unsafe_allow_html=True)
+            _, cobertura, risco = perfil_elemento(elemento)
+            tem_alerta = risco != "sem alerta especial nesta interface"
+            classe_risco = " element-risk-marker" if tem_alerta else ""
+            colunas[coluna].markdown(f"<span class='periodic-family-marker family-{classe_familia}{classe_risco}'></span>", unsafe_allow_html=True)
             funcao = "promotor potencial" if elemento in ELEMENTOS_PROMOTORES_TRIAGEM else "metal disponível" if disponivel else "não metal"
-            if colunas[coluna].button(elemento, key=f"periodica_{linha}_{elemento}", type=tipo_botao, disabled=not disponivel, help=f"{elemento}: {familia}; {funcao}", width="stretch"):
+            nome = NOMES_ELEMENTOS.get(elemento, elemento)
+            numero = NUMERO_ATOMICO.get(elemento, "-")
+            tooltip = f"{elemento} — {nome} · número atômico {numero} · {familia} · {funcao} · cobertura: {cobertura} · atenção: {risco}"
+            if colunas[coluna].button(elemento, key=f"periodica_{linha}_{elemento}", type=tipo_botao, disabled=not disponivel, help=tooltip, width="stretch"):
                 if selecionado:
                     selecionados.remove(elemento)
                 elif len(selecionados) < n_metais:
