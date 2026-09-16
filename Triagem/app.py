@@ -4463,8 +4463,13 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) {
             width: min(620px, calc(100vw - 20px)) !important;
             max-width: min(620px, calc(100vw - 20px)) !important;
-            max-height: none !important;
-            overflow: visible !important;
+            left: 50% !important;
+            top: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            max-height: calc(100dvh - 16px) !important;
+            overflow-x: hidden !important;
+            overflow-y: auto !important;
+            box-sizing: border-box !important;
         }
         div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stVerticalBlock"] {
             gap: 2px !important;
@@ -4573,6 +4578,27 @@ def selecionar_metais_tabela_periodica(n_metais: int) -> list[str]:
             div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
                 animation: none !important;
                 transition: none !important;
+            }
+        }
+        @media (max-width: 700px) {
+            div[data-testid="stPopoverBody"]:has(.periodic-table-marker) {
+                width: calc(100vw - 12px) !important;
+                max-width: calc(100vw - 12px) !important;
+            }
+            div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] {
+                min-width: 0 !important;
+                width: 100% !important;
+                gap: 1px !important;
+            }
+            div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"] {
+                min-width: 0 !important;
+            }
+            div[data-testid="stPopoverBody"]:has(.periodic-table-marker) div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] button {
+                min-width: 0 !important;
+                min-height: 20px !important;
+                height: 20px !important;
+                font-size: .52rem !important;
+                border-radius: 3px !important;
             }
         }
         </style>
