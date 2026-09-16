@@ -27,6 +27,11 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('setattr(DeltaGenerator, "plotly_chart", wrapper_plotly)', source)
         self.assertIn('setattr(DeltaGenerator, "tabs", wrapper_tabs)', source)
 
+    def test_translation_preserves_embedded_base64_images(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        self.assertIn('re.sub(r"data:[^\\s\'\\"<>]+", proteger_recurso, valor)', source)
+        self.assertIn('traduzido.replace(f"__CATAILAB_RESOURCE_{indice}__", recurso)', source)
+
     def test_metal_count_is_direct_and_output_folder_is_hidden(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         self.assertNotIn('with st.popover("Número de metais ativos"', source)

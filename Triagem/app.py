@@ -374,9 +374,20 @@ def _traduzir_interface(valor):
     """Traduz texto visível sem alterar os valores internos usados pelos modelos."""
     if not isinstance(valor, str) or idioma_atual() != "en":
         return valor
-    traduzido = traduzir_texto_exibicao(TRADUCOES_EN.get(valor, valor))
+    # Base64 data URIs may accidentally contain Portuguese dictionary keys as
+    # arbitrary character sequences. Changing even one byte corrupts the image.
+    recursos: list[str] = []
+
+    def proteger_recurso(match: re.Match) -> str:
+        recursos.append(match.group(0))
+        return f"__CATAILAB_RESOURCE_{len(recursos) - 1}__"
+
+    protegido = re.sub(r"data:[^\s'\"<>]+", proteger_recurso, valor)
+    traduzido = traduzir_texto_exibicao(TRADUCOES_EN.get(protegido, protegido))
     for origem, destino in sorted(TRADUCOES_EN.items(), key=lambda item: len(item[0]), reverse=True):
         traduzido = traduzido.replace(origem, destino)
+    for indice, recurso in enumerate(recursos):
+        traduzido = traduzido.replace(f"__CATAILAB_RESOURCE_{indice}__", recurso)
     return traduzido
 
 
