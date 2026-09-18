@@ -165,6 +165,37 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("figuras_df", figures_names)
         self.assertIn("coluna_png", figures_names)
 
+    def test_english_progress_and_generated_panels_are_localized(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        worker = Path(__file__).with_name("triage_worker.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        translations = next(
+            ast.literal_eval(node.value) for node in tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "TRADUCOES_EN" for target in node.targets)
+        )
+        worker_tree = ast.parse(worker)
+        stages = next(
+            ast.literal_eval(node.value) for node in worker_tree.body
+            if isinstance(node, ast.Assign)
+            and any(isinstance(target, ast.Name) and target.id == "STAGES" for target in node.targets)
+        )
+        for stage in stages:
+            self.assertIn(stage, translations)
+        for label in (
+            "Em andamento:", "Progresso da triagem:", "Metais de transição",
+            "Instruções e cálculo para síntese", "Alternativa sugerida pela triagem",
+            "Temperatura recomendada", "janela:",
+        ):
+            self.assertIn(label, translations)
+        self.assertIn('st.progress(progresso, text=_traduzir_interface(', source)
+        self.assertIn('st.progress(0, text=_traduzir_interface(', source)
+        self.assertIn('def _traduzir_tabela_visual(dados):', source)
+        self.assertIn('def _traduzir_figura_visual(dados):', source)
+        self.assertIn('def figura_suplementar_ingles(', source)
+        self.assertIn('figura_inglesa = figura_suplementar_ingles(', source)
+        self.assertIn('st.plotly_chart(figura_inglesa,', source)
+
     def test_research_collaboration_citation_and_no_lattes_button(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
         research = source.split('elif pagina == "pesquisa":', 1)[1].split('elif pagina == "contato":', 1)[0]

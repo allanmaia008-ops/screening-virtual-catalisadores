@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import hashlib
 import html
 import json
@@ -18,6 +19,7 @@ from pathlib import Path
 import nbformat
 import numpy as np
 import pandas as pd
+from pandas.io.formats.style import Styler
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
@@ -362,6 +364,191 @@ TRADUCOES_EN = {
     "defina o teor da fase ativa, do promotor e o suporte na aba Síntese para obter as massas dos reagentes e incluí-las no PDF.": "define the active-phase and promoter loadings and the support in the Synthesis tab to calculate reagent masses and include them in the PDF.",
     "As massas dos sais precursores dependem do sal escolhido, de sua pureza e das perdas durante a preparação.": "Precursor-salt masses depend on the selected salt, its purity, and preparation losses.",
     "defina o teor da active phase, do promoter e o support na aba Synthesis para obter as massas dos reagentes e incluí-las no PDF.": "define the active-phase and promoter loadings and the support in the Synthesis tab to calculate reagent masses and include them in the PDF.",
+    "Em andamento:": "In progress:",
+    "Progresso da triagem:": "Screening progress:",
+    "Triagem na fila local": "Screening queued locally",
+    "posição": "position",
+    "Apenas uma execução pesada é processada por vez.": "Only one resource-intensive run is processed at a time.",
+    "Aguardando execução": "Waiting to run",
+    "Aguardando a execução anterior terminar": "Waiting for the previous run to finish",
+    "Na fila local; aguardando a execução anterior": "Queued locally; waiting for the previous run",
+    "Na fila local; uma triagem está em execução": "Queued locally; another screening is running",
+    "Executando triagem": "Running screening",
+    "Preparando a execução": "Preparing the run",
+    "Preparando dados e configuração": "Preparing data and configuration",
+    "Consultando fontes disponíveis": "Querying available sources",
+    "Calculando descritores": "Calculating descriptors",
+    "Avaliando candidatos": "Evaluating candidates",
+    "Construindo o ranking": "Building the ranking",
+    "Executando análise de incerteza": "Running uncertainty analysis",
+    "Gerando figuras e arquivos": "Generating figures and files",
+    "Gerando relatório científico em PDF": "Generating scientific PDF report",
+    "Triagem concluída": "Screening completed",
+    "A triagem não foi concluída": "Screening did not complete",
+    "Não foi possível iniciar o processo local": "Could not start the local process",
+    "Detalhes técnicos do erro": "Technical error details",
+    "Erro não informado": "Error not reported",
+    "Metais de transição": "Transition metals",
+    "Pós-transição": "Post-transition metals",
+    "Lantanídeos": "Lanthanides",
+    "Actinídeos": "Actinides",
+    "Outros não metais": "Other nonmetals",
+    "Halogênios": "Halogens",
+    "Gases nobres": "Noble gases",
+    "Estados:": "States:",
+    "contorno verde + ✓ = selecionado · ponto/contorno dourado = promotor potencial · ⚠ = radioatividade, síntese artificial ou toxicidade elevada · esmaecido = não metal.": "green outline + ✓ = selected · gold dot/outline = potential promoter · ⚠ = radioactivity, artificial synthesis, or high toxicity · dimmed = nonmetal.",
+    "contorno verde + ✓ = selecionado · ponto/contorno dourado = promoter potencial · ⚠ = radioatividade, synthesis artificial or toxicidade elevada · esmaecido = não metal.": "green outline + ✓ = selected · gold dot/outline = potential promoter · ⚠ = radioactivity, artificial synthesis, or high toxicity · dimmed = nonmetal.",
+    "Seleção atual:": "Current selection:",
+    "Selecione até": "Select up to",
+    "elemento(s). Clique novamente para remover.": "element(s). Click again to remove.",
+    "Alternativa sugerida pela triagem": "Screening-suggested alternative",
+    "Alternativa da biblioteca heurística": "Heuristic-library alternative",
+    "Instruções e cálculo para síntese": "Synthesis instructions and calculation",
+    "Balanço nominal entre fase final, precursores, suporte e solução de preparação.": "Nominal balance of final phase, precursors, support, and preparation solution.",
+    "Volume inicial de solução": "Initial solution volume",
+    "Base do cálculo:": "Calculation basis:",
+    "As massas dos sais incluem hidratação estequiométrica, pureza e recuperação global. O suporte é considerado já disponível na fase final. Caso seja preparado a partir de boehmita, hidróxido, carbonato ou gel, use a calculadora abaixo com a massa molar da fase final ou o fator de resíduo obtido por TGA. A receita é nominal e deve ser confirmada por análise química e balanço após calcinação.": "Salt masses account for stoichiometric hydration, purity, and overall recovery. The support is assumed to be available in its final phase. If prepared from boehmite, hydroxide, carbonate, or gel, use the calculator below with the final-phase molar mass or TGA residue factor. The recipe is nominal and must be confirmed by chemical analysis and a post-calcination mass balance.",
+    "As massas dos sais incluem hidratação estequiométrica, pureza e recuperação global.": "Salt masses account for stoichiometric hydration, purity, and overall recovery.",
+    "O suporte é considerado já disponível na fase final.": "The support is assumed to be available in its final phase.",
+    "Concentração metálica total aproximada:": "Approximate total metal concentration:",
+    "planejamento mínimo:": "minimum plan:",
+    "ciclo(s), cerca de": "cycle(s), about",
+    "por ciclo.": "per cycle.",
+    "A soma da fase ativa e do promotor deve ser menor que 100%.": "The combined active-phase and promoter loadings must be below 100%.",
+    "Parâmetros iniciais:": "Initial parameters:",
+    "secagem a": "drying at",
+    "calcinação a": "calcination at",
+    "Estes valores devem ser confirmados por TGA/DSC e literatura do precursor.": "These values must be checked by TGA/DSC and precursor literature.",
+    "Confiança do modelo": "Model confidence",
+    "Incerteza média (desvio MC)": "Mean uncertainty (MC std. dev.)",
+    "unid. do score": "score units",
+    "Cobertura do domínio": "Domain coverage",
+    "dos candidatos": "of candidates",
+    "Fora do domínio": "Outside the domain",
+    "validação disponível": "validation available",
+    "Distribuição Monte Carlo": "Monte Carlo distribution",
+    "Intervalos de probabilidade (95%)": "Probability intervals (95%)",
+    "Probabilidade de estar no Top 5": "Probability of reaching the Top 5",
+    "Alerta de extrapolação": "Extrapolation warning",
+    "O domínio de aplicabilidade não foi calculado nesta execução.": "The applicability domain was not calculated in this run.",
+    "Priorize candidatos com menor dispersão Monte Carlo e maior probabilidade de Top 5. A confirmação experimental continua necessária.": "Prioritize candidates with lower Monte Carlo dispersion and higher Top 5 probability. Experimental confirmation remains necessary.",
+    "A incerteza quantifica a dispersão das previsões do ensemble e da simulação de Monte Carlo. Ela não substitui a validação experimental.": "Uncertainty quantifies the spread of ensemble and Monte Carlo predictions. It does not replace experimental validation.",
+    "Ranking de candidatos com incerteza (Monte Carlo + ensemble)": "Candidate ranking with uncertainty (Monte Carlo + ensemble)",
+    "Condições operacionais exploradas": "Explored operating conditions",
+    "Pressão recomendada": "Recommended pressure",
+    "Razão H₂/CO₂ recomendada": "Recommended H₂/CO₂ ratio",
+    "conversão": "conversion",
+    "seletividade": "selectivity",
+    "Resistência à deposição de carbono e desativação": "Resistance to carbon deposition and deactivation",
+    "Resistência estimada": "Estimated resistance",
+    "Tendência de formação de coque": "Coke-formation trend",
+    "índice proxy:": "proxy index:",
+    "Taxa de desativação (proxy)": "Deactivation rate (proxy)",
+    "tempo estimado para queda de 10%:": "estimated time to a 10% drop:",
+    "Avalie o desempenho em diferentes condições operacionais": "Assess performance under different operating conditions",
+    "Interpretação da simulação": "Simulation interpretation",
+    "Condição avaliada:": "Evaluated condition:",
+    "Índice de estabilidade operacional:": "Operational stability index:",
+    "Os indicadores de coque e desativação são proxies relativos. Confirme-os por ensaios de tempo em operação.": "Coke and deactivation indicators are relative proxies. Confirm them with time-on-stream tests.",
+    "Explore as relações entre estabilidade, atividade prevista, descritores e viabilidade de síntese.": "Explore the relationships between stability, predicted activity, descriptors, and synthesis feasibility.",
+    "Diagrama de vulcão: atividade vs. energia de adsorção": "Volcano plot: activity vs. adsorption energy",
+    "Avalia o princípio de Sabatier: a atividade tende a ser maior quando a adsorção do intermediário-chave é moderada.": "Illustrates the Sabatier principle: activity tends to be higher when adsorption of the key intermediate is moderate.",
+    "Mostra o compromisso entre uma fase mais estável e o desempenho global previsto pela triagem.": "Shows the trade-off between a more stable phase and predicted overall screening performance.",
+    "Modelo estrutural esquemático do catalisador": "Schematic structural model of the catalyst",
+    "Use a ficha para relacionar a composição recomendada aos descritores que sustentam sua priorização.": "Use this sheet to relate the recommended composition to the descriptors behind its prioritization.",
+    "A imagem é uma representação esquemática das fases catalíticas; não substitui uma estrutura relaxada por DFT ou caracterização experimental.": "The image is a schematic representation of the catalytic phases; it does not replace a DFT-relaxed structure or experimental characterization.",
+    "Paralelo de descritores catalíticos": "Parallel comparison of catalytic descriptors",
+    "Cada linha representa um candidato. O gráfico ajuda a identificar combinações de descritores associadas a maior pontuação.": "Each line represents a candidate. The chart helps identify descriptor combinations associated with higher scores.",
+    "Detalhes do candidato selecionado": "Selected-candidate details",
+    "Resumo dos valores usados para interpretar a recomendação, sem substituir validação experimental.": "Summary of the values used to interpret the recommendation; it does not replace experimental validation.",
+    "Score vulcão": "Volcano score",
+    "Condição inicial": "Initial condition",
+    "Cinética simplificada (proxy) vs. score final": "Simplified kinetics (proxy) vs. final score",
+    "Confronta a taxa relativa estimada pelo modelo simplificado com a pontuação multicritério do candidato.": "Compares the relative rate estimated by the simplified model with the candidate's multicriteria score.",
+    "Este gráfico auxilia a verificar se o ganho de atividade proxy acompanha o score final. Ele não calcula mecanismos elementares, coberturas ou barreiras de ativação completas.": "This chart helps check whether the proxy activity gain tracks the final score. It does not calculate full elementary mechanisms, coverages, or activation barriers.",
+    "destacar candidatos com resposta cinética proxy coerente com estabilidade, seletividade e consistência operacional.": "highlight candidates whose proxy kinetic response is consistent with stability, selectivity, and operational consistency.",
+    "Figuras complementares geradas pela execução": "Additional figures generated by the run",
+    "Estas figuras recuperam as análises de ranking, incerteza, operação e quimiometria salvas com a triagem.": "These figures retrieve the ranking, uncertainty, operating, and chemometric analyses saved with the screening.",
+    "Figura gerada pela execução para apoiar a interpretação do processo de triagem.": "Figure generated by the run to support interpretation of the screening process.",
+    "Relaciona a estabilidade prevista à pontuação global para revelar compromissos do ranking.": "Relates predicted stability to the overall score to reveal ranking trade-offs.",
+    "Estabilidade do ranking por Monte Carlo": "Monte Carlo ranking stability",
+    "Mostra como perturbações nos descritores afetam a permanência dos candidatos no ranking.": "Shows how descriptor perturbations affect candidate retention in the ranking.",
+    "Sensibilidade dos descritores": "Descriptor sensitivity",
+    "Indica quais descritores mais influenciam a pontuação calculada.": "Indicates which descriptors most influence the calculated score.",
+    "Ranking por pontuação final": "Ranking by final score",
+    "Compara os candidatos segundo o score multicritério usado para priorizar a validação experimental.": "Compares candidates by the multicriteria score used to prioritize experimental validation.",
+    "Diagrama de vulcão": "Volcano plot",
+    "Avalia a proximidade ao regime de adsorção moderada associado ao princípio de Sabatier.": "Assesses proximity to the moderate-adsorption regime associated with the Sabatier principle.",
+    "Desempenho em faixa de condições": "Performance across operating conditions",
+    "Examina a variação de desempenho previsto ao redor das condições operacionais de interesse.": "Examines predicted performance around the operating conditions of interest.",
+    "Determinar experimentalmente o volume de poros do suporte seco.": "Determine the pore volume of the dry support experimentally.",
+    "Dissolver os precursores no volume calculado, verificando solubilidade e compatibilidade.": "Dissolve the precursors in the calculated volume, checking solubility and compatibility.",
+    "Adicionar a solução gradualmente ao suporte sob mistura uniforme, sem formar líquido livre.": "Add the solution gradually to the support while mixing uniformly, without forming free liquid.",
+    "Envelhecer o sólido úmido, secar com rampa moderada e evitar migração macroscópica dos sais.": "Age the wet solid, dry with a moderate ramp, and avoid macroscopic salt migration.",
+    "Calcinar com atmosfera e rampa compatíveis com a decomposição dos precursores.": "Calcine under an atmosphere and ramp compatible with precursor decomposition.",
+    "Ativar ou reduzir somente após confirmar a fase formada por DRX, TGA/DSC ou técnica equivalente.": "Activate or reduce only after confirming the formed phase by XRD, TGA/DSC, or an equivalent technique.",
+    "Dissolver os precursores em excesso controlado de solvente.": "Dissolve the precursors in a controlled excess of solvent.",
+    "Adicionar o suporte e manter agitação e temperatura compatíveis com a estabilidade da solução.": "Add the support and maintain stirring and temperature compatible with solution stability.",
+    "Remover o solvente lentamente para limitar redistribuição e cristalização externa do precursor.": "Remove the solvent slowly to limit redistribution and external precursor crystallization.",
+    "Secar até massa constante, calcinar e ativar conforme a química dos precursores.": "Dry to constant mass, calcine, and activate according to precursor chemistry.",
+    "Confirmar teor metálico e homogeneidade por ICP-OES, XRF ou método analítico apropriado.": "Confirm metal loading and homogeneity by ICP-OES, XRF, or an appropriate analytical method.",
+    "Preparar soluções dos sais nas razões molares calculadas.": "Prepare salt solutions at the calculated molar ratios.",
+    "Adicionar o precipitante com controle contínuo de pH, temperatura e taxa de adição.": "Add the precipitating agent while continuously controlling pH, temperature, and addition rate.",
+    "Envelhecer o precipitado pelo tempo definido para estabilizar composição e textura.": "Age the precipitate for the specified time to stabilize composition and texture.",
+    "Filtrar e lavar até remover nitratos, cloretos e álcalis residuais.": "Filter and wash until residual nitrates, chlorides, and alkalis are removed.",
+    "Secar com controle de retração, calcinar e reduzir conforme a fase ativa desejada.": "Dry while controlling shrinkage, then calcine and reduce according to the desired active phase.",
+    "Preparar a solução dos precursores e definir água, solvente, complexante e catalisador ácido ou básico.": "Prepare the precursor solution and define the water, solvent, complexing agent, and acid or base catalyst.",
+    "Controlar hidrólise, condensação, pH e sequência de adição para evitar segregação.": "Control hydrolysis, condensation, pH, and addition order to avoid segregation.",
+    "Envelhecer o gel e realizar troca de solvente quando necessária.": "Age the gel and exchange the solvent if needed.",
+    "Secar lentamente para reduzir tensão capilar, retração e formação de trincas.": "Dry slowly to reduce capillary stress, shrinkage, and cracking.",
+    "Calcinar com rampa compatível com a remoção dos orgânicos e estabilização da porosidade.": "Calcine with a ramp compatible with organic removal and porosity stabilization.",
+    "Nitrato de alumínio nonahidratado": "Aluminum nitrate nonahydrate",
+    "Nitrato de cério(III) hexahidratado": "Cerium(III) nitrate hexahydrate",
+    "Nitrato de cobalto(II) hexahidratado": "Cobalt(II) nitrate hexahydrate",
+    "Nitrato de cobre(II) trihidratado": "Copper(II) nitrate trihydrate",
+    "Nitrato de ferro(III) nonahidratado": "Iron(III) nitrate nonahydrate",
+    "Nitrato de lantânio(III) hexahidratado": "Lanthanum(III) nitrate hexahydrate",
+    "Nitrato de magnésio hexahidratado": "Magnesium nitrate hexahydrate",
+    "Heptamolibdato de amônio tetrahidratado": "Ammonium heptamolybdate tetrahydrate",
+    "Nitrato de níquel(II) hexahidratado": "Nickel(II) nitrate hexahydrate",
+    "Nitrato de ítrio(III) hexahidratado": "Yttrium(III) nitrate hexahydrate",
+    "Nitrato de zinco hexahidratado": "Zinc nitrate hexahydrate",
+    "fornecido na forma final": "supplied in its final form",
+    "Triagem computacional multiobjetivo combinando estabilidade, desempenho e síntese.": "Multi-objective computational screening combining stability, performance, and synthesis.",
+    "Temperatura recomendada": "Recommended temperature",
+    "janela:": "range:",
+    "funil triagem": "screening funnel",
+    "Energia de adsorção": "Adsorption energy",
+    "Atividade relativa": "Relative activity",
+    "Estabilidade termodinâmica": "Thermodynamic stability",
+    "Estabilidade:": "Stability:",
+    "Suporte:": "Support:",
+    "Rota:": "Route:",
+    "Taxa relativa (proxy)": "Relative rate (proxy)",
+    "Taxa relativa estimada (proxy)": "Estimated relative rate (proxy)",
+    "Score nominal": "Nominal score",
+    "Média MC": "MC mean",
+    "Tendência linear": "Linear trend",
+    "Limiar principal: 0,10 eV/átomo": "Main threshold: 0.10 eV/atom",
+    "Limiar exploratório: 0,15 eV/átomo": "Exploratory threshold: 0.15 eV/atom",
+    "Estabilidade termodinâmica (eV/átomo; menor é melhor)": "Thermodynamic stability (eV/atom; lower is better)",
+    "Estabilidade (eV/átomo)": "Stability (eV/atom)",
+    "Temperatura (°C)": "Temperature (°C)",
+    "Pressão (bar)": "Pressure (bar)",
+    "Rendimento (%)": "Yield (%)",
+    "Índice": "Index",
+    "Condição simulada": "Simulated condition",
+    "Superfície de resposta: rendimento previsto": "Response surface: predicted yield",
+    "Mapa de estabilidade operacional": "Operational stability map",
+    "score_estabilidade": "Stability score",
+    "score_atividade": "Activity score",
+    "score_seletividade": "Selectivity score",
+    "score_DFT_refinado": "Refined DFT/proxy score",
+    "score_incerteza": "Uncertainty score",
+    "baixa_temperatura": "Low temperature",
+    "equilibrado": "Balanced",
+    "alta_conversao": "High conversion",
+    "alta_pressao": "High pressure",
 }
 
 
@@ -489,6 +676,69 @@ def _traduzir_interface(valor):
     return traduzido
 
 
+def _traduzir_tabela_visual(dados):
+    """Traduz somente a cópia exibida, inclusive tabelas pandas estilizadas."""
+    if idioma_atual() != "en":
+        return dados
+    estilo = isinstance(dados, Styler)
+    if not estilo and not isinstance(dados, pd.DataFrame):
+        return dados
+    tabela = (dados.data if estilo else dados).copy()
+    tabela.columns = [_traduzir_interface(str(coluna)) for coluna in tabela.columns]
+    for coluna in tabela.columns:
+        serie = tabela[coluna]
+        if pd.api.types.is_object_dtype(serie.dtype) or pd.api.types.is_string_dtype(serie.dtype):
+            tabela[coluna] = serie.map(_traduzir_interface)
+    if estilo:
+        copia = copy.deepcopy(dados)
+        copia.data = tabela
+        return copia
+    return tabela
+
+
+def _traduzir_figura_visual(dados):
+    """Localiza rótulos e tooltips sem alterar a figura ou os dados originais."""
+    if idioma_atual() != "en" or not isinstance(dados, go.Figure):
+        return dados
+    figura = go.Figure(dados)
+    if figura.layout.title.text:
+        figura.layout.title.text = _traduzir_interface(figura.layout.title.text)
+    for eixo in list(figura.select_xaxes()) + list(figura.select_yaxes()):
+        if eixo.title.text:
+            eixo.title.text = _traduzir_interface(eixo.title.text)
+    for anotacao in figura.layout.annotations:
+        if anotacao.text:
+            anotacao.text = _traduzir_interface(anotacao.text)
+    if figura.layout.coloraxis.colorbar.title.text:
+        figura.layout.coloraxis.colorbar.title.text = _traduzir_interface(figura.layout.coloraxis.colorbar.title.text)
+    for serie in figura.data:
+        for atributo in ("name", "hovertemplate"):
+            valor = getattr(serie, atributo, None)
+            if isinstance(valor, str):
+                setattr(serie, atributo, _traduzir_interface(valor))
+        for atributo in ("text", "hovertext"):
+            valor = getattr(serie, atributo, None)
+            if isinstance(valor, str):
+                setattr(serie, atributo, _traduzir_interface(valor))
+            elif isinstance(valor, (list, tuple, np.ndarray)):
+                setattr(serie, atributo, [_traduzir_interface(item) if isinstance(item, str) else item for item in valor])
+        customdata = getattr(serie, "customdata", None)
+        if isinstance(customdata, np.ndarray) and customdata.dtype.kind in {"O", "U", "S"}:
+            traduzidos = customdata.astype(object)
+            for indice in np.ndindex(traduzidos.shape):
+                item = traduzidos[indice]
+                if isinstance(item, str):
+                    traduzidos[indice] = _traduzir_interface(item)
+            serie.customdata = traduzidos
+        for dimensao in getattr(serie, "dimensions", ()) or ():
+            if getattr(dimensao, "label", None):
+                dimensao.label = _traduzir_interface(dimensao.label)
+        for escala in (getattr(serie, "colorbar", None), getattr(getattr(serie, "marker", None), "colorbar", None), getattr(getattr(serie, "line", None), "colorbar", None)):
+            if escala is not None and escala.title.text:
+                escala.title.text = _traduzir_interface(escala.title.text)
+    return figura
+
+
 def ativar_traducao_streamlit() -> None:
     """Centraliza a tradução dos componentes Streamlit, inclusive sidebar e colunas."""
     metodos_texto = {
@@ -551,63 +801,28 @@ def ativar_traducao_streamlit() -> None:
     original_dataframe = getattr(DeltaGenerator, "dataframe", None)
     if original_dataframe is not None and not getattr(original_dataframe, "_catialab_i18n", False):
         def wrapper_dataframe(self, data=None, *args, __original=original_dataframe, **kwargs):
-            if idioma_atual() == "en" and isinstance(data, pd.DataFrame):
-                data = data.copy()
-                data.columns = [_traduzir_interface(str(coluna)) for coluna in data.columns]
-                for coluna in data.select_dtypes(include="object").columns:
-                    data[coluna] = data[coluna].map(_traduzir_interface)
-            return __original(self, data, *args, **kwargs)
+            return __original(self, _traduzir_tabela_visual(data), *args, **kwargs)
 
         wrapper_dataframe._catialab_i18n = True
         setattr(DeltaGenerator, "dataframe", wrapper_dataframe)
         original_publico = getattr(st, "dataframe", None)
         if original_publico is not None and not getattr(original_publico, "_catialab_i18n", False):
             def wrapper_dataframe_publico(data=None, *args, __original=original_publico, **kwargs):
-                if idioma_atual() == "en" and isinstance(data, pd.DataFrame):
-                    data = data.copy()
-                    data.columns = [_traduzir_interface(str(coluna)) for coluna in data.columns]
-                    for coluna in data.select_dtypes(include="object").columns:
-                        data[coluna] = data[coluna].map(_traduzir_interface)
-                return __original(data, *args, **kwargs)
+                return __original(_traduzir_tabela_visual(data), *args, **kwargs)
             wrapper_dataframe_publico._catialab_i18n = True
             setattr(st, "dataframe", wrapper_dataframe_publico)
 
     original_plotly = getattr(DeltaGenerator, "plotly_chart", None)
     if original_plotly is not None and not getattr(original_plotly, "_catialab_i18n", False):
         def wrapper_plotly(self, figure_or_data, *args, __original=original_plotly, **kwargs):
-            if idioma_atual() == "en" and isinstance(figure_or_data, go.Figure):
-                figura = go.Figure(figure_or_data)
-                titulo = figura.layout.title.text
-                if titulo:
-                    figura.update_layout(title_text=_traduzir_interface(titulo))
-                for eixo in ("xaxis", "yaxis"):
-                    objeto = getattr(figura.layout, eixo, None)
-                    if objeto and objeto.title and objeto.title.text:
-                        figura.update_layout(**{eixo: {"title": _traduzir_interface(objeto.title.text)}})
-                for trace in figura.data:
-                    if trace.name:
-                        trace.name = _traduzir_interface(trace.name)
-                figure_or_data = figura
-            return __original(self, figure_or_data, *args, **kwargs)
+            return __original(self, _traduzir_figura_visual(figure_or_data), *args, **kwargs)
 
         wrapper_plotly._catialab_i18n = True
         setattr(DeltaGenerator, "plotly_chart", wrapper_plotly)
         original_publico = getattr(st, "plotly_chart", None)
         if original_publico is not None and not getattr(original_publico, "_catialab_i18n", False):
             def wrapper_plotly_publico(figure_or_data, *args, __original=original_publico, **kwargs):
-                if idioma_atual() == "en" and isinstance(figure_or_data, go.Figure):
-                    figura = go.Figure(figure_or_data)
-                    if figura.layout.title.text:
-                        figura.update_layout(title_text=_traduzir_interface(figura.layout.title.text))
-                    for eixo in ("xaxis", "yaxis"):
-                        objeto = getattr(figura.layout, eixo, None)
-                        if objeto and objeto.title and objeto.title.text:
-                            figura.update_layout(**{eixo: {"title": _traduzir_interface(objeto.title.text)}})
-                    for trace in figura.data:
-                        if trace.name:
-                            trace.name = _traduzir_interface(trace.name)
-                    figure_or_data = figura
-                return __original(figure_or_data, *args, **kwargs)
+                return __original(_traduzir_figura_visual(figure_or_data), *args, **kwargs)
             wrapper_plotly_publico._catialab_i18n = True
             setattr(st, "plotly_chart", wrapper_plotly_publico)
 
@@ -3384,6 +3599,71 @@ def mostrar_visualizacao_cientifica_plotly(
     mostrar_figuras(figuras_df)
 
 
+def figura_suplementar_ingles(identificador: str, output_dir: Path, reacao: str) -> go.Figure | None:
+    """Reconstrói a leitura visual dos PNGs em inglês usando os CSVs da mesma execução."""
+    prefixo = f"disciplina_fluxo_{reacao}_"
+
+    def dados(nome: str) -> pd.DataFrame:
+        caminho = output_dir / f"{prefixo}{nome}.csv"
+        return ler_csv(caminho) if caminho.exists() else pd.DataFrame()
+
+    def numeros(tabela: pd.DataFrame, coluna: str) -> pd.Series:
+        return pd.to_numeric(tabela[coluna], errors="coerce")
+
+    figura = None
+    if "funil" in identificador:
+        metricas, ranking, prioritarios = dados("metricas_triagem"), dados("melhor_condicao_por_candidato"), dados("prioritarios_sintese")
+        if {"métrica", "valor"}.issubset(metricas.columns):
+            mapa = dict(zip(metricas["métrica"].astype(str), pd.to_numeric(metricas["valor"], errors="coerce")))
+            valores = [mapa.get("número de candidatos gerados"), mapa.get("número de candidatos viáveis"), len(ranking), len(prioritarios)]
+            if all(pd.notna(valor) for valor in valores):
+                figura = go.Figure(go.Bar(x=["Generated", "Viable", "Refined", "Prioritized"], y=valores, text=[int(valor) for valor in valores], textposition="outside", marker_color=["#455A64", "#1976D2", "#7B1FA2", "#2E7D32"]))
+                figura.update_layout(title="Virtual-screening funnel", yaxis_title="Number of candidates")
+    elif "ranking" in identificador and "monte_carlo" not in identificador:
+        tabela = dados("melhor_condicao_por_candidato")
+        if {"fórmula", "score final"}.issubset(tabela.columns):
+            tabela = tabela.assign(_score=numeros(tabela, "score final")).nlargest(10, "_score").sort_values("_score")
+            figura = px.bar(tabela, x="_score", y="fórmula", orientation="h", labels={"_score": "Final score", "fórmula": "Candidate"}, title="Top candidates by final score")
+    elif "estabilidade" in identificador:
+        tabela = dados("melhor_condicao_por_candidato")
+        x, y = "Estabilidade termodinâmica (eV/átomo)", "score final"
+        if {"fórmula", x, y}.issubset(tabela.columns):
+            tabela = tabela.assign(_x=numeros(tabela, x), _y=numeros(tabela, y)).dropna(subset=["_x", "_y"])
+            figura = px.scatter(tabela, x="_x", y="_y", hover_name="fórmula", labels={"_x": "Thermodynamic stability (eV/atom)", "_y": "Final score"}, title="Thermodynamic stability vs final score")
+    elif "volcano" in identificador:
+        tabela = dados("melhor_condicao_por_candidato")
+        x, y = "energia de adsorção volcano (eV)", "score volcano"
+        if {"fórmula", x, y}.issubset(tabela.columns):
+            tabela = tabela.assign(_x=numeros(tabela, x), _y=numeros(tabela, y)).dropna(subset=["_x", "_y"])
+            figura = px.scatter(tabela, x="_x", y="_y", hover_name="fórmula", labels={"_x": "Adsorption energy (eV)", "_y": "Volcano score"}, title="Volcano descriptor vs score")
+    elif "monte_carlo" in identificador:
+        tabela = dados("monte_carlo_ranking")
+        probabilidade = "probabilidade Monte Carlo de ficar no top 5"
+        if {"fórmula", probabilidade}.issubset(tabela.columns):
+            tabela = tabela.assign(_prob=numeros(tabela, probabilidade)).nlargest(10, "_prob").sort_values("_prob")
+            figura = px.bar(tabela, x="_prob", y="fórmula", orientation="h", labels={"_prob": "Top-5 probability", "fórmula": "Candidate"}, title="Monte Carlo ranking stability")
+    elif "desempenho_faixa" in identificador:
+        tabela = dados("desempenho_faixa_condicoes")
+        rendimento = "rendimento médio na faixa (%)"
+        if {"regime operacional", rendimento}.issubset(tabela.columns):
+            tabela = tabela.assign(_rendimento=numeros(tabela, rendimento)).dropna(subset=["_rendimento"])
+            if not tabela.empty:
+                resumo = tabela.groupby("regime operacional", as_index=False)["_rendimento"].mean()
+                resumo["regime operacional"] = resumo["regime operacional"].map(_traduzir_interface)
+                figura = px.bar(resumo, x="regime operacional", y="_rendimento", labels={"regime operacional": "Operating regime", "_rendimento": "Mean yield (%)"}, title="Performance across operating conditions")
+    elif "sensibilidade" in identificador:
+        tabela = dados("sensibilidade_descritores")
+        if {"descritor", "sensibilidade do score"}.issubset(tabela.columns):
+            tabela = tabela.assign(_sensibilidade=numeros(tabela, "sensibilidade do score")).dropna(subset=["_sensibilidade"])
+            if not tabela.empty:
+                resumo = tabela.groupby("descritor", as_index=False)["_sensibilidade"].mean().nlargest(12, "_sensibilidade").sort_values("_sensibilidade")
+                resumo["descritor"] = resumo["descritor"].map(_traduzir_interface)
+                figura = px.bar(resumo, x="_sensibilidade", y="descritor", orientation="h", labels={"_sensibilidade": "Mean score sensitivity", "descritor": "Descriptor"}, title="Descriptor sensitivity")
+    if figura is not None:
+        figura.update_layout(height=350, margin={"l": 20, "r": 20, "t": 55, "b": 35}, template="simple_white")
+    return figura
+
+
 def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
     """Renderiza as figuras geradas com uma explicação para sua leitura científica."""
     if figuras_df.empty:
@@ -3413,6 +3693,8 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
         "regressao": ("Regressão quimiométrica", "Compara a resposta do modelo proxy com a tendência de referência usada na avaliação interna."),
     }
     colunas = st.columns(2)
+    saida_atual = Path(st.session_state.get("ultima_saida") or DEFAULT_OUTPUT_DIR)
+    reacao_atual = st.session_state.get("ultima_reacao") or ""
     for indice, (_, row) in enumerate(figuras_df.iterrows()):
         caminho = Path(str(row[coluna_png]))
         if caminho.exists():
@@ -3420,7 +3702,14 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
             titulo, explicacao = next((valor for chave, valor in explicacoes.items() if chave in identificador), (caminho.stem.replace("_", " ").capitalize(), "Figura gerada pela execução para apoiar a interpretação do processo de triagem."))
             with colunas[indice % 2]:
                 st.markdown("<div class='science-figure-card'>", unsafe_allow_html=True)
-                st.image(str(caminho), width="stretch")
+                if idioma_atual() == "en":
+                    figura_inglesa = figura_suplementar_ingles(identificador, saida_atual, reacao_atual)
+                    if figura_inglesa is not None:
+                        st.plotly_chart(figura_inglesa, width="stretch", key=f"figura_en_{indice}")
+                    else:
+                        st.info("An English data view is unavailable for this saved figure.")
+                else:
+                    st.image(str(caminho), width="stretch")
                 st.markdown(f"<h4>{html.escape(titulo)}</h4><p>{html.escape(explicacao)}</p></div>", unsafe_allow_html=True)
 
 
@@ -3445,7 +3734,7 @@ def mostrar_progresso_job(job_dir_texto: str) -> None:
     if state == "queued":
         posicao = queue_position(job_dir, DEFAULT_OUTPUT_DIR)
         st.info(f"Triagem na fila local · posição {posicao or 1}. Apenas uma execução pesada é processada por vez.")
-        st.progress(0, text=status.get("stage", "Aguardando execução"))
+        st.progress(0, text=_traduzir_interface(status.get("stage", "Aguardando execução")))
     elif state == "running":
         etapa = str(status.get("stage") or "Executando triagem")
         progresso = max(0, min(100, int(status.get("progress", 0))))
@@ -3460,7 +3749,7 @@ def mostrar_progresso_job(job_dir_texto: str) -> None:
             f"<span>Em andamento: {html.escape(etapa)}</span></div>",
             unsafe_allow_html=True,
         )
-        st.progress(progresso, text=f"Progresso da triagem: {progresso}%")
+        st.progress(progresso, text=_traduzir_interface(f"Progresso da triagem: {progresso}%"))
     elif state == "completed" and st.session_state.get("job_integrado") != str(job_dir):
         finalizar_job_da_sessao(job_dir, status)
         st.session_state["job_integrado"] = str(job_dir)
