@@ -209,6 +209,7 @@ TRADUCOES_EN = {
     "Fase ativa (% m/m)": "Active phase (wt.%)",
     "Promotor (% m/m)": "Promoter (wt.%)",
     "Procedimento de síntese": "Synthesis procedure",
+    "Calcular quantidades": "Calculate quantities",
     "Base das cargas informadas": "Basis of the specified loadings",
     "Metal após ativação/redução": "Metal after activation/reduction",
     "Óxido após calcinação": "Oxide after calcination",
@@ -395,6 +396,9 @@ TRADUCOES_EN = {
     "Outros não metais": "Other nonmetals",
     "Halogênios": "Halogens",
     "Gases nobres": "Noble gases",
+    "Metais alcalinos": "Alkali metals",
+    "Alcalino-terrosos": "Alkaline-earth metals",
+    "Semimetais": "Metalloids",
     "Estados:": "States:",
     "contorno verde + ✓ = selecionado · ponto/contorno dourado = promotor potencial · ⚠ = radioatividade, síntese artificial ou toxicidade elevada · esmaecido = não metal.": "green outline + ✓ = selected · gold dot/outline = potential promoter · ⚠ = radioactivity, artificial synthesis, or high toxicity · dimmed = nonmetal.",
     "contorno verde + ✓ = selecionado · ponto/contorno dourado = promoter potencial · ⚠ = radioatividade, synthesis artificial or toxicidade elevada · esmaecido = não metal.": "green outline + ✓ = selected · gold dot/outline = potential promoter · ⚠ = radioactivity, artificial synthesis, or high toxicity · dimmed = nonmetal.",
@@ -549,6 +553,83 @@ TRADUCOES_EN = {
     "equilibrado": "Balanced",
     "alta_conversao": "High conversion",
     "alta_pressao": "High pressure",
+    "Concluída": "Completed",
+    "Índice interno de evidência:": "Internal evidence index:",
+    "Procedimento de síntese": "Synthesis procedure",
+    "Impregnação por umidade incipiente": "Incipient-wetness impregnation",
+    "Impregnação úmida": "Wet impregnation",
+    "Coprecipitação": "Coprecipitation",
+    "Metal após ativação/redução": "Metal after activation/reduction",
+    "Óxido após calcinação": "Oxide after calcination",
+    "Base das cargas informadas": "Basis of the reported loadings",
+    "Define se a porcentagem da fase ativa/promotor representa metal elementar ou a massa do óxido de referência.": "Defines whether the active-phase/promoter percentage represents elemental metal or the reference-oxide mass.",
+    "Massa final desejada (g)": "Desired final mass (g)",
+    "Fase ativa (% m/m)": "Active phase (wt.%)",
+    "Promotor (% m/m)": "Promoter (wt.%)",
+    "Pureza dos precursores (%)": "Precursor purity (%)",
+    "Recuperação global estimada (%)": "Estimated overall recovery (%)",
+    "Volume de poros (cm³/g)": "Pore volume (cm³/g)",
+    "Preenchimento dos poros (%)": "Pore filling (%)",
+    "Temperatura de secagem (°C)": "Drying temperature (°C)",
+    "Temperatura de calcinação (°C)": "Calcination temperature (°C)",
+    "Perda prevista do suporte (%)": "Expected support loss (%)",
+    "Concentração máxima por ciclo (mol/L)": "Maximum concentration per cycle (mol/L)",
+    "Calculadora estequiométrica livre": "General stoichiometric calculator",
+    "Fase final (% m/m)": "Final phase (wt.%)",
+    "Massa molar do precursor (g/mol)": "Precursor molar mass (g/mol)",
+    "Massa molar da fase final (g/mol)": "Final-phase molar mass (g/mol)",
+    "mol precursor/mol fase final": "mol precursor/mol final phase",
+    "Pureza do reagente (%)": "Reagent purity (%)",
+    "Recuperação esperada (%)": "Expected recovery (%)",
+    "Nome do reagente/precursor": "Reagent/precursor name",
+    "Adicionar fase": "Add phase",
+    "Limpar fases": "Clear phases",
+    "R² (validação)": "R² (validation)",
+    "Nota importante": "Important note",
+    "Incerteza versus score predito": "Uncertainty vs predicted score",
+    "Densidade": "Density",
+    "Score médio": "Mean score",
+    "Desvio MC": "MC standard deviation",
+    "Probabilidade": "Probability",
+    "Catalisador": "Catalyst",
+    "Estabilidade catalítica e operação": "Catalytic stability and operation",
+    "Maior prob. MC Top 5": "Highest MC Top-5 probability",
+    "Incerteza média MC": "Mean MC uncertainty",
+    "Confiança predominante": "Predominant confidence",
+    "Melhor regime Top 10": "Best Top-10 regime",
+    "Estabilidade do ranking (Monte Carlo)": "Ranking stability (Monte Carlo)",
+    "Métricas de estabilidade catalítica e operação": "Catalytic-stability and operation metrics",
+    "Desempenho por faixa de condição": "Performance by operating-condition range",
+    "Simulador operacional proxy: compara tendências previstas a partir dos descritores e do ranking. Não substitui ensaios cinéticos, balanço de massa ou validação experimental.": "Proxy operating simulator: compares trends predicted from descriptors and ranking. It does not replace kinetic tests, mass balances, or experimental validation.",
+    "Atividade relativa versus temperatura": "Relative activity vs temperature",
+    "Conversão de CO₂ prevista": "Predicted CO₂ conversion",
+    "Conversão de CO₂ (%)": "CO₂ conversion (%)",
+    "Principais janelas operacionais": "Main operating windows",
+    "Janela": "Operating window",
+    "Ótima": "Optimal",
+    "Boa": "Good",
+    "Como interpretar": "How to interpret",
+    "Objetivo:": "Objective:",
+    "Gráficos complementares gerados pela execução": "Additional charts generated by the run",
+    "Figures complementares gerados pela execução": "Additional charts generated by the run",
+    "Diversidade quimiométrica": "Chemometric diversity",
+    "Grupos quimiométricos": "Chemometric groups",
+    "Planejamento experimental": "Experimental design",
+    "Correlação entre descritores": "Descriptor correlation",
+    "Diagnóstico de outliers": "Outlier diagnostics",
+    "Domínio de aplicabilidade": "Applicability domain",
+    "Pareto e desejabilidade": "Pareto frontier and desirability",
+    "Validação e consistência": "Validation and consistency",
+    "Regressão quimiométrica": "Chemometric regression",
+    "01 funil triagem": "01 screening funnel",
+    "Nome e fórmula do precursor": "Precursor name and formula",
+    "Massa molar (g/mol)": "Molar mass (g/mol)",
+    "Átomos do metal por fórmula": "Metal atoms per formula unit",
+    "Átomos do promotor por fórmula": "Promoter atoms per formula unit",
+    "Número de reagentes ou componentes": "Number of reagents or components",
+    "Massa final do lote (g)": "Final batch mass (g)",
+    "Recuperação prevista do componente (%)": "Expected component recovery (%)",
+    "Atualizar PDF com esta receita de 100 g": "Update PDF with this 100 g recipe",
 }
 
 
@@ -671,6 +752,19 @@ def _traduzir_interface(valor):
     traduzido = traduzir_texto_exibicao(traduzido)
     for origem, destino in sorted(TRADUCOES_EN.items(), key=lambda item: len(item[0]), reverse=True):
         traduzido = traduzido.replace(origem, destino)
+    tokens = {
+        "alta": "high", "média": "medium", "media": "medium", "baixa": "low",
+        "moderada": "moderate", "moderado": "moderate", "baixo": "low", "alto": "high",
+        "candidatos": "candidates",
+    }
+    for origem, destino in tokens.items():
+        padrao = rf"(?<![\w]){re.escape(origem)}(?![\w])"
+        traduzido = re.sub(
+            padrao,
+            lambda match, palavra=destino: palavra.capitalize() if match.group(0)[:1].isupper() else palavra,
+            traduzido,
+            flags=re.IGNORECASE,
+        )
     for indice, recurso in enumerate(recursos):
         traduzido = traduzido.replace(f"__CATAILAB_RESOURCE_{indice}__", recurso)
     return traduzido
@@ -743,7 +837,7 @@ def ativar_traducao_streamlit() -> None:
     """Centraliza a tradução dos componentes Streamlit, inclusive sidebar e colunas."""
     metodos_texto = {
         "caption", "info", "warning", "error", "success", "subheader", "header", "title",
-        "button", "download_button", "text_input", "number_input", "slider", "checkbox",
+        "button", "form_submit_button", "download_button", "text_input", "number_input", "slider", "checkbox",
         "toggle", "popover", "expander", "selectbox", "radio", "multiselect", "pills", "metric",
     }
 
@@ -1829,6 +1923,19 @@ def mostrar_painel_arquivos(
         """Normaliza a extensão para o selo exibido na lista de arquivos."""
         return {".xlsx": "XLSX", ".csv": "CSV", ".pdf": "PDF", ".json": "JSON"}.get(caminho.suffix.lower(), caminho.suffix.lstrip(".").upper() or "ARQ")
 
+    titulos_arquivos = {
+        "resultados": texto("Resultados completos", "Complete results"),
+        "ranking": texto("Ranking final", "Final ranking"),
+        "metricas": texto("Métricas da triagem", "Screening metrics"),
+        "monte_carlo": texto("Ranking Monte Carlo", "Monte Carlo ranking"),
+        "dominio": texto("Domínio de aplicabilidade", "Applicability domain"),
+        "pareto": texto("Fronteira de Pareto", "Pareto frontier"),
+        "validacao": texto("Validação quimiométrica", "Chemometric validation"),
+        "relatorio": texto("Relatório científico", "Scientific report"),
+        "configuracao": texto("Resumo da configuração", "Configuration summary"),
+        "figuras": texto("Índice de figuras", "Figure index"),
+    }
+
     arquivos = [
         ("resultados", paths["excel"], texto("Resultados completos da triagem com previsões e métricas.", "Complete screening results with predictions and metrics.")),
         ("ranking", paths["ranking"], texto("Ranking final após filtros, condições e ponderações.", "Final ranking after filters, conditions, and weights.")),
@@ -1899,7 +2006,8 @@ def mostrar_painel_arquivos(
         data_arquivo = datetime.fromtimestamp(caminho.stat().st_mtime).strftime("%d/%m/%Y %H:%M")
         col_nome, col_tipo, col_data, col_descricao, col_tamanho, col_download = st.columns([1.30, .58, .90, 1.90, .52, .32], gap="small")
         with col_nome:
-            st.markdown(f"<div class='files-row'><span class='files-file-name'>{html.escape(caminho.name)}</span></div>", unsafe_allow_html=True)
+            titulo_arquivo = titulos_arquivos.get(chave, caminho.stem.replace("_", " ").title())
+            st.markdown(f"<div class='files-row'><span class='files-file-name'>{html.escape(titulo_arquivo)}</span></div>", unsafe_allow_html=True)
         with col_tipo:
             st.markdown(f"<div class='files-row'><span class='files-file-type'>{tipo_arquivo(caminho)}</span></div>", unsafe_allow_html=True)
         with col_data:
@@ -3737,6 +3845,7 @@ def mostrar_progresso_job(job_dir_texto: str) -> None:
         st.progress(0, text=_traduzir_interface(status.get("stage", "Aguardando execução")))
     elif state == "running":
         etapa = str(status.get("stage") or "Executando triagem")
+        etapa_exibida = str(_traduzir_interface(etapa))
         progresso = max(0, min(100, int(status.get("progress", 0))))
         st.markdown(
             "<style>"
@@ -3746,7 +3855,7 @@ def mostrar_progresso_job(job_dir_texto: str) -> None:
             "@keyframes catialab-spin{to{transform:rotate(360deg)}}"
             "</style>"
             f"<div class='catialab-loading-row' role='status'><span class='catialab-loading-spinner' aria-hidden='true'></span>"
-            f"<span>Em andamento: {html.escape(etapa)}</span></div>",
+            f"<span>{html.escape(str(_traduzir_interface('Em andamento:')))} {html.escape(etapa_exibida)}</span></div>",
             unsafe_allow_html=True,
         )
         st.progress(progresso, text=_traduzir_interface(f"Progresso da triagem: {progresso}%"))
@@ -4301,32 +4410,33 @@ def mostrar_planejamento_sintese(
         suporte = st.selectbox("Suporte para a receita", suportes, key="sintese_suporte")
 
         c1, c2, c3, c4 = st.columns(4)
-        massa_final = c1.number_input("Massa final desejada (g)", min_value=0.1, value=100.0, step=10.0, key="sintese_massa_final")
-        carga_ativa = c2.number_input("Fase ativa (% m/m)", min_value=0.0, max_value=100.0, value=15.0, step=0.5, key="sintese_carga_ativa")
-        carga_promotor = c3.number_input("Promotor (% m/m)", min_value=0.0, max_value=50.0, value=5.0 if promotor_configurado else 0.0, step=0.5, key="sintese_carga_promotor", disabled=not bool(promotor_configurado))
+        massa_final = c1.number_input(t("Massa final desejada (g)"), min_value=0.1, value=100.0, step=10.0, key="sintese_massa_final")
+        carga_ativa = c2.number_input(t("Fase ativa (% m/m)"), min_value=0.0, max_value=100.0, value=15.0, step=0.5, key="sintese_carga_ativa")
+        carga_promotor = c3.number_input(t("Promotor (% m/m)"), min_value=0.0, max_value=50.0, value=5.0 if promotor_configurado else 0.0, step=0.5, key="sintese_carga_promotor", disabled=not bool(promotor_configurado))
         if not promotor_configurado:
             carga_promotor = 0.0
-        rota = c4.selectbox("Procedimento de síntese", ["Impregnação por umidade incipiente", "Impregnação úmida", "Coprecipitação", "Sol-gel"], key="sintese_rota")
+        rota = c4.selectbox(t("Procedimento de síntese"), ["Impregnação por umidade incipiente", "Impregnação úmida", "Coprecipitação", "Sol-gel"], format_func=t, key="sintese_rota")
 
         base_carga = st.radio(
-            "Base das cargas informadas",
+            t("Base das cargas informadas"),
             ["Metal após ativação/redução", "Óxido após calcinação"],
+            format_func=t,
             horizontal=True,
             key="sintese_base_carga",
-            help="Define se a porcentagem da fase ativa/promotor representa metal elementar ou a massa do óxido de referência.",
+            help=t("Define se a porcentagem da fase ativa/promotor representa metal elementar ou a massa do óxido de referência."),
         )
 
         d1, d2, d3, d4 = st.columns(4)
-        pureza = d1.number_input("Pureza dos precursores (%)", min_value=1.0, max_value=100.0, value=100.0, step=0.1, key="sintese_pureza")
-        recuperacao = d2.number_input("Recuperação global estimada (%)", min_value=1.0, max_value=100.0, value=100.0, step=0.5, key="sintese_recuperacao")
-        volume_poroso = d3.number_input("Volume de poros (cm³/g)", min_value=0.0, value=0.80, step=0.05, key="sintese_volume_poroso")
-        preenchimento = d4.number_input("Preenchimento dos poros (%)", min_value=1.0, max_value=150.0, value=90.0, step=5.0, key="sintese_preenchimento")
+        pureza = d1.number_input(t("Pureza dos precursores (%)"), min_value=1.0, max_value=100.0, value=100.0, step=0.1, key="sintese_pureza")
+        recuperacao = d2.number_input(t("Recuperação global estimada (%)"), min_value=1.0, max_value=100.0, value=100.0, step=0.5, key="sintese_recuperacao")
+        volume_poroso = d3.number_input(t("Volume de poros (cm³/g)"), min_value=0.0, value=0.80, step=0.05, key="sintese_volume_poroso")
+        preenchimento = d4.number_input(t("Preenchimento dos poros (%)"), min_value=1.0, max_value=150.0, value=90.0, step=5.0, key="sintese_preenchimento")
 
         e1, e2, e3, e4 = st.columns(4)
-        temperatura_secagem = e1.number_input("Temperatura de secagem (°C)", min_value=20.0, max_value=300.0, value=100.0, step=5.0, key="sintese_secagem")
-        temperatura_calcinacao = e2.number_input("Temperatura de calcinação (°C)", min_value=100.0, max_value=1200.0, value=500.0, step=25.0, key="sintese_calcinacao")
-        perda_suporte = e3.number_input("Perda prevista do suporte (%)", min_value=0.0, max_value=50.0, value=0.0, step=0.5, key="sintese_perda_suporte")
-        limite_molaridade = e4.number_input("Concentração máxima por ciclo (mol/L)", min_value=0.01, value=2.0, step=0.1, key="sintese_limite_molaridade")
+        temperatura_secagem = e1.number_input(t("Temperatura de secagem (°C)"), min_value=20.0, max_value=300.0, value=100.0, step=5.0, key="sintese_secagem")
+        temperatura_calcinacao = e2.number_input(t("Temperatura de calcinação (°C)"), min_value=100.0, max_value=1200.0, value=500.0, step=25.0, key="sintese_calcinacao")
+        perda_suporte = e3.number_input(t("Perda prevista do suporte (%)"), min_value=0.0, max_value=50.0, value=0.0, step=0.5, key="sintese_perda_suporte")
+        limite_molaridade = e4.number_input(t("Concentração máxima por ciclo (mol/L)"), min_value=0.01, value=2.0, step=0.1, key="sintese_limite_molaridade")
 
         if carga_ativa + carga_promotor >= 100.0:
             st.error("A soma da fase ativa e do promotor deve ser menor que 100%.")
@@ -4420,7 +4530,7 @@ def mostrar_planejamento_sintese(
                 "com a massa molar da fase final ou o fator de resíduo obtido por TGA. A receita é nominal e deve ser confirmada por análise química e balanço após calcinação.</div>",
                 unsafe_allow_html=True,
             )
-            if st.button("Atualizar PDF com esta receita de 100 g", disabled=not precursores_completos or abs(massa_final - 100.0) > 1e-9, key="sintese_pdf_confirmar"):
+            if st.button(t("Atualizar PDF com esta receita de 100 g"), disabled=not precursores_completos or abs(massa_final - 100.0) > 1e-9, key="sintese_pdf_confirmar"):
                 caminhos_pdf = caminhos_resultado(Path(st.session_state["ultima_saida"]), st.session_state["ultima_reacao"])
                 plano = {
                     "formula": formula, "suporte": suporte, "rota": rota, "base_carga": base_carga,
@@ -4437,23 +4547,23 @@ def mostrar_planejamento_sintese(
                 st.caption("Para incluir esta receita no relatório, ajuste a massa final para 100 g.")
 
     st.divider()
-    st.subheader("Calculadora estequiométrica livre")
+    st.subheader(t("Calculadora estequiométrica livre"))
     st.caption("Informe cada fase final e o respectivo precursor. A razão estequiométrica representa mol de precursor necessário por mol da fase final.")
-    numero_reagentes = st.number_input("Número de reagentes ou componentes", min_value=1, max_value=6, value=3, step=1, key="calc_numero_reagentes")
-    massa_lote = st.number_input("Massa final do lote (g)", min_value=0.01, value=100.0, step=10.0, key="calc_massa_lote")
+    numero_reagentes = st.number_input(t("Número de reagentes ou componentes"), min_value=1, max_value=6, value=3, step=1, key="calc_numero_reagentes")
+    massa_lote = st.number_input(t("Massa final do lote (g)"), min_value=0.01, value=100.0, step=10.0, key="calc_massa_lote")
     with st.form("form_calculadora_sintese"):
         entradas = []
         for indice in range(int(numero_reagentes)):
             st.markdown(f"**Componente {indice + 1}**")
             col1, col2, col3 = st.columns(3)
-            nome = col1.text_input("Nome do reagente/precursor", value="", key=f"calc_nome_{indice}")
-            fracao = col2.number_input("Fase final (% m/m)", min_value=0.0, max_value=100.0, value=0.0, step=0.5, key=f"calc_fracao_{indice}")
-            massa_molar_precursor = col3.number_input("Massa molar do precursor (g/mol)", min_value=0.0, value=0.0, step=1.0, key=f"calc_mm_prec_{indice}")
+            nome = col1.text_input(t("Nome do reagente/precursor"), value="", key=f"calc_nome_{indice}")
+            fracao = col2.number_input(t("Fase final (% m/m)"), min_value=0.0, max_value=100.0, value=0.0, step=0.5, key=f"calc_fracao_{indice}")
+            massa_molar_precursor = col3.number_input(t("Massa molar do precursor (g/mol)"), min_value=0.0, value=0.0, step=1.0, key=f"calc_mm_prec_{indice}")
             col4, col5, col6 = st.columns(3)
-            massa_molar_final = col4.number_input("Massa molar da fase final (g/mol)", min_value=0.0, value=0.0, step=1.0, key=f"calc_mm_final_{indice}")
-            razao = col5.number_input("mol precursor/mol fase final", min_value=0.0, value=1.0, step=0.1, key=f"calc_razao_{indice}")
-            pureza_item = col6.number_input("Pureza do reagente (%)", min_value=0.1, max_value=100.0, value=100.0, step=0.1, key=f"calc_pureza_{indice}")
-            recuperacao_item = st.number_input("Recuperação prevista do componente (%)", min_value=0.1, max_value=100.0, value=100.0, step=0.5, key=f"calc_recuperacao_{indice}")
+            massa_molar_final = col4.number_input(t("Massa molar da fase final (g/mol)"), min_value=0.0, value=0.0, step=1.0, key=f"calc_mm_final_{indice}")
+            razao = col5.number_input(t("mol precursor/mol fase final"), min_value=0.0, value=1.0, step=0.1, key=f"calc_razao_{indice}")
+            pureza_item = col6.number_input(t("Pureza do reagente (%)"), min_value=0.1, max_value=100.0, value=100.0, step=0.1, key=f"calc_pureza_{indice}")
+            recuperacao_item = st.number_input(t("Recuperação prevista do componente (%)"), min_value=0.1, max_value=100.0, value=100.0, step=0.5, key=f"calc_recuperacao_{indice}")
             entradas.append((nome, fracao, massa_molar_precursor, massa_molar_final, razao, pureza_item, recuperacao_item))
         calcular = st.form_submit_button("Calcular quantidades", type="primary", width="stretch")
 

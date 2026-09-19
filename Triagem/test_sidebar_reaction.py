@@ -138,7 +138,7 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("start_worker", source)
         self.assertIn("@st.fragment(run_every=2)", source)
         self.assertIn("catialab-loading-spinner", source)
-        self.assertIn("Em andamento: {html.escape(etapa)}", source)
+        self.assertIn("html.escape(etapa_exibida)", source)
         self.assertNotIn("A configuração permanece bloqueada até a execução terminar.", source)
         self.assertIn("disabled=not configuracao_pronta or job_ativo", source)
         self.assertIn("Apenas uma execução pesada", source)
@@ -185,7 +185,9 @@ class SidebarReactionTests(unittest.TestCase):
         for label in (
             "Em andamento:", "Progresso da triagem:", "Metais de transição",
             "Instruções e cálculo para síntese", "Alternativa sugerida pela triagem",
-            "Temperatura recomendada", "janela:",
+            "Temperatura recomendada", "janela:", "Procedimento de síntese",
+            "R² (validação)", "Nota importante", "Como interpretar",
+            "Gráficos complementares gerados pela execução", "Calcular quantidades",
         ):
             self.assertIn(label, translations)
         self.assertIn('st.progress(progresso, text=_traduzir_interface(', source)
@@ -195,6 +197,9 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn('def figura_suplementar_ingles(', source)
         self.assertIn('figura_inglesa = figura_suplementar_ingles(', source)
         self.assertIn('st.plotly_chart(figura_inglesa,', source)
+        self.assertIn('titulo_arquivo = titulos_arquivos.get(', source)
+        self.assertIn('format_func=t, key="sintese_rota"', source)
+        self.assertIn('etapa_exibida = str(_traduzir_interface(etapa))', source)
 
     def test_research_collaboration_citation_and_no_lattes_button(self):
         source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
