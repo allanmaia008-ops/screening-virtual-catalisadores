@@ -208,6 +208,15 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("BRAGA, Renata Martins", research)
         self.assertNotIn("st.link_button", research)
 
+    def test_header_focuses_on_resized_app_and_ufrn_brands(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        header = source.split("def renderizar_cabecalho()", 1)[1].split("def renderizar_logo_projeto_sidebar()", 1)[0]
+        self.assertNotIn("Programa de Pós-Graduação", header)
+        self.assertNotIn("Predição virtual de catalisadores", header)
+        self.assertIn('alt="UFRN"', header)
+        self.assertIn("width: min(215px, 34vw)", header)
+        self.assertIn("font-size: clamp(2.5rem, 4.2vw, 4.2rem)", header)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -84,8 +84,6 @@ TRADUCOES_EN = {
     "Sobre": "About",
     "Pesquisa": "Research",
     "Contato": "Contact",
-    "Programa de Pós-Graduação<br />em Química": "Graduate Program<br />in Chemistry",
-    "Predição virtual de catalisadores e condições de síntese": "Virtual prediction of catalysts and synthesis conditions",
     "Configuração": "Configuration",
     "Reação": "Reaction",
     "Metanação de CO2": "CO₂ methanation",
@@ -3901,31 +3899,17 @@ def renderizar_cabecalho() -> None:
             ">
                 <div style="
                     display: flex;
-                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    gap: 6px;
                     min-width: 0;
-                    text-align: center;
                     transform: translateX(-19px);
                 ">
-                    <img src="data:image/png;base64,{imagem_base64}" style="
-                        width: min(150px, 30vw);
-                        max-height: 86px;
+                    <img src="data:image/png;base64,{imagem_base64}" alt="UFRN" style="
+                        width: min(215px, 34vw);
+                        max-height: 112px;
                         object-fit: contain;
                         display: block;
                     " />
-                    <div style="
-                        color: #111111;
-                        font-family: Arial, Helvetica, sans-serif;
-                        font-size: clamp(0.78rem, 0.95vw, 0.98rem);
-                        font-weight: 750;
-                        line-height: 1.16;
-                        letter-spacing: 0;
-                        text-align: center;
-                    ">
-                        {t("Programa de Pós-Graduação<br />em Química")}
-                    </div>
                 </div>
                 <div style="
                     text-align: center;
@@ -3937,26 +3921,14 @@ def renderizar_cabecalho() -> None:
                         <div style="
                             color: #111111;
                             font-family: Arial, Helvetica, sans-serif;
-                            font-size: clamp(1.9rem, 3.2vw, 3.2rem);
+                            font-size: clamp(2.5rem, 4.2vw, 4.2rem);
                             font-weight: 850;
-                            line-height: 1.02;
+                            line-height: 1;
                             letter-spacing: 0;
                             text-align: center;
                         ">
                             CatAiLab
                         </div>
-                    </div>
-                    <div style="
-                        color: #111111;
-                        font-family: Arial, Helvetica, sans-serif;
-                        font-size: clamp(0.95rem, 1.2vw, 1.18rem);
-                        font-weight: 550;
-                        line-height: 1.28;
-                        letter-spacing: 0;
-                        margin-top: 6px;
-                        text-align: center;
-                    ">
-                        {t("Predição virtual de catalisadores e condições de síntese")}
                     </div>
                 </div>
                 <div style="
