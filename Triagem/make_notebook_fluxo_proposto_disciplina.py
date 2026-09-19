@@ -3126,7 +3126,7 @@ def recomendar_sintese(formula):
             justificativa = "metais nobres devem ser bem dispersos para reduzir custo e evitar sinterizacao"
         else:
             suporte = "Al2O3 ou SiO2-Al2O3"
-            rota = "impregnacao incipiente de Ni/Co/Fe seguida de calcinacao e reducao"
+            rota = "impregnação por umidade incipiente dos precursores de Ni, Co ou Fe, seguida de calcinação e redução"
             justificativa = "suporte de alta area favorece dispersao da fase ativa em metanacao"
     # Ajusta regras para reforma de CH4.
     elif reacao == "reforma":
@@ -3172,7 +3172,7 @@ def recomendar_sintese(formula):
             justificativa = "ZrO2 ajuda a modular adsorcao de CO e estabilizar particulas metalicas"
         else:
             suporte = "Al2O3-ZrO2 ou ZrO2"
-            rota = "impregnacao incipiente seguida de calcinacao e reducao"
+            rota = "impregnação por umidade incipiente, seguida de calcinação e redução"
             justificativa = "suporte moderadamente redox favorece seletividade a CO"
     # Ajusta a rota para metais ativos de transição sem promotor forte.
     if ativos_transicao and not (redox_mod or basicos or nobres):

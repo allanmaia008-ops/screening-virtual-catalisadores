@@ -227,6 +227,10 @@ TRADUCOES_EN = {
     "Átomos do metal por fórmula": "Metal atoms per formula unit",
     "Átomos do promotor por fórmula": "Promoter atoms per formula unit",
     "Atualizar PDF com esta receita de 100 g": "Update PDF with this 100 g recipe",
+    "Definir precursor para": "Define precursor for",
+    "Definir precursor do promotor": "Define promoter precursor",
+    "Definir precursor e massa molar na calculadora livre": "Define the precursor and molar mass in the general calculator",
+    "fornecido na forma final": "supplied in final form",
     "Calculadora estequiométrica livre": "Free stoichiometric calculator",
     "Número de reagentes ou componentes": "Number of reagents or components",
     "Massa final do lote (g)": "Final batch mass (g)",
@@ -243,7 +247,7 @@ TRADUCOES_EN = {
     "Fração metálica na fase": "Metal fraction in phase",
     "Massa da fase final (g)": "Final-phase mass (g)",
     "Equivalente metálico (g)": "Metal equivalent (g)",
-    "Precursor": "Precursor",
+    "Precursor": "Precursor compound",
     "Massa de precursor puro (g)": "Pure precursor mass (g)",
     "Massa corrigida a pesar (g)": "Corrected mass to weigh (g)",
     "Os valores desta tela são previsões de triagem virtual e devem ser confirmados por caracterização e ensaios catalíticos.": "Values on this page are virtual-screening predictions and must be confirmed by characterization and catalytic tests.",
@@ -353,11 +357,18 @@ TRADUCOES_EN = {
     "coprecipitacao ou metodo hidrotalcita-like para alta estabilidade termica": "coprecipitation or a hydrotalcite-like method for high thermal stability",
     "impregnação incipiente do metal ativo em suporte de alta área": "incipient-wetness impregnation of the active metal on a high-surface-area support",
     "coprecipitação ou método hidrotalcita-like para alta estabilidade térmica": "coprecipitation or a hydrotalcite-like method for high thermal stability",
+    "impregnacao incipiente de Ni/Co/Fe seguida de calcinacao e reducao": "incipient-wetness impregnation with Ni, Co, or Fe precursors, followed by calcination and reduction",
+    "impregnação por umidade incipiente dos precursores de Ni, Co ou Fe, seguida de calcinação e redução": "incipient-wetness impregnation with Ni, Co, or Fe precursors, followed by calcination and reduction",
+    "impregnacao incipiente seguida de calcinacao e reducao": "incipient-wetness impregnation followed by calcination and reduction",
+    "impregnação por umidade incipiente, seguida de calcinação e redução": "incipient-wetness impregnation followed by calcination and reduction",
     "A categoria alta exige simultaneamente os quatro critérios acima.": "The high category requires all four criteria above simultaneously.",
     "A categoria média aceita estabilidade até 0,15 eV/atom e score final ≥ 0,65.": "The medium category accepts stability up to 0.15 eV/atom and final score ≥ 0.65.",
     "Nos demais casos, a classe interna é baixa.": "In all other cases, the internal class is low.",
     "Desvio Monte Carlo do score:": "Monte Carlo score deviation:",
     "candidatos": "candidates",
+    "catalisadores": "catalysts",
+    "Após filtros aplicados": "After applied filters",
+    "Após predição": "After prediction",
     "síntese": "synthesis",
     "Receita de 100 g:": "100 g recipe:",
     "defina o teor da fase ativa, do promotor e o suporte na aba Síntese para obter as massas dos reagentes e incluí-las no PDF.": "define the active-phase and promoter loadings and the support in the Synthesis tab to calculate reagent masses and include them in the PDF.",
@@ -433,11 +444,13 @@ TRADUCOES_EN = {
     "Probabilidade de estar no Top 5": "Probability of reaching the Top 5",
     "Alerta de extrapolação": "Extrapolation warning",
     "O domínio de aplicabilidade não foi calculado nesta execução.": "The applicability domain was not calculated in this run.",
+    "estão fora do domínio de aplicabilidade.": "are outside the applicability domain.",
     "Priorize candidatos com menor dispersão Monte Carlo e maior probabilidade de Top 5. A confirmação experimental continua necessária.": "Prioritize candidates with lower Monte Carlo dispersion and higher Top 5 probability. Experimental confirmation remains necessary.",
     "A incerteza quantifica a dispersão das previsões do ensemble e da simulação de Monte Carlo. Ela não substitui a validação experimental.": "Uncertainty quantifies the spread of ensemble and Monte Carlo predictions. It does not replace experimental validation.",
     "Ranking de candidatos com incerteza (Monte Carlo + ensemble)": "Candidate ranking with uncertainty (Monte Carlo + ensemble)",
     "Condições operacionais exploradas": "Explored operating conditions",
     "Pressão recomendada": "Recommended pressure",
+    "Pressão:": "Pressure:",
     "Razão H₂/CO₂ recomendada": "Recommended H₂/CO₂ ratio",
     "conversão": "conversion",
     "seletividade": "selectivity",
@@ -1060,6 +1073,13 @@ def corrigir_texto_portugues(texto: str) -> str:
     """Corrige termos recorrentes dos arquivos de resultados antes da exibição."""
     if idioma_atual() == "en":
         return texto
+    frases = {
+        "impregnacao incipiente de Ni/Co/Fe seguida de calcinacao e reducao":
+            "impregnação por umidade incipiente dos precursores de Ni, Co ou Fe, seguida de calcinação e redução",
+        "impregnacao incipiente seguida de calcinacao e reducao":
+            "impregnação por umidade incipiente, seguida de calcinação e redução",
+    }
+    texto = frases.get(str(texto).strip(), str(texto))
     correcoes = {
         "impregnacao": "impregnação", "calcinacao": "calcinação", "reducao": "redução",
         "oxidacao": "oxidação", "sintese": "síntese", "condicoes": "condições",
@@ -1612,7 +1632,7 @@ def mostrar_simulador_operacional(prioritarios_df: pd.DataFrame, classificacao_d
         nivel="Baixo" if risco_coque<.33 else "Moderado" if risco_coque<.66 else "Alto"; st.markdown("<div class='operation-risk-card'><h3>Resistência à deposição de carbono e desativação</h3>"+f"<b>Resistência estimada</b><strong>{resistencia_coque:.2f}</strong><span>(0 = baixa | 1 = alta)</span><hr><b>Tendência de formação de coque</b><strong>{nivel}</strong><span>índice proxy: {float(risco_coque):.2f}</span><hr><b>Taxa de desativação (proxy)</b><strong>{k_desativacao:.2e} h⁻¹</strong><span>tempo estimado para queda de 10%: {tempo_10_pct:.0f} h</span></div>",unsafe_allow_html=True)
     st.markdown("#### Avalie o desempenho em diferentes condições operacionais"); linhas_pressao=sorted(set([max(1,pressao-5),pressao,min(30,pressao+5)])); fig_conversao,fig_rendimento=go.Figure(),go.Figure()
     for p in linhas_pressao:
-        conv,_,rend,_,_=resposta(temperaturas,p,razao); fig_conversao.add_trace(go.Scatter(x=temperaturas,y=conv,mode="lines+markers",name=f"Pressão: {p} bar")); fig_rendimento.add_trace(go.Scatter(x=temperaturas,y=rend,mode="lines+markers",name=f"Pressão: {p} bar"))
+        conv,_,rend,_,_=resposta(temperaturas,p,razao); fig_conversao.add_trace(go.Scatter(x=temperaturas,y=conv,mode="lines+markers",name=f"{t('Pressão:')} {p} bar")); fig_rendimento.add_trace(go.Scatter(x=temperaturas,y=rend,mode="lines+markers",name=f"{t('Pressão:')} {p} bar"))
     for figura,titulo,eixo in [(fig_conversao,"Conversão de CO₂ prevista","Conversão de CO₂ (%)"),(fig_rendimento,"Rendimento previsto","Rendimento (%)")]: figura.add_vline(x=temperatura,line_dash="dash",line_color="#64748B"); figura.update_layout(title=titulo,xaxis_title="Temperatura (°C)",yaxis_title=eixo,height=315,margin=dict(l=35,r=15,t=50,b=35),legend=dict(orientation="h",y=1.12))
     mapa=go.Figure(go.Heatmap(x=grade_t,y=grade_p,z=grade_robustez,colorscale="RdYlGn",zmin=0,zmax=1,colorbar=dict(title="Índice"))); mapa.add_trace(go.Scatter(x=[temperatura],y=[pressao],mode="markers",marker=dict(size=10,color="#14213D",symbol="star"),name="Condição simulada")); mapa.update_layout(title="Mapa de estabilidade operacional",xaxis_title="Temperatura (°C)",yaxis_title="Pressão (bar)",height=315,margin=dict(l=35,r=15,t=50,b=35))
     g1,g2,g3=st.columns(3)
@@ -1807,7 +1827,11 @@ def mostrar_painel_validacao(
         else:
             dominio_plot["t2_plot"] = dominio_plot["t2"].clip(lower=1e-4)
             dominio_plot["q_plot"] = dominio_plot["q_residual"].clip(lower=1e-5)
-            figura = px.scatter(dominio_plot, x="t2_plot", y="q_plot", color="classe_dominio", color_discrete_map=cores_dominio, hover_name="formula_exibicao", log_x=True, log_y=True)
+            figura = px.scatter(
+                dominio_plot, x="t2_plot", y="q_plot", color="classe_dominio",
+                color_discrete_map=cores_dominio, hover_name="formula_exibicao", log_x=True, log_y=True,
+                labels={"classe_dominio": texto("Classe do domínio", "Domain class")},
+            )
             limiar_t2 = dominio_plot["limiar_t2"].dropna().median()
             limiar_q = dominio_plot["limiar_q"].dropna().median()
             if pd.notna(limiar_t2):
@@ -1821,7 +1845,12 @@ def mostrar_painel_validacao(
         if pca_plot.empty:
             st.info(texto("Os componentes principais não foram exportados nesta execução.", "Principal components were not exported in this run."))
         else:
-            figura = px.scatter(pca_plot, x="pc1", y="pc2", color="classe_dominio", color_discrete_map=cores_dominio, symbol="grupo", hover_name="formula_exibicao", hover_data={"score": ":.3f", "score_dominio": ":.3f"})
+            figura = px.scatter(
+                pca_plot, x="pc1", y="pc2", color="classe_dominio",
+                color_discrete_map=cores_dominio, symbol="grupo", hover_name="formula_exibicao",
+                hover_data={"score": ":.3f", "score_dominio": ":.3f"},
+                labels={"classe_dominio": texto("Classe do domínio", "Domain class"), "grupo": texto("Grupo", "Group")},
+            )
             figura.add_hline(y=0, line_color="#C9D3DF", line_width=1)
             figura.add_vline(x=0, line_color="#C9D3DF", line_width=1)
             st.plotly_chart(configurar_figura(figura, "", "PC1", "PC2"), width="stretch")
@@ -2127,7 +2156,7 @@ def mostrar_funil_visual(metricas_df: pd.DataFrame, prioritarios_df: pd.DataFram
             f"""
             <div class="funil-resumo-cartao">
                 <span class="funil-resumo-icone">{visual_etapa}</span>
-                <div><span>{html.escape(etapa['cartao'])}</span><strong>{html.escape(formatar_valor(etapa['valor']))}</strong><small>catalisadores</small></div>
+                <div><span>{html.escape(t(etapa['cartao']))}</span><strong>{html.escape(formatar_valor(etapa['valor']))}</strong><small>{html.escape(t('catalisadores'))}</small></div>
             </div>
             """
         )
@@ -3802,9 +3831,17 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
     saida_atual = Path(st.session_state.get("ultima_saida") or DEFAULT_OUTPUT_DIR)
     reacao_atual = st.session_state.get("ultima_reacao") or ""
     for indice, (_, row) in enumerate(figuras_df.iterrows()):
-        caminho = Path(str(row[coluna_png]))
-        if caminho.exists():
-            identificador = normalizar_texto(str(row.get("figura", caminho.stem)))
+        caminho_registrado = Path(str(row[coluna_png]))
+        identificador = normalizar_texto(str(row.get("figura", caminho_registrado.stem)))
+        caminhos_locais = [
+            caminho_registrado,
+            saida_atual / f"disciplina_fluxo_{reacao_atual}_figuras" / caminho_registrado.name,
+            saida_atual / caminho_registrado.name,
+        ]
+        caminho = next((opcao for opcao in caminhos_locais if opcao.exists()), caminho_registrado)
+        # In English the chart is rebuilt from CSV data, so an obsolete absolute
+        # PNG path from another machine must not suppress the figure.
+        if idioma_atual() == "en" or caminho.exists():
             titulo, explicacao = next((valor for chave, valor in explicacoes.items() if chave in identificador), (caminho.stem.replace("_", " ").capitalize(), "Figura gerada pela execução para apoiar a interpretação do processo de triagem."))
             with colunas[indice % 2]:
                 st.markdown("<div class='science-figure-card'>", unsafe_allow_html=True)

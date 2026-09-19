@@ -217,6 +217,22 @@ class SidebarReactionTests(unittest.TestCase):
         self.assertIn("width: min(215px, 34vw)", header)
         self.assertIn("font-size: clamp(2.5rem, 4.2vw, 4.2rem)", header)
 
+    def test_remaining_dynamic_results_are_localized(self):
+        source = Path(__file__).with_name("app.py").read_text(encoding="utf-8")
+        generator = Path(__file__).with_name("make_notebook_fluxo_proposto_disciplina.py").read_text(encoding="utf-8")
+        for portuguese, english in (
+            ("impregnacao incipiente de Ni/Co/Fe seguida de calcinacao e reducao", "incipient-wetness impregnation with Ni, Co, or Fe precursors"),
+            ("Após filtros aplicados", "After applied filters"),
+            ("Após predição", "After prediction"),
+            ("estão fora do domínio de aplicabilidade.", "are outside the applicability domain."),
+            ("Definir precursor e massa molar na calculadora livre", "Define the precursor and molar mass in the general calculator"),
+            ("Pressão:", "Pressure:"),
+        ):
+            self.assertIn(f'"{portuguese}": "{english}', source)
+        self.assertIn('labels={"classe_dominio": texto("Classe do domínio", "Domain class")}', source)
+        self.assertIn("if idioma_atual() == \"en\" or caminho.exists():", source)
+        self.assertIn("impregnação por umidade incipiente dos precursores de Ni, Co ou Fe, seguida de calcinação e redução", generator)
+
 
 if __name__ == "__main__":
     unittest.main()
