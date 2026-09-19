@@ -464,6 +464,7 @@ TRADUCOES_EN = {
     "Interpretação da simulação": "Simulation interpretation",
     "Condição avaliada:": "Evaluated condition:",
     "Índice de estabilidade operacional:": "Operational stability index:",
+    "Índice de estabilidade operacional": "Operational stability index",
     "Os indicadores de coque e desativação são proxies relativos. Confirme-os por ensaios de tempo em operação.": "Coke and deactivation indicators are relative proxies. Confirm them with time-on-stream tests.",
     "Explore as relações entre estabilidade, atividade prevista, descritores e viabilidade de síntese.": "Explore the relationships between stability, predicted activity, descriptors, and synthesis feasibility.",
     "Diagrama de vulcão: atividade vs. energia de adsorção": "Volcano plot: activity vs. adsorption energy",
@@ -3745,6 +3746,14 @@ def figura_suplementar_ingles(identificador: str, output_dir: Path, reacao: str)
     def numeros(tabela: pd.DataFrame, coluna: str) -> pd.Series:
         return pd.to_numeric(tabela[coluna], errors="coerce")
 
+    def coluna(tabela: pd.DataFrame, *termos: str) -> str | None:
+        return encontrar_coluna(tabela, list(termos))
+
+    def booleanos(serie: pd.Series) -> pd.Series:
+        return serie.fillna(False).map(
+            lambda valor: valor is True or normalizar_texto(valor) in {"true", "1", "sim", "verdadeiro"}
+        )
+
     figura = None
     if "funil" in identificador:
         metricas, ranking, prioritarios = dados("metricas_triagem"), dados("melhor_condicao_por_candidato"), dados("prioritarios_sintese")
@@ -3754,7 +3763,7 @@ def figura_suplementar_ingles(identificador: str, output_dir: Path, reacao: str)
             if all(pd.notna(valor) for valor in valores):
                 figura = go.Figure(go.Bar(x=["Generated", "Viable", "Refined", "Prioritized"], y=valores, text=[int(valor) for valor in valores], textposition="outside", marker_color=["#455A64", "#1976D2", "#7B1FA2", "#2E7D32"]))
                 figura.update_layout(title="Virtual-screening funnel", yaxis_title="Number of candidates")
-    elif "ranking" in identificador and "monte_carlo" not in identificador:
+    elif "ranking" in identificador and "monte_carlo" not in identificador and "validacao" not in identificador:
         tabela = dados("melhor_condicao_por_candidato")
         if {"fórmula", "score final"}.issubset(tabela.columns):
             tabela = tabela.assign(_score=numeros(tabela, "score final")).nlargest(10, "_score").sort_values("_score")
@@ -3794,6 +3803,97 @@ def figura_suplementar_ingles(identificador: str, output_dir: Path, reacao: str)
                 resumo = tabela.groupby("descritor", as_index=False)["_sensibilidade"].mean().nlargest(12, "_sensibilidade").sort_values("_sensibilidade")
                 resumo["descritor"] = resumo["descritor"].map(_traduzir_interface)
                 figura = px.bar(resumo, x="_sensibilidade", y="descritor", orientation="h", labels={"_sensibilidade": "Mean score sensitivity", "descritor": "Descriptor"}, title="Descriptor sensitivity")
+    elif "pca_quimiometrica" in identificador:
+        tabela = dados("pca_quimiometrica")
+        formula, pc1, pc2 = coluna(tabela, "formula"), coluna(tabela, "pc1"), coluna(tabela, "pc2")
+        grupo = coluna(tabela, "grupo", "quimiometrico")
+        if formula and pc1 and pc2:
+            tabela = tabela.assign(_pc1=numeros(tabela, pc1), _pc2=numeros(tabela, pc2)).dropna(subset=["_pc1", "_pc2"])
+            if grupo:
+                tabela["_group"] = tabela[grupo].astype(str)
+            variancia_pc1, variancia_pc2 = coluna(tabela, "variancia", "pc1"), coluna(tabela, "variancia", "pc2")
+            percentual_pc1 = 100 * float(numeros(tabela, variancia_pc1).dropna().iloc[0]) if variancia_pc1 and numeros(tabela, variancia_pc1).notna().any() else 0.0
+            percentual_pc2 = 100 * float(numeros(tabela, variancia_pc2).dropna().iloc[0]) if variancia_pc2 and numeros(tabela, variancia_pc2).notna().any() else 0.0
+            figura = px.scatter(
+                tabela, x="_pc1", y="_pc2", color="_group" if grupo else None, text=formula,
+                labels={"_pc1": f"PC1 ({percentual_pc1:.1f}% variance)", "_pc2": f"PC2 ({percentual_pc2:.1f}% variance)", "_group": "Chemometric group"},
+                title="PCA of catalytic descriptors",
+            )
+            figura.update_traces(textposition="top center")
+    elif "grupos_quimiometricos" in identificador:
+        tabela = dados("agrupamento_quimiometrico")
+        grupo, quantidade = coluna(tabela, "grupo", "quimiometrico"), coluna(tabela, "numero", "candidatos")
+        representante = coluna(tabela, "formula", "representante")
+        if grupo and quantidade:
+            tabela = tabela.assign(_count=numeros(tabela, quantidade)).dropna(subset=["_count"])
+            figura = px.bar(tabela, x=grupo, y="_count", text=representante if representante else None, labels={grupo: "Chemometric group", "_count": "Number of candidates"}, title="Chemometric diversity of candidates")
+            figura.update_traces(textposition="outside")
+    elif "doe_sintese" in identificador:
+        tabela = dados("planejamento_doe_sintese")
+        formula = coluna(tabela, "formula")
+        temperatura, razao = coluna(tabela, "temperatura"), coluna(tabela, "razao")
+        if formula and temperatura and razao:
+            tabela = tabela.assign(_temperature=numeros(tabela, temperatura), _ratio=numeros(tabela, razao)).dropna(subset=["_temperature", "_ratio"])
+            figura = px.scatter(tabela, x="_temperature", y="_ratio", color=formula, labels={"_temperature": "Temperature (°C)", "_ratio": "Reaction ratio", formula: "Candidate"}, title="Suggested two-dimensional DOE")
+    elif "correlacao_descritores" in identificador:
+        tabela = dados("correlacao_descritores")
+        descritor = coluna(tabela, "descritor")
+        if descritor:
+            matriz = tabela.drop(columns=[descritor]).apply(pd.to_numeric, errors="coerce")
+            colunas_validas = [nome for nome in matriz.columns if matriz[nome].notna().any()]
+            matriz = matriz[colunas_validas]
+            if not matriz.empty:
+                rotulos_x = [_traduzir_interface(str(nome)) for nome in colunas_validas]
+                rotulos_y = [_traduzir_interface(str(nome)) for nome in tabela.loc[matriz.index, descritor]]
+                figura = go.Figure(go.Heatmap(z=matriz.to_numpy(), x=rotulos_x, y=rotulos_y, zmin=-1, zmax=1, colorscale="RdBu_r", colorbar={"title": "Pearson<br>correlation"}))
+                figura.update_layout(title="Correlation among chemometric descriptors")
+    elif "outliers_quimiometricos" in identificador:
+        pca, outliers = dados("pca_quimiometrica"), dados("outliers_quimiometricos")
+        formula_pca, formula_out = coluna(pca, "formula"), coluna(outliers, "formula")
+        pc1, pc2, indicador = coluna(pca, "pc1"), coluna(pca, "pc2"), coluna(outliers, "outlier", "quimiometrico")
+        if formula_pca and formula_out and pc1 and pc2 and indicador:
+            tabela = pca.merge(outliers[[formula_out, indicador]], left_on=formula_pca, right_on=formula_out, how="left")
+            tabela = tabela.assign(_pc1=numeros(tabela, pc1), _pc2=numeros(tabela, pc2), _class=np.where(booleanos(tabela[indicador]), "Outlier", "Within domain")).dropna(subset=["_pc1", "_pc2"])
+            figura = px.scatter(tabela, x="_pc1", y="_pc2", color="_class", text=formula_pca, color_discrete_map={"Within domain": "#1976D2", "Outlier": "#C62828"}, labels={"_pc1": "PC1", "_pc2": "PC2", "_class": "Classification"}, title="Outlier detection in PCA space")
+    elif "dominio_aplicabilidade" in identificador:
+        tabela = dados("dominio_aplicabilidade")
+        formula, t2, q = coluna(tabela, "formula"), coluna(tabela, "hotelling"), coluna(tabela, "q", "residual")
+        classe = coluna(tabela, "classe", "dominio")
+        if formula and t2 and q and classe:
+            mapa_classes = {"dentro_do_dominio": "Within domain", "zona_de_atencao": "Attention zone", "fora_do_dominio": "Outside domain"}
+            tabela = tabela.assign(_t2=numeros(tabela, t2), _q=numeros(tabela, q), _class=tabela[classe].map(lambda valor: mapa_classes.get(normalizar_texto(valor).replace(" ", "_"), _traduzir_interface(str(valor))))).dropna(subset=["_t2", "_q"])
+            figura = px.scatter(tabela, x="_t2", y="_q", color="_class", text=formula, color_discrete_map={"Within domain": "#2E7D32", "Attention zone": "#F9A825", "Outside domain": "#C62828"}, labels={"_t2": "Hotelling T²", "_q": "Q residual", "_class": "Applicability domain"}, title="Chemometric applicability domain")
+            limiar_t2, limiar_q = coluna(tabela, "limiar", "hotelling"), coluna(tabela, "limiar", "q", "residual")
+            if limiar_t2 and numeros(tabela, limiar_t2).notna().any():
+                figura.add_vline(x=float(numeros(tabela, limiar_t2).dropna().iloc[0]), line_dash="dash", line_color="#D81B60")
+            if limiar_q and numeros(tabela, limiar_q).notna().any():
+                figura.add_hline(y=float(numeros(tabela, limiar_q).dropna().iloc[0]), line_dash="dot", line_color="#1E88E5")
+    elif "pareto_desejabilidade" in identificador:
+        tabela = dados("pareto_desejabilidade")
+        formula = coluna(tabela, "formula")
+        dominio, desejabilidade, fronteira = coluna(tabela, "score", "dominio"), coluna(tabela, "desejabilidade", "global"), coluna(tabela, "fronteira", "pareto")
+        if formula and dominio and desejabilidade and fronteira:
+            tabela = tabela.assign(_domain=numeros(tabela, dominio), _desirability=numeros(tabela, desejabilidade), _class=np.where(booleanos(tabela[fronteira]), "Pareto frontier", "Dominated")).dropna(subset=["_domain", "_desirability"])
+            figura = px.scatter(tabela, x="_domain", y="_desirability", color="_class", text=formula, color_discrete_map={"Dominated": "#90A4AE", "Pareto frontier": "#D81B60"}, labels={"_domain": "Applicability-domain score", "_desirability": "Global desirability", "_class": "Status"}, title="Multicriteria Pareto frontier and desirability")
+    elif "validacao_robustez_ranking" in identificador:
+        tabela = dados("validacao_ranking")
+        formula, robustez = coluna(tabela, "formula"), coluna(tabela, "score", "robustez", "ranking")
+        if formula and robustez:
+            tabela = tabela.assign(_robustness=numeros(tabela, robustez)).dropna(subset=["_robustness"]).head(10).sort_values("_robustness")
+            figura = px.bar(tabela, x="_robustness", y=formula, orientation="h", labels={"_robustness": "Ranking robustness score", formula: "Candidate"}, title="Internal validity and Top-10 robustness")
+    elif "regressao_quimiometrica_proxy" in identificador:
+        tabela = dados("modelos_regressao_quimiometrica")
+        objetivo, modelo, r2 = coluna(tabela, "objetivo"), coluna(tabela, "modelo"), coluna(tabela, "r2", "validacao")
+        if objetivo and modelo and r2:
+            tabela = tabela.assign(_r2=numeros(tabela, r2), _label=tabela[objetivo].map(_traduzir_interface).astype(str) + " - " + tabela[modelo].astype(str)).dropna(subset=["_r2"])
+            figura = px.bar(tabela, x="_label", y="_r2", labels={"_label": "Target and model", "_r2": "Cross-validated R²"}, title="PCR/PLSR as proxy chemometric validation")
+            figura.add_hline(y=0, line_color="#424242")
+    if figura is None:
+        figura = go.Figure()
+        figura.add_annotation(text="No compatible tabular data were saved for this analysis.", x=0.5, y=0.5, xref="paper", yref="paper", showarrow=False, font={"size": 14, "color": "#546E7A"})
+        figura.update_xaxes(visible=False)
+        figura.update_yaxes(visible=False)
+        figura.update_layout(title="Saved scientific analysis")
     if figura is not None:
         figura.update_layout(height=350, margin={"l": 20, "r": 20, "t": 55, "b": 35}, template="simple_white")
     return figura
@@ -3847,10 +3947,7 @@ def mostrar_figuras(figuras_df: pd.DataFrame) -> None:
                 st.markdown("<div class='science-figure-card'>", unsafe_allow_html=True)
                 if idioma_atual() == "en":
                     figura_inglesa = figura_suplementar_ingles(identificador, saida_atual, reacao_atual)
-                    if figura_inglesa is not None:
-                        st.plotly_chart(figura_inglesa, width="stretch", key=f"figura_en_{indice}")
-                    else:
-                        st.info("An English data view is unavailable for this saved figure.")
+                    st.plotly_chart(figura_inglesa, width="stretch", key=f"figura_en_{indice}")
                 else:
                     st.image(str(caminho), width="stretch")
                 st.markdown(f"<h4>{html.escape(titulo)}</h4><p>{html.escape(explicacao)}</p></div>", unsafe_allow_html=True)
@@ -4522,7 +4619,7 @@ def mostrar_planejamento_sintese(
                 f"<div class='synthesis-kpi'><b>Volume inicial de solução</b><strong>{volume_exibicao}</strong></div></div>",
                 unsafe_allow_html=True,
             )
-            st.dataframe(receita_df, width="stretch", hide_index=True)
+            st.dataframe(_traduzir_tabela_visual(receita_df), width="stretch", hide_index=True)
             precursores_completos = bool(componentes or carga_ativa == 0) and receita_df["Massa corrigida a pesar (g)"].notna().all()
             if not precursores_completos:
                 st.warning("Há precursor sem massa calculável. Defina e valide esse precursor antes de emitir uma receita completa no PDF.")

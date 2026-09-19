@@ -227,10 +227,20 @@ class SidebarReactionTests(unittest.TestCase):
             ("estão fora do domínio de aplicabilidade.", "are outside the applicability domain."),
             ("Definir precursor e massa molar na calculadora livre", "Define the precursor and molar mass in the general calculator"),
             ("Pressão:", "Pressure:"),
+            ("Índice de estabilidade operacional", "Operational stability index"),
         ):
             self.assertIn(f'"{portuguese}": "{english}', source)
         self.assertIn('labels={"classe_dominio": texto("Classe do domínio", "Domain class")}', source)
         self.assertIn("if idioma_atual() == \"en\" or caminho.exists():", source)
+        self.assertIn("st.dataframe(_traduzir_tabela_visual(receita_df)", source)
+        for figure_id in (
+            "pca_quimiometrica", "grupos_quimiometricos", "doe_sintese",
+            "correlacao_descritores", "outliers_quimiometricos",
+            "dominio_aplicabilidade", "pareto_desejabilidade",
+            "validacao_robustez_ranking", "regressao_quimiometrica_proxy",
+        ):
+            self.assertIn(f'elif "{figure_id}" in identificador:', source)
+        self.assertNotIn("An English data view is unavailable for this saved figure.", source)
         self.assertIn("impregnação por umidade incipiente dos precursores de Ni, Co ou Fe, seguida de calcinação e redução", generator)
 
 
