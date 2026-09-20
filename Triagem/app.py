@@ -28,7 +28,7 @@ from nbclient import NotebookClient
 from reaction_options import promoter_options
 from report_contract import internal_classification
 from scientific_pdf_report import gerar_relatorio_cientifico_pdf
-from chemistry_panel import coke_resistance_score, sabatier_columns
+from chemistry_panel import coke_resistance_score, kinetic_reference_line, sabatier_columns
 from triage_jobs import ACTIVE_STATES, cleanup_old_jobs, create_job, queue_position, read_status, start_worker, write_json_atomic
 
 
@@ -3719,13 +3719,49 @@ def mostrar_visualizacao_cientifica_plotly(
         with st.container(border=True):
             st.markdown("<h3 class='science-card-title'>Cinética simplificada (proxy) vs. score final</h3><p class='science-card-note'>Confronta a taxa relativa estimada pelo modelo simplificado com a pontuação multicritério do candidato.</p>", unsafe_allow_html=True)
             if not dados_cinetica.empty and taxa_cinetica_col and score_cinetica_col:
+                modo_ingles_cinetica = idioma_atual() == "en"
                 cor_cinetica = encontrar_coluna_por_opcoes(dados_cinetica, [["score", "final"]]) or score_cinetica_col
                 figura_cinetica = px.scatter(dados_cinetica, x=taxa_cinetica_col, y=score_cinetica_col, color=cor_cinetica, color_continuous_scale="Turbo", custom_data=["_formula", "_suporte", "_score_final", "_rota"])
-                figura_cinetica.update_traces(marker={"size": 9, "line": {"color": "#FFFFFF", "width": 0.8}}, hovertemplate="<b>%{customdata[0]}</b><br>Taxa relativa (proxy): %{x:.3f}<br>Score final: %{y:.3f}<br>Suporte: %{customdata[1]}<br>Rota: %{customdata[3]}<extra></extra>")
+                figura_cinetica.update_traces(marker={"size": 9, "line": {"color": "#FFFFFF", "width": 0.8}}, hovertemplate="<b>%{customdata[0]}</b><br>Taxa relativa (proxy): %{x:.3e}<br>Score final: %{y:.3f}<br>Suporte: %{customdata[1]}<br>Rota: %{customdata[3]}<extra></extra>")
+                figura_cinetica.add_hline(
+                    y=0.65,
+                    line_color="#16843C",
+                    line_dash="dot",
+                    line_width=2,
+                    annotation_text="Internal score threshold (0.65)" if modo_ingles_cinetica else "Limiar interno de score (0,65)",
+                    annotation_position="top left",
+                )
+                referencia_cinetica = kinetic_reference_line(
+                    dados_cinetica[taxa_cinetica_col],
+                    dados_cinetica[score_cinetica_col],
+                )
+                if referencia_cinetica is not None:
+                    x_referencia, y_referencia, correlacao = referencia_cinetica
+                    nome_referencia = (
+                        f"Linear trend (r={correlacao:.2f})"
+                        if modo_ingles_cinetica
+                        else f"Tendência linear (r={correlacao:.2f})"
+                    )
+                    figura_cinetica.add_trace(
+                        go.Scatter(
+                            x=x_referencia,
+                            y=y_referencia,
+                            mode="lines",
+                            name=nome_referencia,
+                            line={"color": "#526071", "dash": "dash", "width": 2},
+                            hoverinfo="skip",
+                        )
+                    )
                 aplicar_estilo(figura_cinetica, altura=330)
-                figura_cinetica.update_xaxes(title_text="Taxa relativa estimada (proxy)")
+                figura_cinetica.update_xaxes(title_text="Taxa relativa estimada (proxy)", tickformat=".2e")
                 figura_cinetica.update_yaxes(title_text="Score final (0–1)")
                 st.plotly_chart(figura_cinetica, width="stretch", key="visualizacao_cinetica")
+                if referencia_cinetica is None:
+                    st.caption(
+                        "Insufficient rate variation for a linear trend; the horizontal line shows only the internal score threshold."
+                        if modo_ingles_cinetica
+                        else "Variação da taxa insuficiente para estimar uma tendência linear; a linha horizontal mostra apenas o limiar interno de score."
+                    )
             else:
                 st.info("Dados de taxa relativa insuficientes para o gráfico cinético simplificado.")
     with coluna_leitura_cinetica:

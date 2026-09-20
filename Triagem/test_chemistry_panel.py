@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from chemistry_panel import coke_resistance_score, sabatier_columns
+from chemistry_panel import coke_resistance_score, kinetic_reference_line, sabatier_columns
 
 
 class ChemistryPanelTests(unittest.TestCase):
@@ -56,6 +56,24 @@ class ChemistryPanelTests(unittest.TestCase):
             sabatier_columns(frame),
             ("energia de adsorção volcano (eV)", "taxa relativa volcano"),
         )
+
+    def test_kinetic_reference_line_returns_fit_and_correlation(self):
+        reference = kinetic_reference_line(
+            pd.Series([0.1, 0.2, 0.3, 0.4]),
+            pd.Series([0.4, 0.5, 0.6, 0.7]),
+        )
+        self.assertIsNotNone(reference)
+        x_line, y_line, correlation = reference
+        self.assertEqual(len(x_line), 80)
+        self.assertEqual(len(y_line), 80)
+        self.assertAlmostEqual(correlation, 1.0)
+
+    def test_kinetic_reference_line_rejects_constant_rate(self):
+        reference = kinetic_reference_line(
+            pd.Series([7.1e-8, 7.1e-8, 7.1e-8]),
+            pd.Series([0.61, 0.65, 0.69]),
+        )
+        self.assertIsNone(reference)
 
 
 if __name__ == "__main__":
