@@ -28,7 +28,7 @@ from nbclient import NotebookClient
 from reaction_options import promoter_options
 from report_contract import internal_classification
 from scientific_pdf_report import gerar_relatorio_cientifico_pdf
-from chemistry_panel import coke_resistance_score
+from chemistry_panel import coke_resistance_score, sabatier_columns
 from triage_jobs import ACTIVE_STATES, cleanup_old_jobs, create_job, queue_position, read_status, start_worker, write_json_atomic
 
 
@@ -5031,15 +5031,19 @@ def mostrar_painel_quimica(
     if coluna_formula:
         base_quimica = base_quimica.drop_duplicates(subset=[coluna_formula]).head(20).copy()
 
+    opcoes_energia_sabatier = [["energia", "adsorcao", "volcano"], ["energia", "adsorcao", "vulcao"]]
+    opcoes_distancia_sabatier = [["distancia", "otimo", "volcano"], ["distancia", "otimo", "vulcao"]]
+    opcoes_barreira_sabatier = [["barreira", "aparente", "volcano"], ["barreira", "aparente", "vulcao"]]
+
     linhas_propriedades = []
     for posicao, (_, row) in enumerate(base_quimica.head(5).iterrows(), 1):
         formula_row = str(row.get(coluna_formula, "-")) if coluna_formula else "-"
         linhas_propriedades.append(
             "<tr>"
             f"<td>{posicao}</td><td>{formula_html(formula_row)}</td>"
-            f"<td>{fmt(numero_quimico(row, [['energia', 'adsorcao', 'volcano']]), 3)}</td>"
-            f"<td>{fmt(numero_quimico(row, [['distancia', 'otimo', 'volcano']]), 3)}</td>"
-            f"<td>{fmt(numero_quimico(row, [['barreira', 'aparente', 'volcano']]), 3)}</td>"
+            f"<td>{fmt(numero_quimico(row, opcoes_energia_sabatier), 3)}</td>"
+            f"<td>{fmt(numero_quimico(row, opcoes_distancia_sabatier), 3)}</td>"
+            f"<td>{fmt(numero_quimico(row, opcoes_barreira_sabatier), 3)}</td>"
             f"<td>{fmt(numero_quimico(row, [['energia', 'gnn', 'local']]), 3)}</td>"
             f"<td>{fmt(numero_quimico(row, [['score', 'final']]), 3)}</td></tr>"
         )
@@ -5091,8 +5095,7 @@ def mostrar_painel_quimica(
     st.markdown(traduzir_texto_exibicao("<h2 class='chem-section-title'>Descritores químicos e relação estrutura–desempenho</h2>"), unsafe_allow_html=True)
     cfg_volcano = CONFIGURACAO_VOLCANO.get(reacao, CONFIGURACAO_VOLCANO["metanacao"])
     modo_ingles = idioma_atual() == "en"
-    energia_col = encontrar_coluna_por_opcoes(base_quimica, [["energia", "adsorcao", "volcano"]])
-    score_volcano_col = encontrar_coluna_por_opcoes(base_quimica, [["score", "volcano"], ["taxa", "relativa", "volcano"]])
+    energia_col, score_volcano_col = sabatier_columns(base_quimica)
     score_final_col = encontrar_coluna_por_opcoes(base_quimica, [["score", "final"]])
     estabilidade_col = encontrar_coluna_por_opcoes(base_quimica, [["estabilidade", "termodinamica"]])
     coluna_suporte = encontrar_coluna_por_opcoes(base_quimica, [["suporte", "sugerido"], ["suporte"]])
@@ -5137,8 +5140,8 @@ def mostrar_painel_quimica(
         else:
             st.info("Dados insuficientes para relacionar estabilidade e score final.")
 
-    energia_adsorcao = numero_quimico(top, [["energia", "adsorcao", "volcano"]])
-    distancia_otimo = numero_quimico(top, [["distancia", "otimo", "volcano"]])
+    energia_adsorcao = numero_quimico(top, opcoes_energia_sabatier)
+    distancia_otimo = numero_quimico(top, opcoes_distancia_sabatier)
     score_dft = numero_quimico(top, [["score", "dft", "proxy"]])
     descritores = [
         ("Energia de adsorção", fmt(energia_adsorcao, 3, " eV"), f"Distância do ótimo: {fmt(distancia_otimo, 3, ' eV')}", "Próxima do ótimo é melhor"),

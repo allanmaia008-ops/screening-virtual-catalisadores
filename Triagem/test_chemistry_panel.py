@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from chemistry_panel import coke_resistance_score
+from chemistry_panel import coke_resistance_score, sabatier_columns
 
 
 class ChemistryPanelTests(unittest.TestCase):
@@ -32,6 +32,30 @@ class ChemistryPanelTests(unittest.TestCase):
     def test_missing_value_is_not_replaced_by_zero(self):
         frame = pd.DataFrame({"formula": ["NiCo"], "score final": [0.8]})
         self.assertTrue(np.isnan(coke_resistance_score(frame)))
+
+    def test_sabatier_columns_accept_translated_volcano_headers(self):
+        frame = pd.DataFrame(
+            {
+                "energia de adsorção do vulcão (eV)": [0.83],
+                "score de vulcão": [0.94],
+            }
+        )
+        self.assertEqual(
+            sabatier_columns(frame),
+            ("energia de adsorção do vulcão (eV)", "score de vulcão"),
+        )
+
+    def test_sabatier_columns_preserve_legacy_headers(self):
+        frame = pd.DataFrame(
+            {
+                "energia de adsorção volcano (eV)": [0.83],
+                "taxa relativa volcano": [0.94],
+            }
+        )
+        self.assertEqual(
+            sabatier_columns(frame),
+            ("energia de adsorção volcano (eV)", "taxa relativa volcano"),
+        )
 
 
 if __name__ == "__main__":

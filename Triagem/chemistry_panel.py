@@ -72,3 +72,28 @@ def coke_resistance_score(
             if np.isfinite(numeric):
                 return float(np.clip(numeric, 0.0, 1.0))
     return float("nan")
+
+
+def sabatier_columns(frame: pd.DataFrame) -> tuple[str | None, str | None]:
+    """Locate the adsorption-energy and activity columns used by Sabatier plots.
+
+    Notebook exports have used both ``volcano`` and the translated ``vulcão``
+    in their headers. English result views are accepted as well.
+    """
+    energy_aliases = (
+        ("energia", "adsorcao", "volcano"),
+        ("energia", "adsorcao", "vulcao"),
+        ("adsorption", "energy", "volcano"),
+        ("volcano", "adsorption", "energy"),
+    )
+    activity_aliases = (
+        ("score", "volcano"),
+        ("score", "vulcao"),
+        ("taxa", "relativa", "volcano"),
+        ("taxa", "relativa", "vulcao"),
+        ("relative", "rate", "volcano"),
+        ("volcano", "score"),
+    )
+    energy_column = next((_find_column(frame, terms) for terms in energy_aliases if _find_column(frame, terms)), None)
+    activity_column = next((_find_column(frame, terms) for terms in activity_aliases if _find_column(frame, terms)), None)
+    return energy_column, activity_column
