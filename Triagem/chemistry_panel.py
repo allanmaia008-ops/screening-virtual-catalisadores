@@ -1,0 +1,74 @@
+"""Pure helpers used by the chemistry results panel."""
+
+from __future__ import annotations
+
+import unicodedata
+
+import numpy as np
+import pandas as pd
+
+
+def _normalize(value: object) -> str:
+    text = unicodedata.normalize("NFKD", str(value))
+    return "".join(char for char in text if not unicodedata.combining(char)).casefold().strip()
+
+
+def _find_column(frame: pd.DataFrame, terms: tuple[str, ...]) -> str | None:
+    normalized_terms = tuple(_normalize(term) for term in terms)
+    for column in frame.columns:
+        normalized_column = _normalize(column)
+        if all(term in normalized_column for term in normalized_terms):
+            return str(column)
+    return None
+
+
+def _candidate_row(frame: pd.DataFrame, formula: str) -> pd.Series | None:
+    if frame.empty:
+        return None
+    formula_column = _find_column(frame, ("formula",))
+    if formula_column and formula:
+        matches = frame[frame[formula_column].astype(str).map(_normalize) == _normalize(formula)]
+        if not matches.empty:
+            return matches.iloc[0]
+    return frame.iloc[0]
+
+
+def coke_resistance_score(
+    primary: pd.DataFrame,
+    *alternatives: pd.DataFrame,
+) -> float:
+    """Return the available coke-resistance score without inventing zero.
+
+    Result exports have existed with Portuguese, English and advanced-validation
+    labels. The candidate formula is used to join the same material across those
+    tables. A missing metric remains NaN so the UI can show it as unavailable.
+    """
+    if primary.empty:
+        return float("nan")
+    primary_row = primary.iloc[0]
+    formula_column = _find_column(primary, ("formula",))
+    formula = str(primary_row.get(formula_column, "")) if formula_column else ""
+    aliases = (
+        ("score", "resistencia", "coque"),
+        ("coke", "resistance"),
+        ("score", "anti", "coque", "avancado"),
+        ("advanced", "anti", "coke", "score"),
+    )
+    for frame in (primary, *alternatives):
+        row = _candidate_row(frame, formula)
+        if row is None:
+            continue
+        one_row = pd.DataFrame([row])
+        for terms in aliases:
+            column = _find_column(one_row, terms)
+            if not column:
+                continue
+            value = pd.to_numeric(pd.Series([row.get(column)]), errors="coerce").iloc[0]
+            if pd.isna(value):
+                continue
+            numeric = float(value)
+            if 1.0 < numeric <= 100.0:
+                numeric /= 100.0
+            if np.isfinite(numeric):
+                return float(np.clip(numeric, 0.0, 1.0))
+    return float("nan")

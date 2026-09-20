@@ -28,6 +28,7 @@ from nbclient import NotebookClient
 from reaction_options import promoter_options
 from report_contract import internal_classification
 from scientific_pdf_report import gerar_relatorio_cientifico_pdf
+from chemistry_panel import coke_resistance_score
 from triage_jobs import ACTIVE_STATES, cleanup_old_jobs, create_job, queue_position, read_status, start_worker, write_json_atomic
 
 
@@ -4908,7 +4909,10 @@ def mostrar_painel_quimica(
     score_estrutural = numero_quimico(top, [["score", "quimico", "pymatgen"], ["score", "pymatgen"]], 0.0)
     score_interacao = numero_quimico(top, [["score", "dft", "ajustado", "boltzmann"], ["score", "dft", "proxy"]], 0.0)
     score_estabilidade = numero_quimico(top, [["score", "estabilidade"]], 0.0)
-    score_coque = numero_quimico(top, [["score", "resistencia", "coque"]], 0.0)
+    # Recover the metric from any result table for the same formula. Older,
+    # translated and advanced-validation exports use different column labels.
+    # Missing data must remain unavailable instead of becoming a false zero.
+    score_coque = coke_resistance_score(prioritarios_df, classificacao_df, ranking_df)
     score_robustez = numero_quimico(top, [["score", "faixa", "condicao"]], 0.0)
     score_confianca = numero_quimico(top, [["indice", "evidencia", "interno"], ["score", "confianca"]], 0.0)
 
@@ -5041,6 +5045,8 @@ def mostrar_painel_quimica(
         )
 
     def classe_gauge(valor: float) -> tuple[str, str]:
+        if pd.isna(valor):
+            return "—", "Não disponível"
         percentual = int(round(100 * float(np.clip(valor, 0.0, 1.0))))
         classe = "Excelente" if percentual >= 80 else "Boa" if percentual >= 65 else "Moderada" if percentual >= 45 else "Baixa"
         return str(percentual), classe
