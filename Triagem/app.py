@@ -28,7 +28,7 @@ from nbclient import NotebookClient
 from reaction_options import promoter_options
 from report_contract import internal_classification
 from scientific_pdf_report import gerar_relatorio_cientifico_pdf
-from chemistry_panel import coke_resistance_score, kinetic_reference_line, sabatier_columns
+from chemistry_panel import coke_resistance_score, sabatier_columns
 from triage_jobs import ACTIVE_STATES, cleanup_old_jobs, create_job, queue_position, read_status, start_worker, write_json_atomic
 
 
@@ -3728,40 +3728,18 @@ def mostrar_visualizacao_cientifica_plotly(
                     line_color="#16843C",
                     line_dash="dot",
                     line_width=2,
-                    annotation_text="Internal score threshold (0.65)" if modo_ingles_cinetica else "Limiar interno de score (0,65)",
+                    annotation_text="Internal threshold (0.65) — non-physical" if modo_ingles_cinetica else "Limiar interno (0,65) — não físico",
                     annotation_position="top left",
                 )
-                referencia_cinetica = kinetic_reference_line(
-                    dados_cinetica[taxa_cinetica_col],
-                    dados_cinetica[score_cinetica_col],
-                )
-                if referencia_cinetica is not None:
-                    x_referencia, y_referencia, correlacao = referencia_cinetica
-                    nome_referencia = (
-                        f"Linear trend (r={correlacao:.2f})"
-                        if modo_ingles_cinetica
-                        else f"Tendência linear (r={correlacao:.2f})"
-                    )
-                    figura_cinetica.add_trace(
-                        go.Scatter(
-                            x=x_referencia,
-                            y=y_referencia,
-                            mode="lines",
-                            name=nome_referencia,
-                            line={"color": "#526071", "dash": "dash", "width": 2},
-                            hoverinfo="skip",
-                        )
-                    )
                 aplicar_estilo(figura_cinetica, altura=330)
                 figura_cinetica.update_xaxes(title_text="Taxa relativa estimada (proxy)", tickformat=".2e")
                 figura_cinetica.update_yaxes(title_text="Score final (0–1)")
                 st.plotly_chart(figura_cinetica, width="stretch", key="visualizacao_cinetica")
-                if referencia_cinetica is None:
-                    st.caption(
-                        "Insufficient rate variation for a linear trend; the horizontal line shows only the internal score threshold."
-                        if modo_ingles_cinetica
-                        else "Variação da taxa insuficiente para estimar uma tendência linear; a linha horizontal mostra apenas o limiar interno de score."
-                    )
+                st.caption(
+                    "The horizontal line is only the platform's internal classification threshold; it is not a physical, kinetic, or experimental reference."
+                    if modo_ingles_cinetica
+                    else "A linha horizontal representa apenas o limiar interno de classificação da plataforma; não é uma referência física, cinética ou experimental."
+                )
             else:
                 st.info("Dados de taxa relativa insuficientes para o gráfico cinético simplificado.")
     with coluna_leitura_cinetica:

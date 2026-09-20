@@ -97,34 +97,3 @@ def sabatier_columns(frame: pd.DataFrame) -> tuple[str | None, str | None]:
     energy_column = next((_find_column(frame, terms) for terms in energy_aliases if _find_column(frame, terms)), None)
     activity_column = next((_find_column(frame, terms) for terms in activity_aliases if _find_column(frame, terms)), None)
     return energy_column, activity_column
-
-
-def kinetic_reference_line(
-    rate: pd.Series,
-    score: pd.Series,
-    points: int = 80,
-) -> tuple[np.ndarray, np.ndarray, float] | None:
-    """Build a linear visual reference only when both axes vary enough."""
-    values = pd.DataFrame(
-        {
-            "rate": pd.to_numeric(rate, errors="coerce"),
-            "score": pd.to_numeric(score, errors="coerce"),
-        }
-    ).replace([np.inf, -np.inf], np.nan).dropna()
-    if len(values) < 3:
-        return None
-    x = values["rate"].to_numpy(dtype=float)
-    y = values["score"].to_numpy(dtype=float)
-    x_span = float(np.ptp(x))
-    y_span = float(np.ptp(y))
-    x_scale = max(float(np.max(np.abs(x))), 1e-12)
-    y_scale = max(float(np.max(np.abs(y))), 1e-12)
-    if x_span <= max(x_scale * 1e-6, 1e-12) or y_span <= max(y_scale * 1e-6, 1e-9):
-        return None
-    slope, intercept = np.polyfit(x, y, 1)
-    correlation = float(np.corrcoef(x, y)[0, 1])
-    if not all(np.isfinite(value) for value in [slope, intercept, correlation]):
-        return None
-    x_line = np.linspace(float(x.min()), float(x.max()), points)
-    y_line = slope * x_line + intercept
-    return x_line, y_line, correlation
