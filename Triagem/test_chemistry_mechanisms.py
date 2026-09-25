@@ -29,6 +29,46 @@ class ChemistryMechanismsTests(unittest.TestCase):
         self.assertTrue(mechanism_context("reforma", ["Pt", "Ni"], "", "CeO₂")["direct_match"])
         self.assertFalse(mechanism_context("reforma", ["Ni"], "", "CeO₂")["direct_match"])
 
+    def test_pt_zirconia_uses_composition_matched_bifunctional_drm_pathway(self):
+        context = mechanism_context("reforma", ["Pt"], "", "ZrO₂")
+        self.assertTrue(context["direct_match"])
+        self.assertIn("carbonato", " ".join(context["steps"]))
+        self.assertIn("perímetro Pt–ZrO₂", context["finding"])
+        self.assertEqual(context["doi"], "https://doi.org/10.1006/jcat.1998.2022")
+
+    def test_support_properties_create_qualified_hypotheses_not_confirmed_mechanism(self):
+        props = {"basicidade": 0.95, "afinidade_co2": 0.88, "redox": 0.35, "vacancia_oxigenio": 0.28}
+        context = mechanism_context("reforma", ["Co"], "La", "MgAlOx", support_properties=props)
+        cards = " ".join(text for _, text in context["property_hypotheses"]["cards"])
+        self.assertEqual(context["property_hypotheses"]["property_signal"], "basic")
+        self.assertIn("proxies internos", cards)
+        self.assertIn("não demonstra", cards)
+        self.assertIn("etapa não atribuída", context["property_hypotheses"]["pathway"])
+        self.assertFalse(context["direct_match"])
+
+    def test_property_hypothesis_is_translated(self):
+        props = {"basicidade": 0.90, "afinidade_co2": 0.85, "redox": 0.20, "vacancia_oxigenio": 0.18}
+        context = mechanism_context("reforma", ["Co"], "La", "MgAl2O4", english=True, support_properties=props)
+        cards = " ".join(text for _, text in context["property_hypotheses"]["cards"])
+        self.assertIn("internal basicity/CO₂-affinity proxies", cards)
+        self.assertIn("not demonstrate", cards)
+
+    def test_alternative_supports_get_separate_property_hypotheses(self):
+        profiles = [
+            {"suporte": "MgAlOx", "basicidade": .95, "afinidade_co2": .88, "redox": .35, "vacancia_oxigenio": .28},
+            {"suporte": "La2O3-Al2O3", "basicidade": .88, "afinidade_co2": .90, "redox": .45, "vacancia_oxigenio": .38},
+            {"suporte": "MgAl2O4", "basicidade": .88, "afinidade_co2": .80, "redox": .28, "vacancia_oxigenio": .22},
+        ]
+        context = mechanism_context("reforma", ["Co"], "La",
+                                   "MgAlOx, La2O3-Al2O3 ou espinelio MgAl2O4",
+                                   support_property_profiles=profiles)
+        support_card = context["property_hypotheses"]["cards"][1][1]
+        path = context["property_hypotheses"]["pathway"]
+        for name in ("MgAlOx", "La2O3-Al2O3", "MgAl2O4"):
+            self.assertIn(name, support_card)
+            self.assertIn(name, path)
+        self.assertIn("Cenários por suporte", path)
+
     def test_methanation_pathway_changes_with_selected_support_system(self):
         y2o3 = mechanism_context("metanacao", ["Ni"], "", "Y₂O₃")
         ceria = mechanism_context("metanacao", ["Ni"], "", "CeO₂")
@@ -74,6 +114,8 @@ class ChemistryMechanismsTests(unittest.TestCase):
         self.assertIn("Co0.71La0.29", panel)
         self.assertIn("Analogia da literatura: Ni–Co/La₂O₃", panel)
         self.assertIn("10.1016/j.jcat.2016.03.018", panel)
+        self.assertIn("Hipótese mecanística baseada nas propriedades", panel)
+        self.assertIn("heurísticas normalizadas do suporte", panel)
         self.assertEqual(fake_st.markdown_calls, [])
 
     def test_render_uses_selected_reforming_metals_promoter_and_support(self):
@@ -84,6 +126,7 @@ class ChemistryMechanismsTests(unittest.TestCase):
         self.assertIn("K is selected but absent from the reference", panel)
         self.assertIn("Pt, Ni/CeO₂", panel)
         self.assertIn("composition differs", panel)
+        self.assertIn("Property-based mechanistic hypothesis", panel)
 
 
 if __name__ == "__main__":

@@ -5107,6 +5107,23 @@ def mostrar_painel_quimica(
     """
     st.markdown(traduzir_texto_exibicao(html_superior), unsafe_allow_html=True)
 
+    suporte_mecanismo_norm = normalizar_texto(suporte_sugerido).replace(" ", "")
+    propriedades_suporte_mecanismo = next(
+        (dict(item) for item in BIBLIOTECA_SUPORTES_QUIMICA
+         if normalizar_texto(str(item["suporte"])).replace(" ", "") == suporte_mecanismo_norm),
+        None,
+    )
+    perfis_suportes_mecanismo = []
+    for alternativa_suporte in re.split(r"\s*,\s*|\s+ou\s+", suporte_sugerido, flags=re.IGNORECASE):
+        alternativa_norm = normalizar_texto(alternativa_suporte).replace(" ", "")
+        perfil = next(
+            (dict(item) for item in BIBLIOTECA_SUPORTES_QUIMICA
+             if alternativa_norm == normalizar_texto(str(item["suporte"])).replace(" ", "")
+             or alternativa_norm.endswith(normalizar_texto(str(item["suporte"])).replace(" ", ""))),
+            None,
+        )
+        if perfil and all(perfil["suporte"] != existing["suporte"] for existing in perfis_suportes_mecanismo):
+            perfis_suportes_mecanismo.append(perfil)
     render_mechanism_panel(
         st,
         reacao,
@@ -5115,6 +5132,8 @@ def mostrar_painel_quimica(
         promotor,
         suporte_sugerido,
         english=idioma_atual() == "en",
+        support_properties=propriedades_suporte_mecanismo,
+        support_property_profiles=perfis_suportes_mecanismo,
     )
 
     st.markdown(traduzir_texto_exibicao("<h2 class='chem-section-title'>Descritores químicos e relação estrutura–desempenho</h2>"), unsafe_allow_html=True)
