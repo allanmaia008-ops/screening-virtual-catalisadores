@@ -26,6 +26,7 @@ import streamlit as st
 from streamlit.delta_generator import DeltaGenerator
 from nbclient import NotebookClient
 from reaction_options import promoter_options
+from chemistry_mechanisms import render_mechanism_panel
 from report_contract import internal_classification
 from scientific_pdf_report import gerar_relatorio_cientifico_pdf
 from chemistry_panel import coke_resistance_score, sabatier_columns
@@ -5105,6 +5106,16 @@ def mostrar_painel_quimica(
     <article class="chem-panel chem-gauges"><h3>Estabilidade térmica e resistência à formação de coque</h3><div class="chem-gauge-grid">{''.join(gauges)}</div><p class="chem-method-note centered">A resistência à sinterização é um proxy estrutural/composicional; não representa um modelo temporal de crescimento de partículas.</p></article>
     """
     st.markdown(traduzir_texto_exibicao(html_superior), unsafe_allow_html=True)
+
+    render_mechanism_panel(
+        st,
+        reacao,
+        formula,
+        metais_ativos,
+        promotor,
+        suporte_sugerido,
+        english=idioma_atual() == "en",
+    )
 
     st.markdown(traduzir_texto_exibicao("<h2 class='chem-section-title'>Descritores químicos e relação estrutura–desempenho</h2>"), unsafe_allow_html=True)
     cfg_volcano = CONFIGURACAO_VOLCANO.get(reacao, CONFIGURACAO_VOLCANO["metanacao"])
