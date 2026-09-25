@@ -50,6 +50,11 @@ def _norm(value: str) -> str:
     return re.sub(r"[^a-z0-9]", "", value.translate(str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")))
 
 
+def _support_options(support: str) -> list[str]:
+    """Split a support recommendation into alternatives, not a fictitious mixture."""
+    return [part.strip() for part in re.split(r"\s*,\s*|\s+ou\s+|\s+or\s+", str(support or ""), flags=re.IGNORECASE) if part.strip()]
+
+
 def mechanism_context(reaction: str, active_metals: list[str], promoter: str, support: str,
                       english: bool = False) -> dict | None:
     """Build a reaction and composition-aware interpretation without scoring claims."""
@@ -58,14 +63,18 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
         return None
     selected = {_norm(metal) for metal in active_metals if _norm(metal)}
     metals_match = selected == mechanism["metals"]
-    support_match = _norm(support) == mechanism["support"]
+    support_options = _support_options(support)
+    # A list of suggested supports is not one material and cannot establish a
+    # direct match to a single-support literature system.
+    support_match = len(support_options) == 1 and _norm(support_options[0]) == mechanism["support"]
     promoter_match = _norm(promoter) == _norm(mechanism["promoter"] or "")
     context = {**mechanism, "direct_match": metals_match and support_match and promoter_match,
+               "support_options": support_options,
                "metals_match": metals_match, "support_match": support_match, "promoter_match": promoter_match}
 
     # Methanation has distinct primary studies for Ni/Y2O3 and Ni- or Rh/CeO2;
     # select the matching pathway instead of always showing the Ni/Y2O3 route.
-    if reaction == "metanacao" and _norm(support) == "ceo2" and selected in ({"ni"}, {"rh"}) and not promoter:
+    if reaction == "metanacao" and len(support_options) == 1 and _norm(support_options[0]) == "ceo2" and selected in ({"ni"}, {"rh"}) and not promoter:
         metals_match = support_match = promoter_match = True
         context.update({
             "direct_match": True, "metals_match": True, "support_match": True, "promoter_match": True,
@@ -95,7 +104,12 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
     unknown_role = ("Este metal foi selecionado, mas a referência exibida não estabelece sua contribuição mecanística nesta composição.", "This metal is selected, but the displayed reference does not establish its mechanistic contribution in this composition.")
     metal_readings = [(str(metal), roles.get(reaction, {}).get(_norm(metal), unknown_role)[1 if english else 0]) for metal in active_metals]
 
-    if support_match:
+    if len(support_options) > 1:
+        support_reading = (
+            (f"Estas são alternativas de suporte, não uma composição única: {', '.join(support_options)}. Escolha uma opção antes de comparar com a referência ({mechanism['support']}).",
+             f"These are alternative supports, not one composition: {', '.join(support_options)}. Select one option before comparing with the reference ({mechanism['support']}).")
+        )
+    elif support_match:
         support_reading = ((f"{support} corresponde ao suporte da referência; a contribuição reportada vale para aquele sistema e suas condições."),
                            (f"{support} matches the reference support; the reported contribution applies to that system and its conditions."))
     elif _norm(support) in {"ceo2", "zro2", "tio2", "in2o3"}:
@@ -112,7 +126,7 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
         ("Sem promotor selecionado; a leitura não inclui efeito de promotor.", "No promoter selected; this interpretation includes no promoter effect."))
 
     metals_text = ", ".join(active_metals) if active_metals else ("Nenhum especificado" if not english else "None specified")
-    support_text = support or ("Não especificado" if not english else "Not specified")
+    support_text = ", ".join(support_options) if support_options else ("Não especificado" if not english else "Not specified")
     if reaction == "reforma":
         risk_reaction = (
             ("Como Ni foi selecionado, ativação de CH₄ pode gerar carbono; avaliar coque nas condições reais. A mitigação por O* citada depende da interface Pt–Ni/CeO₂." if "ni" in selected else "A composição selecionada não tem evidência citada de resistência ao coque; medir carbono depositado sob a razão CH₄/CO₂ e temperatura de operação."),
@@ -141,6 +155,7 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
     ]
     context.update({"metal_readings": metal_readings,
                     "support_reading": support_reading[1 if english else 0],
+                    "support_options": support_options,
                     "promoter_reading": promoter_reading[1 if english else 0],
                     "risks": [(labels[1 if english else 0], text_pair[1 if english else 0]) for labels, text_pair in risks]})
     return context
@@ -153,8 +168,9 @@ def render_mechanism_panel(st, reaction: str, formula: str, active_metals: list[
     if context is None:
         return
 
-    title = "Literature mechanism for the selected reaction" if english else "Mecanismo da literatura para a reação selecionada"
     direct = context["direct_match"]
+    title = (("Literature mechanism for the selected reaction" if direct else "Mechanistic context for the selected reaction") if english
+             else ("Mecanismo da literatura para a reação selecionada" if direct else "Contexto mecanístico da reação selecionada"))
     status = (("Direct match to the cited system" if direct else "Related reference; composition differs") if english
               else ("Correspondência direta com o sistema citado" if direct else "Referência relacionada; composição diferente"))
     metal_label, promoter_label, support_label = (("Active metals", "Promoter", "Suggested support") if english
@@ -176,20 +192,34 @@ def render_mechanism_panel(st, reaction: str, formula: str, active_metals: list[
     finding = context["finding_en"] if english else context["finding"]
     source_label = "Source" if english else "Fonte"
     mechanism_name = context["label"][1 if english else 0]
-    st.markdown(
-        f"""<style>
+    exact_evidence = context["direct_match"]
+    no_match_notice = (
+        "No composition-matched mechanism is available in the curated references. The literature pathway below is therefore not assigned to this candidate." if english
+        else "Não há mecanismo correspondente à composição selecionada nas referências curadas. Portanto, uma rota da literatura não será atribuída a este candidato."
+    )
+    evidence_block = (
+        f"<h4>{html.escape('Reported pathway (reference system)' if english else 'Rota reportada (sistema de referência)')}</h4><div class='chem-lit-flow'>{pathway}</div><p>{html.escape(finding)}</p>"
+        f"<p><a href='{context['doi']}' target='_blank' rel='noreferrer'>{html.escape(source_label)}: {html.escape(context['citation'])} · DOI</a></p>"
+        if exact_evidence else f"<p class='chem-lit-notice'>{html.escape(no_match_notice)}</p>"
+    )
+    panel_html = f"""<style>
         .chem-lit-panel{{margin:18px 0;padding:16px;border:1px solid #D7E3DD;border-radius:10px;background:#fff;color:#14213D}}
         .chem-lit-panel h3{{margin:0 0 10px;color:#153A70;font-size:.96rem;line-height:1.25;font-weight:850;overflow-wrap:anywhere}}.chem-lit-composition{{padding:10px;border:1px solid #E3EAE6;border-radius:7px;line-height:1.8}}
         .chem-lit-flow{{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0}}.chem-lit-step{{padding:8px 10px;border-radius:7px;background:#EFF7F2;color:#153A70;font-weight:650}}
         .chem-lit-risks{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}}.chem-lit-risks>div{{padding:10px;border-radius:7px;background:#F8FAF9}}
         .chem-lit-risks p{{margin:5px 0 0;color:#40536A;font-size:.84rem}}.chem-lit-status{{display:inline-block;padding:5px 8px;border-radius:6px;background:{'#EAF2FF' if direct else '#FFF4DE'};color:{'#1756A3' if direct else '#875A10'};font-size:.82rem;font-weight:700}}
+        .chem-lit-notice{{padding:10px;border-left:3px solid #D89B28;background:#FFF8E8;border-radius:5px;color:#604716}}
         @media(max-width:700px){{.chem-lit-risks{{grid-template-columns:1fr}}}}
         </style><section class='chem-lit-panel'><h3>{html.escape(title)} · {html.escape(mechanism_name)}</h3>
         <p>{html.escape('Screened formula' if english else 'Fórmula triada')}: <b>{html.escape(formula)}</b></p>{composition}
-        <h4>{html.escape(components_heading)}</h4>{roles_html}<h4>{html.escape('Reported pathway (reference system)' if english else 'Rota reportada (sistema de referência)')}</h4>
-        <div class='chem-lit-flow'>{pathway}</div><p>{html.escape(finding)}</p>
+        <h4>{html.escape(components_heading)}</h4>{roles_html}
+        {evidence_block}
         <h4>{html.escape('Composition-aware checks' if english else 'Verificações considerando a composição')}</h4><div class='chem-lit-risks'>{risks_html}</div>
         <p><b>{html.escape('Evidence status' if english else 'Status da evidência')}:</b> <span class='chem-lit-status'>{html.escape(status)}</span></p>
-        <p><a href='{context['doi']}' target='_blank' rel='noreferrer'>{html.escape(source_label)}: {html.escape(context['citation'])} · DOI</a></p></section>""",
-        unsafe_allow_html=True,
-    )
+        </section>"""
+    # st.html parses the markup directly; st.markdown may display literal tags
+    # when the HTML is nested/combined with CSS in some Streamlit versions.
+    if hasattr(st, "html"):
+        st.html(panel_html)
+    else:  # compatibility with older Streamlit releases
+        st.markdown(panel_html, unsafe_allow_html=True)

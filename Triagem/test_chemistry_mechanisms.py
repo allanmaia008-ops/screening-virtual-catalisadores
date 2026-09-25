@@ -7,9 +7,13 @@ class ChemistryMechanismsTests(unittest.TestCase):
     class FakeStreamlit:
         def __init__(self):
             self.markdown_calls = []
+            self.html_calls = []
 
         def markdown(self, value, **kwargs):
             self.markdown_calls.append((value, kwargs))
+
+        def html(self, value):
+            self.html_calls.append(value)
 
     def test_only_selected_reaction_has_a_pathway(self):
         self.assertEqual(mechanism_context("rwgs", ["Au"], "", "CeO₂")["label"][0], "RWGS")
@@ -37,10 +41,28 @@ class ChemistryMechanismsTests(unittest.TestCase):
         self.assertIn("K foi selecionado", context["promoter_reading"])
         self.assertIn("Pt–Ni/CeO₂", context["risks"][-1][1])
 
+    def test_support_recommendations_are_parsed_as_alternatives(self):
+        context = mechanism_context("reforma", ["Co"], "La", "MgAlOx, La2O3-Al2O3 ou espinelio MgAl2O4")
+        self.assertEqual(context["support_options"], ["MgAlOx", "La2O3-Al2O3", "espinelio MgAl2O4"])
+        self.assertFalse(context["direct_match"])
+        self.assertIn("alternativas de suporte", context["support_reading"])
+
+    def test_nonmatching_composition_does_not_inherit_reference_pathway(self):
+        fake_st = self.FakeStreamlit()
+        render_mechanism_panel(fake_st, "reforma", "Co0.71La0.29", ["Co"], "La",
+                               "MgAlOx, La2O3-Al2O3 ou espinelio MgAl2O4")
+        panel = fake_st.html_calls[0]
+        self.assertIn("Não há mecanismo correspondente à composição selecionada", panel)
+        self.assertNotIn("CH₄ ativado", panel)
+        self.assertNotIn("Chen et al.", panel)
+        self.assertIn("ceo2", panel.lower())  # named only as the comparison reference
+        self.assertIn("Co0.71La0.29", panel)
+        self.assertEqual(fake_st.markdown_calls, [])
+
     def test_render_uses_selected_reforming_metals_promoter_and_support(self):
         fake_st = self.FakeStreamlit()
         render_mechanism_panel(fake_st, "reforma", "NiPt", ["Pt", "Ni"], "K", "CeO₂", english=True)
-        panel = fake_st.markdown_calls[0][0]
+        panel = fake_st.html_calls[0]
         self.assertIn("Pt was associated with CO₂ dissociation", panel)
         self.assertIn("K is selected but absent from the reference", panel)
         self.assertIn("Pt, Ni/CeO₂", panel)
