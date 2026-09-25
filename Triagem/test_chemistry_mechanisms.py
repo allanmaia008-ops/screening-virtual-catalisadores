@@ -47,6 +47,21 @@ class ChemistryMechanismsTests(unittest.TestCase):
         self.assertFalse(context["direct_match"])
         self.assertIn("alternativas de suporte", context["support_reading"])
 
+    def test_ru_ceria_uses_composition_matched_operando_mechanism(self):
+        context = mechanism_context("metanacao", ["Ru"], "", "CeO₂")
+        self.assertTrue(context["direct_match"])
+        self.assertIn("Ru–CO*", " ".join(context["steps"]))
+        self.assertEqual(context["doi"], "https://doi.org/10.1021/acs.jpcc.1c07537")
+        self.assertIn("corresponde ao suporte da referência", context["support_reading"])
+        self.assertIn("ZrO₂, TiO₂ e In₂O₃", context["literature_notes"][0]["text"])
+
+    def test_ru_support_review_is_not_treated_as_mechanism_for_other_support(self):
+        context = mechanism_context("metanacao", ["Ru"], "", "ZrO₂")
+        self.assertFalse(context["direct_match"])
+        self.assertEqual(len(context["literature_notes"]), 1)
+        self.assertIn("não suportes equivalentes", context["literature_notes"][0]["text"])
+        self.assertIn("detalhada deste painel é para Ru/CeO₂", context["support_reading"])
+
     def test_nonmatching_composition_does_not_inherit_reference_pathway(self):
         fake_st = self.FakeStreamlit()
         render_mechanism_panel(fake_st, "reforma", "Co0.71La0.29", ["Co"], "La",
@@ -57,6 +72,8 @@ class ChemistryMechanismsTests(unittest.TestCase):
         self.assertNotIn("Chen et al.", panel)
         self.assertIn("ceo2", panel.lower())  # named only as the comparison reference
         self.assertIn("Co0.71La0.29", panel)
+        self.assertIn("Analogia da literatura: Ni–Co/La₂O₃", panel)
+        self.assertIn("10.1016/j.jcat.2016.03.018", panel)
         self.assertEqual(fake_st.markdown_calls, [])
 
     def test_render_uses_selected_reforming_metals_promoter_and_support(self):

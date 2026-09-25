@@ -71,6 +71,7 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
     context = {**mechanism, "direct_match": metals_match and support_match and promoter_match,
                "support_options": support_options,
                "metals_match": metals_match, "support_match": support_match, "promoter_match": promoter_match}
+    literature_notes = []
 
     # Methanation has distinct primary studies for Ni/Y2O3 and Ni- or Rh/CeO2;
     # select the matching pathway instead of always showing the Ni/Y2O3 route.
@@ -86,6 +87,42 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
             "doi": "https://doi.org/10.1039/C8CY02097C",
         })
 
+    # The user-provided Ni/Ru review reports reducible-oxide supports for Ru.
+    # A separate operando/DFT study supports a composition-matched Ru/CeO2
+    # pathway; do not transfer that pathway to other listed supports.
+    if reaction == "metanacao" and selected == {"ru"}:
+        literature_notes.append({
+            "title": ("Supports reported for Ru methanation" if english else "Suportes reportados para metanação com Ru"),
+            "text": (("The review reports Ru catalysts on CeO₂, ZrO₂, TiO₂, and In₂O₃. These are literature examples, not equivalent supports or a performance ranking; the detailed pathway below is specific to Ru/CeO₂." if english else
+                     "A revisão relata catalisadores de Ru suportados em CeO₂, ZrO₂, TiO₂ e In₂O₃. São exemplos da literatura, não suportes equivalentes nem uma classificação de desempenho; a rota detalhada abaixo é específica de Ru/CeO₂.")),
+            "citation": "Usman et al. (2025), Catalysts 15, 203 (review)",
+            "doi": "https://doi.org/10.3390/catal15030203",
+        })
+        if len(support_options) == 1 and _norm(support_options[0]) == "ceo2" and not promoter:
+            metals_match = support_match = promoter_match = True
+            context.update({
+                "direct_match": True, "metals_match": True, "support_match": True, "promoter_match": True,
+                "support": "ceo2",
+                "steps": ["CO₂ dissociado em Ru / carbonatos-carboxilatos em CeO₂", "Ru–CO* e formiato na interface", "hidrogenação de intermediários C–O", "CH₄"],
+                "steps_en": ["CO₂ dissociated on Ru / carbonates-carboxylates on CeO₂", "Interfacial Ru–CO* and formate", "Hydrogenation of C–O intermediates", "CH₄"],
+                "finding": "Em Ru/CeO₂, DRIFTS, NAP-XPS e DFT indicaram ativação de CO₂ tanto em Ru quanto em CeO₂: CO₂ pode formar Ru–CO*, carbonatos e carboxilatos; espécies formiato/carboxilato participam da química interfacial. A hidrogenação de Ru–CO* foi indicada como etapa determinante da velocidade no sistema estudado. Não extrapolar para outros suportes ou condições.",
+                "finding_en": "For Ru/CeO₂, DRIFTS, NAP-XPS, and DFT indicated CO₂ activation on both Ru and CeO₂: CO₂ can form Ru–CO*, carbonates, and carboxylates; formate/carboxylate species participate in interfacial chemistry. Hydrogenation of Ru–CO* was identified as rate-determining in that system. Do not extrapolate to other supports or conditions.",
+                "citation": "Rogatis et al. (2022), J. Phys. Chem. C",
+                "doi": "https://doi.org/10.1021/acs.jpcc.1c07537",
+            })
+
+    # Closest mechanistic analogy for the user's Co–La dry-reforming example:
+    # the primary study contains Ni–Co alloy and La2O3 support, not Co–La alone.
+    if reaction == "reforma" and ("co" in selected or _norm(promoter) == "la"):
+        literature_notes.append({
+            "title": ("Literature analogy: Ni–Co/La₂O₃ (not the selected composition)" if english else "Analogia da literatura: Ni–Co/La₂O₃ (não é a composição selecionada)"),
+            "text": (("Under dry reforming, an in-situ XRD study found that Co addition to Ni/La₂O₃ increased La₂O₂CO₃ formation; the oxycarbonate accelerated removal of carbonaceous deposits next to the active particles. The studied active phase was Ni–Co and La₂O₃ was the support. This is not evidence that monometallic Co with La promoter on MgAlOx, La₂O₃–Al₂O₃, or MgAl₂O₄ behaves the same way." if english else
+                     "Na reforma seca, um estudo por DRX in situ observou que adicionar Co a Ni/La₂O₃ aumentou a formação de La₂O₂CO₃; o oxicarbonato acelerou a remoção de depósitos carbonáceos próximos às partículas ativas. A fase ativa estudada era Ni–Co e La₂O₃ era o suporte. Isso não comprova o mesmo comportamento para Co monometálico com La promotor em MgAlOx, La₂O₃–Al₂O₃ ou MgAl₂O₄.")),
+            "citation": "Tsoukalou et al. (2016), Journal of Catalysis 343, 208–214",
+            "doi": "https://doi.org/10.1016/j.jcat.2016.03.018",
+        })
+    context["literature_notes"] = literature_notes
+
     # Roles below are intentionally limited to statements supported by the
     # displayed reaction-specific literature; unknown metals stay explicitly unknown.
     roles = {
@@ -96,6 +133,7 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
         "metanacao": {
             "ni": ("Ni fornece sítios para ativação de H₂ e hidrogenação. A rota de CO₂ depende do suporte: formiato em Ni/Y₂O₃ e vias de formiato/CO dependentes da estrutura em céria.", "Ni provides sites for H₂ activation and hydrogenation. The CO₂ pathway depends on support: formate on Ni/Y₂O₃ and structure-dependent formate/CO routes on ceria."),
             "rh": ("Em Rh/CeO₂, CO adsorvido foi hidrogenado a CH₄ mais prontamente que em Ni/CeO₂ no estudo citado; a comparação é específica aos catalisadores estudados.", "On Rh/CeO₂, adsorbed CO was hydrogenated to CH₄ more readily than on Ni/CeO₂ in the cited study; this comparison is specific to those catalysts."),
+            "ru": ("Em Ru/CeO₂, o estudo citado observou ativação de CO₂ em Ru e no suporte. Isso não define o mecanismo de Ru em ZrO₂, TiO₂ ou In₂O₃.", "On Ru/CeO₂, the cited study observed CO₂ activation on Ru and the support. This does not establish the mechanism of Ru on ZrO₂, TiO₂, or In₂O₃."),
         },
         "rwgs": {
             "au": ("Au/CeO₂ é o sistema de referência: dados operando/transientes sustentam ali uma rota associativa via carbonato/formiato; não extrapolar automaticamente a outro suporte.", "Au/CeO₂ is the reference system: operando/transient data support an associative carbonate/formate route there; do not automatically extrapolate to another support."),
@@ -104,11 +142,19 @@ def mechanism_context(reaction: str, active_metals: list[str], promoter: str, su
     unknown_role = ("Este metal foi selecionado, mas a referência exibida não estabelece sua contribuição mecanística nesta composição.", "This metal is selected, but the displayed reference does not establish its mechanistic contribution in this composition.")
     metal_readings = [(str(metal), roles.get(reaction, {}).get(_norm(metal), unknown_role)[1 if english else 0]) for metal in active_metals]
 
-    if len(support_options) > 1:
+    if len(support_options) > 1 and reaction == "metanacao" and selected == {"ru"}:
+        support_reading = (
+            (f"Estas são alternativas de suporte, não uma composição única: {', '.join(support_options)}. A revisão relata exemplos com Ru, mas a evidência mecanística precisa ser ligada a um suporte e a condições específicos.",
+             f"These are alternative supports, not one composition: {', '.join(support_options)}. The review reports Ru examples, but mechanistic evidence must be tied to one support and specific conditions."))
+    elif len(support_options) > 1:
         support_reading = (
             (f"Estas são alternativas de suporte, não uma composição única: {', '.join(support_options)}. Escolha uma opção antes de comparar com a referência ({mechanism['support']}).",
              f"These are alternative supports, not one composition: {', '.join(support_options)}. Select one option before comparing with the reference ({mechanism['support']}).")
         )
+    elif reaction == "metanacao" and selected == {"ru"} and not support_match and _norm(support) in {"ceo2", "zro2", "tio2", "in2o3"}:
+        support_reading = (
+            (f"{support} é um suporte reportado para Ru na revisão citada. Isso não transfere automaticamente uma rota mecanística: a evidência direta detalhada deste painel é para Ru/CeO₂.",
+             f"{support} is reported as a Ru support in the cited review. This does not automatically transfer a mechanism: the detailed composition-matched evidence in this panel is for Ru/CeO₂."))
     elif support_match:
         support_reading = ((f"{support} corresponde ao suporte da referência; a contribuição reportada vale para aquele sistema e suas condições."),
                            (f"{support} matches the reference support; the reported contribution applies to that system and its conditions."))
@@ -202,11 +248,21 @@ def render_mechanism_panel(st, reaction: str, formula: str, active_metals: list[
         f"<p><a href='{context['doi']}' target='_blank' rel='noreferrer'>{html.escape(source_label)}: {html.escape(context['citation'])} · DOI</a></p>"
         if exact_evidence else f"<p class='chem-lit-notice'>{html.escape(no_match_notice)}</p>"
     )
+    literature_notes_html = ""
+    if context.get("literature_notes"):
+        notes_heading = "Comparative literature evidence (not automatically transferable)" if english else "Evidências comparativas da literatura (não transferíveis automaticamente)"
+        notes_cards = "".join(
+            f"<div><b>{html.escape(note['title'])}</b><p>{html.escape(note['text'])}</p>"
+            f"<a href='{note['doi']}' target='_blank' rel='noreferrer'>{html.escape(source_label)}: {html.escape(note['citation'])} · DOI</a></div>"
+            for note in context["literature_notes"]
+        )
+        literature_notes_html = f"<h4>{html.escape(notes_heading)}</h4><div class='chem-lit-literature'>{notes_cards}</div>"
     panel_html = f"""<style>
         .chem-lit-panel{{margin:18px 0;padding:16px;border:1px solid #D7E3DD;border-radius:10px;background:#fff;color:#14213D}}
         .chem-lit-panel h3{{margin:0 0 10px;color:#153A70;font-size:.96rem;line-height:1.25;font-weight:850;overflow-wrap:anywhere}}.chem-lit-composition{{padding:10px;border:1px solid #E3EAE6;border-radius:7px;line-height:1.8}}
         .chem-lit-flow{{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0}}.chem-lit-step{{padding:8px 10px;border-radius:7px;background:#EFF7F2;color:#153A70;font-weight:650}}
         .chem-lit-risks{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}}.chem-lit-risks>div{{padding:10px;border-radius:7px;background:#F8FAF9}}
+        .chem-lit-literature{{display:grid;grid-template-columns:1fr;gap:9px;margin:10px 0}}.chem-lit-literature>div{{padding:12px;border:1px solid #E3EAE6;border-radius:7px;background:#F8FAF9}}.chem-lit-literature a{{font-size:.82rem}}
         .chem-lit-risks p{{margin:5px 0 0;color:#40536A;font-size:.84rem}}.chem-lit-status{{display:inline-block;padding:5px 8px;border-radius:6px;background:{'#EAF2FF' if direct else '#FFF4DE'};color:{'#1756A3' if direct else '#875A10'};font-size:.82rem;font-weight:700}}
         .chem-lit-notice{{padding:10px;border-left:3px solid #D89B28;background:#FFF8E8;border-radius:5px;color:#604716}}
         @media(max-width:700px){{.chem-lit-risks{{grid-template-columns:1fr}}}}
@@ -214,6 +270,7 @@ def render_mechanism_panel(st, reaction: str, formula: str, active_metals: list[
         <p>{html.escape('Screened formula' if english else 'Fórmula triada')}: <b>{html.escape(formula)}</b></p>{composition}
         <h4>{html.escape(components_heading)}</h4>{roles_html}
         {evidence_block}
+        {literature_notes_html}
         <h4>{html.escape('Composition-aware checks' if english else 'Verificações considerando a composição')}</h4><div class='chem-lit-risks'>{risks_html}</div>
         <p><b>{html.escape('Evidence status' if english else 'Status da evidência')}:</b> <span class='chem-lit-status'>{html.escape(status)}</span></p>
         </section>"""
